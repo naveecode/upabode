@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent and migration scripts
+.agents
+.claude
+.cursor
+.devin
+unlock.ts
+
+
+*.db

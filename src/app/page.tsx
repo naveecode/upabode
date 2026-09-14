@@ -1,69 +1,144 @@
-import Image from "next/image";
+import prisma from "../lib/prisma";
+import { getCurrentUser } from "./actions";
+import Post from "../components/Post";
+import Toast from "../components/Toast";
+import CreatePostBox from "../components/CreatePostBox";
 
-export default function Home() {
+export default async function Home() {
+  const currentUser = await getCurrentUser();
+
+  const posts = await prisma.post.findMany({
+    include: {
+      author: true,
+      likes: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="content">
+      <aside className="sidebar">
+        <div className="sidebar-heading">Communication zones</div>
+
+        <div className="planet-list">
+          <button className="planet-button active" data-planet="earth">
+            <span className="planet-icon earth">🌍</span>
+            <span className="planet-copy">
+              <span className="planet-name">Earth</span>
+              <span className="planet-status">Live now · 104.2 FM</span>
+            </span>
+          </button>
+
+          <button className="planet-button" data-planet="mars">
+            <span className="planet-icon mars">◉</span>
+            <span className="planet-copy">
+              <span className="planet-name">Mars</span>
+              <span className="planet-status">Relay sync standby</span>
+            </span>
+          </button>
+
+          <button className="planet-button" data-planet="moon">
+            <span className="planet-icon moon">◐</span>
+            <span className="planet-copy">
+              <span className="planet-name">Moon</span>
+              <span className="planet-status">Lunar beacon ready</span>
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      <section className="feed">
+        <div className="feed-header">
+          <div>
+            <div className="eyebrow">Earth sector • Solar net</div>
+            <h1>Signals from home.</h1>
+            <p className="feed-subtitle">
+              Share moments, ideas, and cosmic field notes across planetary horizons.
+            </p>
+          </div>
+
+          <div className="feed-count">{posts.length} transmissions</div>
+        </div>
+
+        <div className="stories">
+          <div className="story">
+            <div className="story-ring">
+              <div className="story-inner">＋</div>
+            </div>
+            <span>Your signal</span>
+          </div>
+
+          <div className="story">
+            <div className="story-ring">
+              <div className="story-inner">🌌</div>
+            </div>
+            <span>Deep space</span>
+          </div>
+
+          <div className="story">
+            <div className="story-ring">
+              <div className="story-inner">🌱</div>
+            </div>
+            <span>Greenhouse</span>
+          </div>
+
+          <div className="story">
+            <div className="story-ring">
+              <div className="story-inner">🔭</div>
+            </div>
+            <span>Observers</span>
+          </div>
+
+          <div className="story">
+            <div className="story-ring">
+              <div className="story-inner">🛰️</div>
+            </div>
+            <span>Orbit lab</span>
+          </div>
+        </div>
+
+        {/* Live Signal Broadcast Box */}
+        <CreatePostBox currentUser={currentUser} />
+
+        {posts.map((post) => (
+          <Post key={post.id} post={post} />
+        ))}
+      </section>
+
+      <aside className="right-panel">
+        <div className="info-card">
+          <h2>Gesture protocol</h2>
+          <p>
+            No tiny buttons needed. Use the direction of your signal to interact
+            with the network.
           </p>
+
+          <div className="instruction">
+            <span className="instruction-icon">→</span>
+            <span>Swipe right to follow a signal</span>
+          </div>
+
+          <div className="instruction">
+            <span className="instruction-icon">←</span>
+            <span>Swipe left to like a signal</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="info-card coming-soon-card">
+          <span className="coming-label">Orbital Relay</span>
+          <h2>Mars Channel</h2>
+          <p>The first red planet transmissions are synchronizing across Deep Space Network relay nodes.</p>
         </div>
-      </main>
-    </div>
+
+        <div className="info-card coming-soon-card moon-card">
+          <span className="coming-label">Lagrange Point 1</span>
+          <h2>Moon Channel</h2>
+          <p>Sub-second lunar relay stations calibrated and receiving ambient transmissions.</p>
+        </div>
+      </aside>
+      <Toast />
+    </main>
   );
 }

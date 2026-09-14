@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  handle    String   @unique
+  avatarUrl String?
+  color     String?  
+  location  String?
+  createdAt DateTime @default(now())
+
+  posts     Post[]
+  likes     Like[]
+  
+  followers Follow[] @relation("following")
+  following Follow[] @relation("follower")
+  
+  chats     Chat[]    @relation("ChatUsers")
+  messages  Message[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String
+  mediaUrl  String?
+  mediaType String?  
+  channel   String   @default("earth")
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  
+  likes     Like[]
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("follower", fields: [followerId], references: [id])
+  following   User     @relation("following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Chat {
+  id        String    @id @default(cuid())
+  users     User[]    @relation("ChatUsers")
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  mediaUrl  String?
+  voiceUrl  String?
+  chatId    String
+  senderId  String
+  
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+}
