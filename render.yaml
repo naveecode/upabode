@@ -1,14 +1,24 @@
 services:
   - type: web
-    name: orbit-backend
+    name: orbit-app
     env: node
     plan: free
-    region: singapore # or oregon / frankfurt closest to aws-ap-south-1
-    buildCommand: npm install && npx prisma generate
+    region: singapore
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /healthz
     envVars:
       - key: DATABASE_URL
-        sync: false # Set to your CockroachDB connection string in Render Dashboard
-      - key: PORT
-        value: 5000
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUSHER_APP_ID
+        value: "2194387"
+      - key: NEXT_PUBLIC_PUSHER_KEY
+        value: "a1d789b8b44c24f2dac8"
+      - key: PUSHER_SECRET
+        value: "4127fdaf450956e0782f"
+      - key: NEXT_PUBLIC_PUSHER_CLUSTER
+        value: "ap2"
+      - key: UPLOADTHING_TOKEN
+        value: "eyJhcGlLZXkiOiJza19saXZlXzAwN2NiNTc0NDg4YTRjOWM1NzE1YjIxNzgwNGQ5NGEwZGY0YzVjZDBkN2NkYWE3MTg5NGJiZGVmZjllMjAwZDEiLCJhcHBJZCI6InV1N3ZoYjczcjYiLCJyZWdpb25zIjpbInNlYTEiXX0="
