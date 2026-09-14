@@ -12,6 +12,9 @@ export async function GET() {
     }, { status: 500 });
   }
 
+  // Mask password for safety in display
+  const maskedUrl = dbUrl.replace(/:([^:@]+)@/, ':****@');
+
   // Parse connection URL safely to inspect credentials without leaking secrets
   const match = dbUrl.match(/:\/\/(.*?):(.*?)@(.*?):(\d+)\/(.*?)(\?|$)/);
   const parsed = match ? {
