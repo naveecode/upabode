@@ -10,24 +10,29 @@ export default async function ChatInbox() {
     redirect('/auth/login')
   }
 
-  const chats = await prisma.chat.findMany({
-    where: {
-      users: {
-        some: { id: user.id }
-      }
-    },
-    include: {
-      users: {
-        where: { id: { not: user.id } },
-        select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+  let chats: any[] = [];
+  try {
+    chats = await prisma.chat.findMany({
+      where: {
+        users: {
+          some: { id: user.id }
+        }
       },
-      messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1
-      }
-    },
-    orderBy: { updatedAt: 'desc' }
-  })
+      include: {
+        users: {
+          where: { id: { not: user.id } },
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+  } catch (err: any) {
+    console.error('Failed to load chats:', err);
+  }
 
   return (
     <div style={{

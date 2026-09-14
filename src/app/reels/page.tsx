@@ -2,15 +2,20 @@ import prisma from '../../lib/prisma';
 import Link from 'next/link';
 
 export default async function ReelsPage() {
-  const posts = await prisma.post.findMany({
-    include: {
-      author: true,
-      likes: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  let posts: any[] = [];
+  try {
+    posts = await prisma.post.findMany({
+      include: {
+        author: true,
+        likes: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  } catch (err: any) {
+    console.error('Failed to load reels:', err);
+  }
 
   const getMediaClass = (mediaType?: string | null) => {
     switch (mediaType) {

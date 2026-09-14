@@ -10,19 +10,33 @@ export default async function ProfilePage() {
     redirect('/auth/register');
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: currentUser.id },
-    include: {
-      posts: {
-        orderBy: { createdAt: 'desc' }
-      },
-      followers: true,
-      following: true
-    }
-  });
+  let user: any = null;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: currentUser.id },
+      include: {
+        posts: {
+          orderBy: { createdAt: 'desc' }
+        },
+        followers: true,
+        following: true
+      }
+    });
+  } catch (err: any) {
+    console.error('Failed to load user profile:', err);
+  }
 
   if (!user) {
-    redirect('/auth/register');
+    user = {
+      id: currentUser.id,
+      username: currentUser.username,
+      handle: currentUser.handle,
+      color: currentUser.color || 'green',
+      location: currentUser.location || 'Deep Space',
+      posts: [],
+      followers: [],
+      following: [],
+    };
   }
 
   async function handleLogout() {

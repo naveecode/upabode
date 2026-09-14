@@ -7,15 +7,23 @@ import CreatePostBox from "../components/CreatePostBox";
 export default async function Home() {
   const currentUser = await getCurrentUser();
 
-  const posts = await prisma.post.findMany({
-    include: {
-      author: true,
-      likes: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  let posts: any[] = [];
+  let dbError: string | null = null;
+
+  try {
+    posts = await prisma.post.findMany({
+      include: {
+        author: true,
+        likes: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  } catch (err: any) {
+    console.error("Failed to load transmissions:", err);
+    dbError = err.message || "Failed to connect to CockroachDB";
+  }
 
   return (
     <main className="content">
@@ -101,6 +109,24 @@ export default async function Home() {
 
         {/* Live Signal Broadcast Box */}
         <CreatePostBox currentUser={currentUser} />
+
+        {dbError && (
+          <div style={{
+            padding: '20px',
+            background: 'rgba(237, 118, 86, 0.1)',
+            border: '1px solid var(--mars)',
+            borderRadius: '18px',
+            marginBottom: '20px',
+            color: '#f8d7da'
+          }}>
+            <h3 style={{ color: 'var(--mars)', fontSize: '1rem', marginBottom: '6px' }}>
+              📡 CockroachDB Connection Notice
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: '8px' }}>
+              The database connection is initializing. If you are deploying on Render, please verify that <code>DATABASE_URL</code> is added in your Render Dashboard Environment settings.
+            </p>
+          </div>
+        )}
 
         {posts.map((post) => (
           <Post key={post.id} post={post} />

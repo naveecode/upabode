@@ -11,25 +11,30 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
 
   const { id } = await params
 
-  const chat = await prisma.chat.findUnique({
-    where: { id },
-    include: {
-      users: {
-        select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
-      },
-      messages: {
-        include: { sender: true },
-        orderBy: { createdAt: 'asc' }
+  let chat: any = null
+  try {
+    chat = await prisma.chat.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+        },
+        messages: {
+          include: { sender: true },
+          orderBy: { createdAt: 'asc' }
+        }
       }
-    }
-  })
+    })
+  } catch (err: any) {
+    console.error('Failed to load chat room:', err);
+  }
 
   if (!chat) {
     redirect('/chat')
   }
 
   // Ensure current user is part of this chat
-  if (!chat.users.some((u) => u.id === user.id)) {
+  if (!chat.users.some((u: any) => u.id === user.id)) {
     redirect('/chat')
   }
 

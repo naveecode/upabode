@@ -4,28 +4,37 @@ import Link from 'next/link';
 import NewChatSearch from '../../components/NewChatSearch';
 
 export default async function ExplorePage() {
-  const [users, posts] = await Promise.all([
-    prisma.user.findMany({
-      include: {
-        posts: true,
-        followers: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 8,
-    }),
-    prisma.post.findMany({
-      include: {
-        author: true,
-        likes: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 24,
-    }),
-  ]);
+  let users: any[] = [];
+  let posts: any[] = [];
+
+  try {
+    const results = await Promise.all([
+      prisma.user.findMany({
+        include: {
+          posts: true,
+          followers: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 8,
+      }),
+      prisma.post.findMany({
+        include: {
+          author: true,
+          likes: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 24,
+      }),
+    ]);
+    users = results[0];
+    posts = results[1];
+  } catch (err: any) {
+    console.error('Failed to load explore data:', err);
+  }
 
   const getMediaClass = (mediaType?: string | null) => {
     switch (mediaType) {
