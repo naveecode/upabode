@@ -4,9 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
 
-export default function Post({ post }: { post: any }) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+export default function Post({ post, currentUserId }: { post: any; currentUserId?: string }) {
+  const initialLiked = currentUserId && post.likes ? post.likes.some((l: any) => l.userId === currentUserId) : false;
+  const initialFollowing = currentUserId && post.author?.followers ? post.author.followers.some((f: any) => f.followerId === currentUserId) : false;
+  const [isLiked, setIsLiked] = useState(initialLiked);
+  const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
   const [feedback, setFeedback] = useState<string | null>(null);
 

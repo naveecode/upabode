@@ -3,32 +3,62 @@
 import { prisma } from '../lib/prisma';
 import { getSession, setSession, clearSession } from '../lib/session';
 import { pusherServer } from '../lib/pusher';
+import { hashPassword, verifyPassword } from '../lib/password';
 
 export async function registerUser(formData: FormData) {
-  const username = formData.get('username') as string;
-  const handle = formData.get('handle') as string;
-  const location = formData.get('location') as string;
-  const color = formData.get('color') as string;
+  const username = (formData.get('username') as string || '').trim();
+  let handle = (formData.get('handle') as string || '').trim().toLowerCase();
+  if (handle.startsWith('@')) handle = handle.substring(1);
 
-  if (!username || !handle) {
-    return { error: 'Username and handle are required.' };
+  const email = (formData.get('email') as string || '').trim().toLowerCase();
+  const password = formData.get('password') as string || '';
+  const location = (formData.get('location') as string || '').trim();
+  // Support both 'avatarColor' and 'color'
+  const color = (formData.get('avatarColor') as string) || (formData.get('color') as string) || 'green';
+
+  if (!username) {
+    return { error: 'Username is required.' };
+  }
+  if (!handle) {
+    return { error: 'Handle is required.' };
+  }
+  if (!email || !email.includes('@')) {
+    return { error: 'Valid email address is required.' };
+  }
+  if (!password || password.length < 6) {
+    return { error: 'Password must be at least 6 characters.' };
   }
 
   try {
-    const existingUser = await prisma.user.findUnique({ where: { handle } });
-    if (existingUser) {
-      return { error: 'Handle is already taken.' };
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+    if (existingEmail) {
+      return { error: 'An account with this email already exists.' };
     }
 
-    const existingUsername = await prisma.user.findUnique({ where: { username } });
-    if (existingUsername) {
-      return { error: 'Username is already taken.' };
+    const existingHandle = await prisma.user.findFirst({
+      where: { handle: { equals: handle, mode: 'insensitive' } },
+    });
+    if (existingHandle) {
+      return { error: 'This handle is already taken.' };
     }
+
+    const existingUsername = await prisma.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
+    });
+    if (existingUsername) {
+      return { error: 'This username is already taken.' };
+    }
+
+    const hashedPassword = hashPassword(password);
 
     const user = await prisma.user.create({
       data: {
         username,
         handle,
+        email,
+        password: hashedPassword,
         location: location || null,
         color: color || 'green',
         avatarUrl: username.substring(0, 2).toUpperCase(),
@@ -37,30 +67,54 @@ export async function registerUser(formData: FormData) {
 
     await setSession(user.id);
     return { success: true, userId: user.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Register error:', error);
-    return { error: 'Failed to register user.' };
+    return { error: error?.message || 'Failed to register user.' };
   }
 }
 
 export async function loginUser(formData: FormData) {
-  const handle = formData.get('handle') as string;
+  // Support either email or handle as the login identifier
+  const emailInput = (formData.get('email') as string || '').trim().toLowerCase();
+  const handleInput = (formData.get('handle') as string || '').trim().toLowerCase().replace(/^@/, '');
+  const identifier = emailInput || handleInput;
+  const password = formData.get('password') as string || '';
 
-  if (!handle) {
-    return { error: 'Handle is required.' };
+  if (!identifier) {
+    return { error: 'Email or handle is required.' };
+  }
+  if (!password) {
+    return { error: 'Password is required.' };
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { handle } });
+    // Find user by email or handle
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { handle: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
+    });
+
     if (!user) {
-      return { error: 'User not found.' };
+      return { error: 'No account found with these credentials.' };
+    }
+
+    // Verify password if user has password set
+    if (user.password) {
+      const isValid = verifyPassword(password, user.password);
+      if (!isValid) {
+        return { error: 'Invalid password. Please try again.' };
+      }
     }
 
     await setSession(user.id);
     return { success: true, userId: user.id };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
-    return { error: 'Failed to login.' };
+    return { error: error?.message || 'Failed to login.' };
   }
 }
 
@@ -78,6 +132,16 @@ export async function getCurrentUser() {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
+      select: {
+        id: true,
+        username: true,
+        handle: true,
+        email: true,
+        avatarUrl: true,
+        color: true,
+        location: true,
+        createdAt: true,
+      },
     });
     return user;
   } catch (error) {
@@ -147,28 +211,87 @@ export async function toggleFollow(authorId: string) {
   }
 }
 
-export async function sendMessage(chatId: string, content: string, mediaUrl?: string) {
+export async function sendMessage(
+  chatId: string,
+  content: string,
+  mediaUrl?: string | null,
+  voiceUrl?: string | null
+) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: 'Not authenticated.' };
 
   try {
+    // If voice note was passed as mediaUrl or voiceUrl
+    const effectiveVoiceUrl = voiceUrl || (mediaUrl?.startsWith('data:audio') ? mediaUrl : null);
+    const effectiveMediaUrl = effectiveVoiceUrl ? null : mediaUrl;
+
     const message = await prisma.message.create({
       data: {
-        content,
-        mediaUrl,
+        content: content || (effectiveVoiceUrl ? '🎤 Voice Transmission' : '📷 Image'),
+        mediaUrl: effectiveMediaUrl,
+        voiceUrl: effectiveVoiceUrl,
         chatId,
         senderId: currentUser.id,
       },
       include: {
-        sender: true,
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
       },
     });
 
-    await pusherServer.trigger(`chat-${chatId}`, 'new-message', message);
+    // Also touch the chat updatedAt
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: { updatedAt: new Date() },
+    }).catch(() => {});
+
+    // Safe Pusher Broadcast with payload size check (Pusher hard limit is 10240 bytes)
+    try {
+      const payloadStr = JSON.stringify(message);
+      if (payloadStr.length > 8192) {
+        // Omit huge base64 data URL to prevent Pusher 413 error
+        const lightPayload = {
+          ...message,
+          mediaUrl: message.mediaUrl?.startsWith('data:') ? 'large-media' : message.mediaUrl,
+          voiceUrl: message.voiceUrl?.startsWith('data:') ? 'large-voice' : message.voiceUrl,
+          requiresFetch: true,
+        };
+        await pusherServer.trigger(`chat-${chatId}`, 'new-message', lightPayload);
+      } else {
+        await pusherServer.trigger(`chat-${chatId}`, 'new-message', message);
+      }
+    } catch (pusherErr) {
+      console.warn('Pusher delivery notice:', pusherErr);
+    }
+
     return { success: true, message };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Send message error:', error);
-    return { error: 'Failed to send message.' };
+    return { error: error?.message || 'Failed to send message.' };
+  }
+}
+
+export async function getMessageById(messageId: string) {
+  try {
+    const message = await prisma.message.findUnique({
+      where: { id: messageId },
+      include: {
+        sender: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true },
+        },
+      },
+    });
+    return message;
+  } catch (err) {
+    console.error('Get message error:', err);
+    return null;
   }
 }
 
@@ -176,13 +299,23 @@ export async function searchUsers(query: string) {
   const currentUser = await getCurrentUser();
   
   try {
+    const cleanQuery = query.trim().replace(/^@/, '');
     const users = await prisma.user.findMany({
       where: {
         OR: [
-          { username: { contains: query, mode: 'insensitive' } },
-          { handle: { contains: query, mode: 'insensitive' } },
+          { username: { contains: cleanQuery, mode: 'insensitive' } },
+          { handle: { contains: cleanQuery, mode: 'insensitive' } },
+          { email: { contains: cleanQuery, mode: 'insensitive' } },
         ],
         NOT: currentUser ? { id: currentUser.id } : undefined,
+      },
+      select: {
+        id: true,
+        username: true,
+        handle: true,
+        avatarUrl: true,
+        color: true,
+        location: true,
       },
       take: 20,
     });

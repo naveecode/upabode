@@ -1,14 +1,22 @@
 import { PrismaClient } from '@prisma/client'
+import { hashPassword } from '../src/lib/password'
 
 const prisma = new PrismaClient()
 
 async function main() {
+  const defaultPassword = hashPassword('password123')
+
   const mira = await prisma.user.upsert({
     where: { handle: 'mira.fieldnotes' },
-    update: {},
+    update: {
+      email: 'mira@orbit.net',
+      password: defaultPassword,
+    },
     create: {
       username: 'Mira',
       handle: 'mira.fieldnotes',
+      email: 'mira@orbit.net',
+      password: defaultPassword,
       location: 'Reykjavík, Earth',
       color: 'green',
       avatarUrl: '🌿',
@@ -17,10 +25,15 @@ async function main() {
 
   const cassini = await prisma.user.upsert({
     where: { handle: 'cassini.collective' },
-    update: {},
+    update: {
+      email: 'cassini@orbit.net',
+      password: defaultPassword,
+    },
     create: {
       username: 'Cassini',
       handle: 'cassini.collective',
+      email: 'cassini@orbit.net',
+      password: defaultPassword,
       location: 'Atacama Desert, Earth',
       color: 'orange',
       avatarUrl: '🪐',
@@ -29,44 +42,22 @@ async function main() {
 
   const bluehour = await prisma.user.upsert({
     where: { handle: 'bluehour.archive' },
-    update: {},
+    update: {
+      email: 'bluehour@orbit.net',
+      password: defaultPassword,
+    },
     create: {
       username: 'Bluehour',
       handle: 'bluehour.archive',
+      email: 'bluehour@orbit.net',
+      password: defaultPassword,
       location: 'Pacific Ocean, Earth',
       color: 'blue',
       avatarUrl: '🌊',
     },
   })
 
-  await prisma.post.create({
-    data: {
-      content: 'First light over the lava fields. Sending this color palette to whoever is listening beyond the atmosphere.',
-      mediaType: 'aurora',
-      channel: 'earth',
-      authorId: mira.id,
-    },
-  })
-
-  await prisma.post.create({
-    data: {
-      content: 'A dry valley that looks suspiciously like a future landing site. Mars channel opens when the relay is stable.',
-      mediaType: 'mars-landscape',
-      channel: 'earth',
-      authorId: cassini.id,
-    },
-  })
-
-  await prisma.post.create({
-    data: {
-      content: 'The ocean is still Earth\'s most convincing proof that there is more beneath the surface.',
-      mediaType: 'ocean',
-      channel: 'earth',
-      authorId: bluehour.id,
-    },
-  })
-
-  console.log('Database seeded!')
+  console.log('Database seeded with test accounts (password: password123)!')
 }
 
 main()

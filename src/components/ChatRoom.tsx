@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Pusher from 'pusher-js'
 import Link from 'next/link'
-import Peer from 'peerjs'
+import Peer, { MediaConnection } from 'peerjs'
 import { UploadButton } from './UploadButton'
-import { sendMessage } from '../app/actions'
+import { sendMessage, getMessageById } from '../app/actions'
 
 interface Message {
   id: string
@@ -14,6 +14,13 @@ interface Message {
   voiceUrl?: string | null
   senderId: string
   createdAt: Date | string
+  sender?: {
+    id: string
+    username: string | null
+    handle: string | null
+    avatarUrl?: string | null
+    color?: string | null
+  }
 }
 
 interface ChatUser {
@@ -24,7 +31,17 @@ interface ChatUser {
   color?: string | null
 }
 
-const EMOJIS = ['😀', '😂', '🥺', '😎', '😍', '🤔', '👍', '❤️', '🔥', '✨', '🚀', '👽', '🪐', '☄️', '🛰️']
+const EMOJIS = ['😀', '😂', '🥺', '😎', '😍', '🤔', '👍', '❤️', '🔥', '✨', '🚀', '👽', '🪐', '☄️', '🛰️', '📡', '🌌', '🛸', '⭐', '💫']
+
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ]
+  }
+}
 
 export default function ChatRoom({ 
   chatId, 
@@ -41,28 +58,80 @@ export default function ChatRoom({
   const [inputText, setInputText] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
-  const [isInCall, setIsInCall] = useState(false)
-  const [callType, setCallType] = useState<'audio'|'video'|null>(null)
+  const [recordingDuration, setRecordingDuration] = useState(0)
   const [mounted, setMounted] = useState(false)
   
+  // Call States
+  const [isInCall, setIsInCall] = useState(false)
+  const [callType, setCallType] = useState<'audio' | 'video' | null>(null)
+  const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting')
+  const [callDuration, setCallDuration] = useState(0)
+  const [isMuted, setIsMuted] = useState(false)
+  const [isVideoDisabled, setIsVideoDisabled] = useState(false)
+  const [swappedPiP, setSwappedPiP] = useState(false)
+  const [incomingCall, setIncomingCall] = useState<{ call: MediaConnection; isVideo: boolean } | null>(null)
+  
+  // Streams
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
-  
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const callTimerRef = useRef<NodeJS.Timeout | null>(null)
+
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerRef = useRef<Peer | null>(null)
+  const activeCallRef = useRef<MediaConnection | null>(null)
 
-  // Prevent SSR locale hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  // Auto-scroll messages to bottom
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
+  }, [])
 
-  // Setup Pusher Subscription
+  useEffect(() => {
+    scrollToBottom(false)
+  }, [scrollToBottom])
+
+  useEffect(() => {
+    scrollToBottom(true)
+  }, [messages.length, scrollToBottom])
+
+  // Attach local and remote streams to video elements whenever stream or call status changes
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream
+    }
+  }, [localStream, isInCall, swappedPiP])
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+  }, [remoteStream, isInCall, swappedPiP])
+
+  // Call duration counter
+  useEffect(() => {
+    if (isInCall && callStatus === 'connected') {
+      callTimerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1)
+      }, 1000)
+    } else {
+      setCallDuration(0)
+      if (callTimerRef.current) clearInterval(callTimerRef.current)
+    }
+    return () => {
+      if (callTimerRef.current) clearInterval(callTimerRef.current)
+    }
+  }, [isInCall, callStatus])
+
+  // ───────── Setup Pusher Subscription ─────────
   useEffect(() => {
     const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || 'a1d789b8b44c24f2dac8'
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'ap2'
@@ -70,31 +139,39 @@ export default function ChatRoom({
 
     const channel = pusher.subscribe(`chat-${chatId}`)
 
-    // ───────── CRITICAL: Prevent Duplicate Message Bug ─────────
-    channel.bind('new-message', (data: Message) => {
-      setMessages(prev => {
-        // 1. If message already exists by real ID, ignore
-        if (prev.some(m => m.id === data.id)) return prev
+    channel.bind('new-message', async (data: any) => {
+      // If the payload was too large for Pusher, fetch the full message from DB
+      let fullMessage = data
+      if (data.requiresFetch && data.id) {
+        const fetched = await getMessageById(data.id)
+        if (fetched) fullMessage = fetched
+      }
 
-        // 2. If it is sent by the current user, replace the matching temporary optimistic message
-        if (data.senderId === currentUser.id) {
+      setMessages(prev => {
+        // 1. If message already exists by real ID, replace or ignore
+        if (prev.some(m => m.id === fullMessage.id)) {
+          return prev.map(m => m.id === fullMessage.id ? fullMessage : m)
+        }
+
+        // 2. If it's sent by current user, replace matching temporary message
+        if (fullMessage.senderId === currentUser.id) {
           const tempIndex = prev.findIndex(m => 
             m.id.startsWith('temp-') && 
             (
-              (m.content && m.content === data.content) || 
-              (m.mediaUrl && m.mediaUrl === data.mediaUrl) ||
-              (m.voiceUrl && m.voiceUrl === data.voiceUrl)
+              (m.content && m.content === fullMessage.content) || 
+              (m.mediaUrl && m.mediaUrl === fullMessage.mediaUrl) ||
+              (m.voiceUrl && m.voiceUrl === fullMessage.voiceUrl)
             )
           )
           if (tempIndex !== -1) {
             const next = [...prev]
-            next[tempIndex] = data
+            next[tempIndex] = fullMessage
             return next
           }
         }
 
-        // 3. Otherwise append new incoming message from the other participant
-        return [...prev, data]
+        // 3. Otherwise append new incoming message
+        return [...prev, fullMessage]
       })
     })
 
@@ -103,28 +180,28 @@ export default function ChatRoom({
     }
   }, [chatId, currentUser?.id])
 
-  // Set up PeerJS Receiver for Incoming Calls
+  // ───────── PeerJS WebRTC Setup ─────────
   useEffect(() => {
     if (!currentUser?.id) return
-    const peer = new Peer(currentUser.id)
+
+    // Clean peer ID
+    const peerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+    const peer = new Peer(peerId, PEER_CONFIG)
     peerRef.current = peer
 
-    peer.on('call', async (call) => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: true 
-        })
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream
-        call.answer(stream)
-        setIsInCall(true)
-        setCallType('video')
-        call.on('stream', (remoteStream) => {
-          if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
-        })
-      } catch (err) {
-        console.error('Failed to answer call', err)
-      }
+    peer.on('open', (id) => {
+      console.log('PeerJS online with ID:', id)
+    })
+
+    peer.on('error', (err) => {
+      console.warn('PeerJS status:', err)
+    })
+
+    // Listen for incoming calls
+    peer.on('call', (incomingMediaCall) => {
+      // Check if video track exists in metadata or default to video
+      const isVideo = incomingMediaCall.metadata?.callType !== 'audio'
+      setIncomingCall({ call: incomingMediaCall, isVideo })
     })
 
     return () => {
@@ -132,13 +209,142 @@ export default function ChatRoom({
     }
   }, [currentUser?.id])
 
+  // Answer Incoming Call
+  const handleAnswerCall = async () => {
+    if (!incomingCall) return
+    const call = incomingCall.call
+    activeCallRef.current = call
+    setCallType(incomingCall.isVideo ? 'video' : 'audio')
+    setIsInCall(true)
+    setCallStatus('connecting')
+    setIncomingCall(null)
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: incomingCall.isVideo,
+        audio: true,
+      })
+      setLocalStream(stream)
+      call.answer(stream)
+
+      call.on('stream', (rStream) => {
+        setRemoteStream(rStream)
+        setCallStatus('connected')
+      })
+
+      call.on('close', () => {
+        endCall()
+      })
+
+      call.on('error', () => {
+        endCall()
+      })
+    } catch (err) {
+      console.error('Failed to answer call:', err)
+      endCall()
+    }
+  }
+
+  // Reject Incoming Call
+  const handleRejectCall = () => {
+    if (incomingCall) {
+      incomingCall.call.close()
+      setIncomingCall(null)
+    }
+  }
+
+  // Start Outgoing Call
+  const startCall = async (type: 'audio' | 'video') => {
+    if (!peerRef.current || !otherUser?.id) return
+
+    setIsInCall(true)
+    setCallType(type)
+    setCallStatus('connecting')
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: type === 'video',
+        audio: true,
+      })
+      setLocalStream(stream)
+
+      const targetPeerId = `orbit-${otherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+      const call = peerRef.current.call(targetPeerId, stream, {
+        metadata: { callType: type }
+      })
+      activeCallRef.current = call
+
+      if (call) {
+        call.on('stream', (rStream) => {
+          setRemoteStream(rStream)
+          setCallStatus('connected')
+        })
+
+        call.on('close', () => {
+          endCall()
+        })
+
+        call.on('error', () => {
+          endCall()
+        })
+      }
+    } catch (err) {
+      console.error('Call initialization failed:', err)
+      alert('Could not access camera/microphone. Please grant permissions.')
+      endCall()
+    }
+  }
+
+  // Terminate Call & Clean Up Hardware Tracks
+  const endCall = () => {
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop())
+    }
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(t => t.stop())
+    }
+    if (activeCallRef.current) {
+      activeCallRef.current.close()
+      activeCallRef.current = null
+    }
+
+    setLocalStream(null)
+    setRemoteStream(null)
+    setIsInCall(false)
+    setCallType(null)
+    setCallStatus('connecting')
+    setIsMuted(false)
+    setIsVideoDisabled(false)
+    setSwappedPiP(false)
+  }
+
+  // Toggle Mute Mic
+  const toggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => {
+        t.enabled = !t.enabled
+      })
+      setIsMuted(prev => !prev)
+    }
+  }
+
+  // Toggle Camera
+  const toggleVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach(t => {
+        t.enabled = !t.enabled
+      })
+      setIsVideoDisabled(prev => !prev)
+    }
+  }
+
+  // Send Text Message
   const handleSendText = async () => {
     if (!inputText.trim()) return
     const content = inputText.trim()
     setInputText('')
     setShowEmojiPicker(false)
 
-    // Temporary unique optimistic ID
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
     const tempMessage: Message = {
       id: tempId,
@@ -146,21 +352,28 @@ export default function ChatRoom({
       mediaUrl: null,
       voiceUrl: null,
       senderId: currentUser.id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      sender: {
+        id: currentUser.id,
+        username: currentUser.username,
+        handle: currentUser.handle,
+        avatarUrl: currentUser.avatarUrl,
+        color: currentUser.color,
+      }
     }
     setMessages(prev => [...prev, tempMessage])
 
     try {
       const res = await sendMessage(chatId, content)
       if (res?.message) {
-        // Upgrade temporary message ID to real DB ID
         setMessages(prev => prev.map(m => m.id === tempId ? res.message : m))
       }
     } catch (e) {
-      console.error('Failed to send message', e)
+      console.error('Failed to send message:', e)
     }
   }
 
+  // Send Media Image
   const handleSendMedia = async (mediaUrl: string) => {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
     const tempMessage: Message = {
@@ -169,7 +382,12 @@ export default function ChatRoom({
       mediaUrl,
       voiceUrl: null,
       senderId: currentUser.id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      sender: {
+        id: currentUser.id,
+        username: currentUser.username,
+        handle: currentUser.handle,
+      }
     }
     setMessages(prev => [...prev, tempMessage])
 
@@ -179,20 +397,27 @@ export default function ChatRoom({
         setMessages(prev => prev.map(m => m.id === tempId ? res.message : m))
       }
     } catch (e) {
-      console.error('Failed to send media', e)
+      console.error('Failed to send media:', e)
     }
   }
 
+  // Emoji Click
   const handleEmojiClick = (emoji: string) => {
     setInputText(prev => prev + emoji)
   }
 
+  // Start Voice Note Recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
+      setRecordingDuration(0)
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1)
+      }, 1000)
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -201,6 +426,7 @@ export default function ChatRoom({
       }
 
       mediaRecorder.onstop = async () => {
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         const reader = new FileReader()
         reader.readAsDataURL(audioBlob)
@@ -212,10 +438,11 @@ export default function ChatRoom({
             content: '🎤 Voice Transmission',
             voiceUrl: base64Audio,
             senderId: currentUser.id,
-            createdAt: new Date()
+            createdAt: new Date(),
           }
           setMessages(prev => [...prev, tempMessage])
-          const res = await sendMessage(chatId, '🎤 Voice Transmission', base64Audio)
+          
+          const res = await sendMessage(chatId, '🎤 Voice Transmission', null, base64Audio)
           if (res?.message) {
             setMessages(prev => prev.map(m => m.id === tempId ? res.message : m))
           }
@@ -225,10 +452,12 @@ export default function ChatRoom({
       mediaRecorder.start()
       setIsRecording(true)
     } catch (e) {
-      console.error('Microphone access denied', e)
+      console.error('Microphone access denied:', e)
+      alert('Could not access microphone. Please grant permission.')
     }
   }
 
+  // Stop Voice Note Recording
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
@@ -237,44 +466,14 @@ export default function ChatRoom({
     }
   }
 
-  const startCall = async (type: 'audio' | 'video') => {
-    if (!peerRef.current) return
-    setIsInCall(true)
-    setCallType(type)
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: type === 'video', 
-        audio: true 
-      })
-      
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream
-      }
-
-      const call = peerRef.current.call(otherUser.id, stream)
-      if (call) {
-        call.on('stream', (remoteStream) => {
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream
-          }
-        })
-      }
-    } catch (e) {
-      console.error('Call failed', e)
-      setIsInCall(false)
-    }
+  // Format Duration seconds -> MM:SS
+  const formatDuration = (secs: number) => {
+    const mins = Math.floor(secs / 60)
+    const rem = secs % 60
+    return `${mins.toString().padStart(2, '0')}:${rem.toString().padStart(2, '0')}`
   }
 
-  const endCall = () => {
-    setIsInCall(false)
-    setCallType(null)
-    if (localVideoRef.current && localVideoRef.current.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream
-      stream.getTracks().forEach(track => track.stop())
-    }
-  }
-
+  // Format Message Time
   const formatMessageTime = (dateInput: Date | string) => {
     if (!mounted) return ''
     try {
@@ -286,128 +485,724 @@ export default function ChatRoom({
   }
 
   return (
-    <div className="chat-room" style={{ height: '100%', minHeight: 'calc(100vh - 76px)' }}>
-      {/* Header */}
-      <div className="chat-header">
-        <Link href="/chat" className="chat-back" title="Back to Signals">
-          ←
-        </Link>
-        <div className="chat-header-info">
-          <div className="chat-header-name">{otherUser.username}</div>
-          <div className="chat-header-status">@{otherUser.handle} · Signal Active</div>
+    <div className="chat-room-container" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      width: '100%',
+      position: 'relative',
+      overflow: 'hidden',
+      background: 'var(--panel)',
+      border: '1px solid var(--line)',
+      borderRadius: '24px',
+      boxShadow: 'var(--shadow)',
+      backdropFilter: 'blur(20px)'
+    }}>
+      {/* ───────── Top Header ───────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 20px',
+        borderBottom: '1px solid var(--line)',
+        background: 'rgba(7, 17, 31, 0.85)',
+        backdropFilter: 'blur(16px)',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Link
+            href="/chat"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--line)',
+              display: 'grid',
+              placeItems: 'center',
+              color: 'var(--text)',
+              textDecoration: 'none',
+              fontSize: '1.1rem',
+              transition: '0.2s ease'
+            }}
+            title="Back to Signals"
+          >
+            ←
+          </Link>
+
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            background: otherUser.color === 'orange'
+              ? 'linear-gradient(135deg, var(--mars), #8a2be2)'
+              : otherUser.color === 'blue'
+              ? 'linear-gradient(135deg, #00c6ff, #0072ff)'
+              : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+            display: 'grid',
+            placeItems: 'center',
+            fontWeight: 700,
+            fontSize: '1.05rem',
+            color: 'white',
+            border: '2px solid rgba(255,255,255,0.2)'
+          }}>
+            {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase() || '✦'}
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)' }}>
+              {otherUser.username}
+            </div>
+            <div style={{ color: 'var(--earth)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--earth)', display: 'inline-block' }}></span>
+              @{otherUser.handle} · Signal Active
+            </div>
+          </div>
         </div>
-        <div className="chat-call-buttons">
-          <button onClick={() => startCall('audio')} className="call-btn" title="Voice Call">
+
+        {/* Video & Audio Call Buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => startCall('audio')}
+            disabled={isInCall}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '1px solid var(--line)',
+              background: 'rgba(255, 255, 255, 0.06)',
+              color: 'var(--text)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: isInCall ? 'not-allowed' : 'pointer',
+              fontSize: '1.1rem',
+              transition: '0.2s ease'
+            }}
+            title="Encrypted Voice Call"
+          >
             📞
           </button>
-          <button onClick={() => startCall('video')} className="call-btn" title="Video Call">
+          <button
+            onClick={() => startCall('video')}
+            disabled={isInCall}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '1px solid var(--line)',
+              background: 'linear-gradient(135deg, rgba(64, 201, 162, 0.2), rgba(64, 201, 162, 0.05))',
+              borderColor: 'rgba(64, 201, 162, 0.4)',
+              color: 'var(--earth)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: isInCall ? 'not-allowed' : 'pointer',
+              fontSize: '1.15rem',
+              transition: '0.2s ease'
+            }}
+            title="Quantum P2P Video Call"
+          >
             📹
           </button>
         </div>
       </div>
 
-      {/* Video Call Overlay */}
-      {isInCall && (
-        <div className="video-overlay">
-          <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.4rem' }}>
-            Live Transmission with {otherUser.username}
-          </h2>
-          <div style={{ color: 'var(--earth)', fontSize: '0.85rem' }}>
-            {callType === 'video' ? 'WebRTC Visual Link' : 'WebRTC Audio Channel'}
+      {/* ───────── Incoming Call Alert Modal ───────── */}
+      {incomingCall && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(11, 23, 39, 0.96)',
+          border: '2px solid var(--earth)',
+          borderRadius: '20px',
+          padding: '16px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '18px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+          zIndex: 100,
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          <div style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '50%',
+            background: 'var(--earth)',
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: '1.4rem',
+            animation: 'pulse 1.5s infinite'
+          }}>
+            {incomingCall.isVideo ? '📹' : '📞'}
           </div>
-          
-          <div className="video-grid">
-            <div>
-              <video ref={localVideoRef} autoPlay playsInline muted style={{ transform: 'scaleX(-1)' }} />
-              <div className="video-label">Local Transmitter (You)</div>
+
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+              Incoming {incomingCall.isVideo ? 'Video' : 'Audio'} Transmission
             </div>
-            <div>
-              <video ref={remoteVideoRef} autoPlay playsInline />
-              <div className="video-label">{otherUser.username} (Remote)</div>
+            <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
+              From {otherUser.username} (@{otherUser.handle})
             </div>
           </div>
 
-          <div className="video-controls">
-            <button onClick={endCall} className="video-control-btn end-call" title="Terminate Call">
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={handleAnswerCall}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '100px',
+                background: 'var(--earth)',
+                color: '#07111f',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem'
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={handleRejectCall}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '100px',
+                background: 'var(--danger)',
+                color: 'white',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem'
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ───────── Fullscreen Picture-in-Picture Video Call Overlay ───────── */}
+      {isInCall && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: '#040911',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          overflow: 'hidden'
+        }}>
+          {/* Top Bar Overlay */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: '24px 30px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%)',
+            zIndex: 30
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'var(--earth)',
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 700,
+                color: '#07111f'
+              }}>
+                {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem' }}>
+                  {otherUser.username}
+                </div>
+                <div style={{ color: 'var(--earth)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--earth)' }}></span>
+                  {callStatus === 'connected' ? `Live · ${formatDuration(callDuration)}` : 'Connecting quantum relay...'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'rgba(255,255,255,0.1)',
+              padding: '6px 14px',
+              borderRadius: '100px',
+              color: 'var(--muted)',
+              fontSize: '0.78rem',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <span>🔒 E2E WebRTC</span>
+            </div>
+          </div>
+
+          {/* MAIN SCREEN (Remote Participant by default) */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#07111f'
+          }}>
+            {callType === 'video' ? (
+              swappedPiP ? (
+                // If swapped, local video is on main screen
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transform: 'scaleX(-1)'
+                  }}
+                />
+              ) : (
+                // Remote video is on main screen
+                remoteStream ? (
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📡</div>
+                    <div style={{ fontSize: '1.2rem', color: 'white', fontWeight: 600, marginBottom: '6px' }}>
+                      Establishing Optical Link...
+                    </div>
+                    <div style={{ fontSize: '0.85rem' }}>Waiting for {otherUser.username} to beam video stream</div>
+                  </div>
+                )
+              )
+            ) : (
+              // Audio Call Visualizer
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '3.5rem',
+                  color: '#07111f',
+                  margin: '0 auto 20px',
+                  boxShadow: '0 0 50px rgba(64, 201, 162, 0.4)',
+                  animation: 'pulse 2s infinite'
+                }}>
+                  {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase()}
+                </div>
+                <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '6px' }}>{otherUser.username}</h2>
+                <p style={{ color: 'var(--earth)', fontSize: '0.9rem' }}>
+                  {callStatus === 'connected' ? `Audio Channel Active (${formatDuration(callDuration)})` : 'Calling astronaut...'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* PICTURE-IN-PICTURE (PiP) FLOATING WINDOW */}
+          {callType === 'video' && (
+            <div
+              onClick={() => setSwappedPiP(!swappedPiP)}
+              title="Click to swap camera views"
+              style={{
+                position: 'absolute',
+                bottom: '100px',
+                right: '24px',
+                width: '150px',
+                height: '210px',
+                borderRadius: '18px',
+                overflow: 'hidden',
+                border: '2.5px solid rgba(64, 201, 162, 0.8)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
+                cursor: 'pointer',
+                zIndex: 40,
+                background: '#0b1727',
+                transition: 'transform 0.2s ease, border-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              {swappedPiP ? (
+                // Remote is in PiP
+                remoteStream ? (
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--muted)', fontSize: '0.75rem' }}>
+                    Connecting...
+                  </div>
+                )
+              ) : (
+                // Local is in PiP
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transform: 'scaleX(-1)'
+                  }}
+                />
+              )}
+              <div style={{
+                position: 'absolute',
+                bottom: '6px',
+                left: '8px',
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                fontSize: '0.65rem',
+                padding: '2px 6px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                backdropFilter: 'blur(4px)'
+              }}>
+                {swappedPiP ? otherUser.username : 'You'}
+              </div>
+            </div>
+          )}
+
+          {/* BOTTOM FLOATING CONTROLS */}
+          <div style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '20px',
+            zIndex: 50
+          }}>
+            {/* Mic Toggle */}
+            <button
+              onClick={toggleMute}
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                border: 'none',
+                background: isMuted ? 'rgba(255, 107, 122, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                color: isMuted ? 'var(--danger)' : 'white',
+                fontSize: '1.3rem',
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                backdropFilter: 'blur(16px)',
+                borderWidth: isMuted ? '1px' : '0px',
+                borderColor: 'var(--danger)',
+                transition: '0.2s ease'
+              }}
+              title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+            >
+              {isMuted ? '🔇' : '🎤'}
+            </button>
+
+            {/* Video Camera Toggle */}
+            {callType === 'video' && (
+              <button
+                onClick={toggleVideo}
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: isVideoDisabled ? 'rgba(255, 107, 122, 0.3)' : 'rgba(255, 255, 255, 0.15)',
+                  color: isVideoDisabled ? 'var(--danger)' : 'white',
+                  fontSize: '1.3rem',
+                  cursor: 'pointer',
+                  display: 'grid',
+                  placeItems: 'center',
+                  backdropFilter: 'blur(16px)',
+                  borderWidth: isVideoDisabled ? '1px' : '0px',
+                  borderColor: 'var(--danger)',
+                  transition: '0.2s ease'
+                }}
+                title={isVideoDisabled ? 'Turn On Camera' : 'Turn Off Camera'}
+              >
+                {isVideoDisabled ? '🚫' : '📹'}
+              </button>
+            )}
+
+            {/* Swap PiP View Button */}
+            {callType === 'video' && (
+              <button
+                onClick={() => setSwappedPiP(!swappedPiP)}
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  fontSize: '1.3rem',
+                  cursor: 'pointer',
+                  display: 'grid',
+                  placeItems: 'center',
+                  backdropFilter: 'blur(16px)',
+                  transition: '0.2s ease'
+                }}
+                title="Swap Camera View"
+              >
+                🔄
+              </button>
+            )}
+
+            {/* Hang Up Button */}
+            <button
+              onClick={endCall}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'var(--danger)',
+                color: 'white',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                boxShadow: '0 8px 30px rgba(255, 107, 122, 0.5)',
+                transition: '0.2s ease'
+              }}
+              title="Terminate Call"
+            >
               ✕
             </button>
           </div>
         </div>
       )}
 
-      {/* Message Stream */}
-      <div className="messages-container">
-        {messages.map(msg => {
-          const isMine = msg.senderId === currentUser.id
-          return (
-            <div 
-              key={msg.id} 
-              className={`message-bubble ${isMine ? 'message-sent' : 'message-received'}`}
-            >
-              <div className="message-sender">
-                {isMine ? 'You' : otherUser.username}
+      {/* ───────── Messages Scroll Container ───────── */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
+        padding: '20px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(255, 255, 255, 0.1) transparent'
+      }}>
+        {messages.length === 0 ? (
+          <div style={{
+            margin: 'auto',
+            textAlign: 'center',
+            color: 'var(--muted)',
+            padding: '30px'
+          }}>
+            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '10px' }}>🛰️</span>
+            Quantum channel connected with <strong>{otherUser.username}</strong>.<br />
+            Transmit your first signal below.
+          </div>
+        ) : (
+          messages.map(msg => {
+            const isMine = msg.senderId === currentUser.id
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignSelf: isMine ? 'flex-end' : 'flex-start',
+                  maxWidth: '78%',
+                  animation: 'fadeIn 0.2s ease-out'
+                }}
+              >
+                <span style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--muted)',
+                  marginBottom: '3px',
+                  alignSelf: isMine ? 'flex-end' : 'flex-start'
+                }}>
+                  {isMine ? 'You' : otherUser.username}
+                </span>
+
+                <div style={{
+                  padding: '12px 16px',
+                  borderRadius: '18px',
+                  borderBottomRightRadius: isMine ? '4px' : '18px',
+                  borderBottomLeftRadius: isMine ? '18px' : '4px',
+                  background: isMine
+                    ? 'linear-gradient(135deg, var(--earth), var(--earth-dark))'
+                    : 'rgba(255, 255, 255, 0.08)',
+                  color: isMine ? '#07111f' : 'var(--text)',
+                  fontSize: '0.9rem',
+                  lineHeight: 1.5,
+                  wordBreak: 'break-word',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                }}>
+                  {/* Media / Image */}
+                  {msg.mediaUrl && (
+                    <div style={{ marginBottom: msg.content ? '8px' : 0 }}>
+                      <img
+                        src={msg.mediaUrl}
+                        alt="Attached transmission"
+                        style={{
+                          width: '100%',
+                          maxHeight: '300px',
+                          objectFit: 'cover',
+                          borderRadius: '12px',
+                          display: 'block'
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Voice Note Player */}
+                  {msg.voiceUrl && (
+                    <div style={{ marginBottom: msg.content ? '6px' : 0, minWidth: '220px' }}>
+                      <audio
+                        controls
+                        src={msg.voiceUrl}
+                        style={{ width: '100%', height: '36px', outline: 'none' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Text Content */}
+                  {msg.content && (
+                    <p style={{ margin: 0, fontWeight: isMine ? 500 : 400 }}>{msg.content}</p>
+                  )}
+                </div>
+
+                <span style={{
+                  fontSize: '0.66rem',
+                  color: 'var(--muted)',
+                  marginTop: '3px',
+                  alignSelf: isMine ? 'flex-end' : 'flex-start'
+                }} suppressHydrationWarning>
+                  {formatMessageTime(msg.createdAt)}
+                </span>
               </div>
-              <div className="message-body">
-                {msg.mediaUrl && (
-                  <img src={msg.mediaUrl} alt="Attached Media" style={{ maxWidth: '100%', borderRadius: '12px' }} />
-                )}
-                {msg.voiceUrl && (
-                  <audio controls src={msg.voiceUrl} style={{ width: '100%', maxWidth: '240px' }} />
-                )}
-                {msg.content && <p>{msg.content}</p>}
-              </div>
-              <div className="message-time" suppressHydrationWarning>
-                {formatMessageTime(msg.createdAt)}
-              </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Dock */}
-      <div className="chat-input-area" style={{ position: 'relative' }}>
+      {/* ───────── Input Dock ───────── */}
+      <div style={{
+        position: 'relative',
+        padding: '14px 20px',
+        borderTop: '1px solid var(--line)',
+        background: 'rgba(7, 17, 31, 0.85)',
+        backdropFilter: 'blur(16px)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        zIndex: 10
+      }}>
+        {/* Emoji Picker Popup */}
         {showEmojiPicker && (
-          <div className="emoji-picker">
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '20px',
+            marginBottom: '10px',
+            background: 'var(--panel-solid)',
+            border: '1px solid var(--line)',
+            borderRadius: '18px',
+            padding: '12px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, 1fr)',
+            gap: '8px',
+            boxShadow: 'var(--shadow)',
+            zIndex: 60,
+            backdropFilter: 'blur(20px)'
+          }}>
             {EMOJIS.map(emoji => (
-              <button key={emoji} onClick={() => handleEmojiClick(emoji)} className="emoji-btn">
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleEmojiClick(emoji)}
+                style={{
+                  fontSize: '1.3rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  transition: '0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+              >
                 {emoji}
               </button>
             ))}
           </div>
         )}
-        
-        <button 
+
+        {/* Emoji Button */}
+        <button
           type="button"
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-          className="chat-action-btn"
-          title="Emojis"
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: '1px solid var(--line)',
+            background: showEmojiPicker ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            color: 'var(--text)',
+            fontSize: '1.15rem',
+            cursor: 'pointer',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0
+          }}
+          title="Pick Emoji"
         >
           😀
         </button>
-        
-        {/* Compact Media Upload Button */}
-        <div style={{ flexShrink: 0 }} title="Attach Media">
-          <UploadButton 
-            endpoint="mediaUploader" 
+
+        {/* Media Upload Button */}
+        <div style={{ flexShrink: 0 }} title="Attach Image Transmission">
+          <UploadButton
+            endpoint="mediaUploader"
             content={{
-              button() {
-                return '📎'
-              },
-              allowedContent() {
-                return ''
-              }
+              button() { return '📎' },
+              allowedContent() { return '' }
             }}
             appearance={{
               button: {
-                width: '38px',
-                height: '38px',
-                minWidth: '38px',
+                width: '40px',
+                height: '40px',
+                minWidth: '40px',
                 borderRadius: '50%',
                 padding: 0,
                 display: 'grid',
                 placeItems: 'center',
-                fontSize: '1.1rem',
+                fontSize: '1.15rem',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid var(--line)',
                 color: 'var(--muted)',
@@ -422,28 +1217,97 @@ export default function ChatRoom({
           />
         </div>
 
-        <input 
-          type="text" 
-          value={inputText}
-          onChange={e => setInputText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSendText()}
-          placeholder="Transmit a message..."
-          className="chat-input"
-        />
+        {/* Message Input or Voice Recording Indicator */}
+        {isRecording ? (
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '10px 18px',
+            borderRadius: '100px',
+            background: 'rgba(255, 107, 122, 0.15)',
+            border: '1px solid var(--danger)',
+            color: 'var(--danger)'
+          }}>
+            <span style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: 'var(--danger)',
+              animation: 'pulse 1s infinite'
+            }}></span>
+            <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>
+              Recording voice note... {formatDuration(recordingDuration)}
+            </span>
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
+            placeholder="Transmit an encrypted signal..."
+            style={{
+              flex: 1,
+              padding: '12px 18px',
+              borderRadius: '100px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--line)',
+              color: 'var(--text)',
+              fontSize: '0.92rem',
+              outline: 'none',
+              transition: 'border-color 0.2s ease'
+            }}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--earth)')}
+            onBlur={(e) => (e.target.style.borderColor = 'var(--line)')}
+          />
+        )}
 
+        {/* Send Button or Hold-to-record Button */}
         {inputText.trim() ? (
-          <button onClick={handleSendText} className="chat-send-btn" title="Send">
+          <button
+            onClick={handleSendText}
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+              color: '#07111f',
+              border: 'none',
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700,
+              flexShrink: 0,
+              boxShadow: '0 4px 15px rgba(64, 201, 162, 0.4)'
+            }}
+            title="Send Signal"
+          >
             ↗
           </button>
         ) : (
-          <button 
+          <button
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
             onTouchStart={startRecording}
             onTouchEnd={stopRecording}
-            className="chat-action-btn"
-            style={{ color: isRecording ? 'var(--danger)' : 'inherit' }}
-            title={isRecording ? 'Recording... Release to send' : 'Hold to record voice note'}
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: isRecording ? 'var(--danger)' : 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--line)',
+              color: isRecording ? 'white' : 'var(--muted)',
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              display: 'grid',
+              placeItems: 'center',
+              flexShrink: 0,
+              transition: '0.2s ease'
+            }}
+            title={isRecording ? 'Release to beam voice log' : 'Hold to record voice transmission'}
           >
             🎤
           </button>

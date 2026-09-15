@@ -13,7 +13,11 @@ export default async function Home() {
   try {
     posts = await prisma.post.findMany({
       include: {
-        author: true,
+        author: {
+          include: {
+            followers: true,
+          },
+        },
         likes: true,
       },
       orderBy: {
@@ -129,7 +133,7 @@ export default async function Home() {
         )}
 
         {posts.map((post) => (
-          <Post key={post.id} post={post} />
+          <Post key={post.id} post={post} currentUserId={currentUser?.id} />
         ))}
       </section>
 

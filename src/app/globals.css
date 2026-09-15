@@ -1785,6 +1785,32 @@ h1 {
   }
   
   .chat-room {
-    height: calc(100vh - 65px - 66px);
+    height: calc(100vh - 65px);
   }
 }
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* Safe area insets for iOS devices */
+.mobile-tabs {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
