@@ -38,13 +38,10 @@ export default async function ChatInbox() {
     <div style={{
       maxWidth: '1240px',
       margin: '0 auto',
-      padding: '24px 20px 80px',
+      padding: '16px 14px 90px',
       minHeight: 'calc(100vh - 76px)'
     }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-        gap: '24px',
+      <div className="chat-layout-grid" style={{
         background: 'var(--panel)',
         border: '1px solid var(--line)',
         borderRadius: '24px',
@@ -58,12 +55,12 @@ export default async function ChatInbox() {
           borderRight: '1px solid var(--line)',
           display: 'flex',
           flexDirection: 'column',
-          padding: '24px',
+          padding: '20px',
           background: 'rgba(11, 23, 39, 0.4)'
         }}>
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.5rem', fontWeight: 700 }}>
+              <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>
                 Signals Inbox
               </h1>
               <span style={{
@@ -77,7 +74,7 @@ export default async function ChatInbox() {
                 {chats.length} active
               </span>
             </div>
-            <p style={{ color: 'var(--muted)', fontSize: '0.82rem', marginBottom: '16px' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '0.8rem', marginBottom: '14px' }}>
               Low-latency WebSockets & Peer-to-Peer channels.
             </p>
             <NewChatSearch />
@@ -109,9 +106,9 @@ export default async function ChatInbox() {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '14px',
-                      padding: '14px',
-                      borderRadius: '18px',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '16px',
                       border: '1px solid transparent',
                       background: 'rgba(255, 255, 255, 0.03)',
                       textDecoration: 'none',
@@ -119,25 +116,25 @@ export default async function ChatInbox() {
                       transition: '0.2s ease'
                     }}
                   >
-                    <div className={`chat-item-avatar user-avatar ${otherUser?.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1rem', flexShrink: 0 }}>
+                    <div className={`chat-item-avatar user-avatar ${otherUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '0.95rem', flexShrink: 0 }}>
                       {otherUser?.avatarUrl || otherUser?.username?.charAt(0).toUpperCase() || '✦'}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>{otherUser?.username || 'Astronaut'}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{otherUser?.username || 'Astronaut'}</span>
                         {lastMessage && (
                           <span style={{ fontSize: '0.68rem', color: 'var(--muted)' }} suppressHydrationWarning>
                             {new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         )}
                       </div>
-                      <div style={{ color: 'var(--earth)', fontSize: '0.76rem', marginBottom: '2px' }}>
+                      <div style={{ color: 'var(--earth)', fontSize: '0.74rem', marginBottom: '2px' }}>
                         @{otherUser?.handle}
                       </div>
                       {lastMessage && (
                         <div style={{
                           color: 'var(--muted)',
-                          fontSize: '0.78rem',
+                          fontSize: '0.76rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis'
@@ -153,9 +150,8 @@ export default async function ChatInbox() {
           </div>
         </div>
 
-        {/* Right Pane: Standby / Welcome Screen for Desktop */}
-        <div style={{
-          display: 'flex',
+        {/* Right Pane: Standby / Welcome Screen for Desktop Only */}
+        <div className="chat-inbox-preview-desktop" style={{
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',

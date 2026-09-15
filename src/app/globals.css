@@ -1814,3 +1814,49 @@ h1 {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ───────── Chat Grid & Responsive Polish ───────── */
+.chat-layout-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 0;
+}
+
+.chat-inbox-preview-desktop {
+  display: flex;
+}
+
+.chat-room-page-wrapper {
+  max-width: 880px;
+  margin: 0 auto;
+  height: calc(100dvh - 96px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px 16px;
+}
+
+@media (max-width: 768px) {
+  .chat-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-inbox-preview-desktop {
+    display: none !important;
+  }
+
+  .chat-room-page-wrapper {
+    height: calc(100dvh - 65px);
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .chat-room-container {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+}
+
+

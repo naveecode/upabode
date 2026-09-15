@@ -29,6 +29,10 @@ model User {
   
   chats     Chat[]    @relation("ChatUsers")
   messages  Message[]
+  reelComments      ReelComment[]
+  savedPosts        SavedPost[]
+  notifications     Notification[] @relation("userNotifications")
+  sentNotifications Notification[] @relation("sentNotifications")
 }
 
 model Post {
@@ -41,7 +45,9 @@ model Post {
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
   
-  likes     Like[]
+  likes        Like[]
+  reelComments ReelComment[]
+  savedBy      SavedPost[]
 }
 
 model Like {
@@ -84,5 +90,41 @@ model Message {
   
   chat      Chat     @relation(fields: [chatId], references: [id])
   sender    User     @relation(fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ReelComment {
+  id        String   @id @default(cuid())
+  content   String
+  xPercent  Float
+  yPercent  Float
+  postId    String
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  fromId    String?
+  type      String
+  postId    String?
+  message   String
+  read      Boolean  @default(false)
+  user      User     @relation("userNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  from      User?    @relation("sentNotifications", fields: [fromId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 }

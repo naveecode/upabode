@@ -8,7 +8,8 @@ import { showToast } from './Toast'
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
   const [mediaType, setMediaType] = useState('aurora')
-  const [mediaUrl, setMediaUrl] = useState('')
+  const [mediaUrls, setMediaUrls] = useState<string[]>([])
+  const [isReelFormat, setIsReelFormat] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
@@ -20,22 +21,33 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!content.trim() && !mediaUrl) return
+    if (!content.trim() && mediaUrls.length === 0) return
 
     setIsSubmitting(true)
     const formData = new FormData()
     formData.append('content', content)
-    formData.append('mediaType', mediaType)
-    if (mediaUrl) formData.append('mediaUrl', mediaUrl)
+    
+    // If multiple images: 'carousel', if format is reel: 'reel', else atmospheric sector
+    const effectiveMediaType = mediaUrls.length > 1 
+      ? 'carousel' 
+      : isReelFormat 
+      ? 'reel' 
+      : mediaType
+    formData.append('mediaType', effectiveMediaType)
+    
+    if (mediaUrls.length > 0) {
+      formData.append('mediaUrl', mediaUrls.join(','))
+    }
 
     try {
       const res = await createPost(formData)
       if (res.error) {
         showToast(`Signal failed: ${res.error}`)
       } else {
-        showToast('Signal transmitted into orbit!')
+        showToast(mediaUrls.length > 1 ? 'Cosmic carousel transmitted!' : 'Signal transmitted into orbit!')
         setContent('')
-        setMediaUrl('')
+        setMediaUrls([])
+        setIsReelFormat(false)
         setIsOpen(false)
       }
     } catch (err) {
@@ -43,6 +55,10 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleRemoveMedia = (index: number) => {
+    setMediaUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   return (
@@ -68,7 +84,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             if (!isOpen) setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Transmit a cosmic signal to the network..."
+          placeholder="Transmit a cosmic signal or broadcast a reel..."
           style={{
             flex: 1,
             padding: '12px 18px',
@@ -95,90 +111,154 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
               cursor: 'pointer'
             }}
           >
-            Transmit
+            Broadcast
           </button>
         )}
       </div>
 
       {isOpen && (
         <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', fontWeight: 600 }}>
-              Atmospheric Atmosphere Sector
-            </label>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {atmospheres.map((atm) => (
-                <button
-                  type="button"
-                  key={atm.id}
-                  onClick={() => setMediaType(atm.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '7px 14px',
-                    borderRadius: '100px',
-                    border: '1px solid',
-                    borderColor: mediaType === atm.id ? 'var(--earth)' : 'var(--line)',
-                    background: mediaType === atm.id ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                    color: mediaType === atm.id ? 'var(--earth)' : 'var(--text)',
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    transition: '0.15s ease'
-                  }}
-                >
-                  <span>{atm.emoji}</span>
-                  <span>{atm.label}</span>
-                </button>
-              ))}
-            </div>
+          {/* Format selection */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+            <button
+              type="button"
+              onClick={() => setIsReelFormat(false)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '100px',
+                border: '1px solid',
+                borderColor: !isReelFormat ? 'var(--earth)' : 'var(--line)',
+                background: !isReelFormat ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                color: !isReelFormat ? 'var(--earth)' : 'var(--muted)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              🌌 Atmospheric Feed / Carousel
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsReelFormat(true)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '100px',
+                border: '1px solid',
+                borderColor: isReelFormat ? 'var(--earth)' : 'var(--line)',
+                background: isReelFormat ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                color: isReelFormat ? 'var(--earth)' : 'var(--muted)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              ▶ Broadcast to Reels
+            </button>
           </div>
 
-          {mediaUrl && (
-            <div style={{ position: 'relative', marginBottom: '14px', borderRadius: '14px', overflow: 'hidden', maxHeight: '200px' }}>
-              <img src={mediaUrl} alt="Attached" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <button
-                type="button"
-                onClick={() => setMediaUrl('')}
-                style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  background: 'rgba(0, 0, 0, 0.7)',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '28px',
-                  height: '28px',
-                  display: 'grid',
-                  placeItems: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                ✕
-              </button>
+          {/* Atmospheric Shader picker if not reel and no images */}
+          {mediaUrls.length === 0 && !isReelFormat && (
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', fontWeight: 600 }}>
+                Atmospheric Background Shader
+              </label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {atmospheres.map((atm) => (
+                  <button
+                    type="button"
+                    key={atm.id}
+                    onClick={() => setMediaType(atm.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '100px',
+                      border: '1px solid',
+                      borderColor: mediaType === atm.id ? 'var(--earth)' : 'var(--line)',
+                      background: mediaType === atm.id ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                      color: mediaType === atm.id ? 'var(--earth)' : 'var(--text)',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      transition: '0.15s ease'
+                    }}
+                  >
+                    <span>{atm.emoji}</span>
+                    <span>{atm.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Uploaded Media Thumbnails (supports Carousel) */}
+          {mediaUrls.length > 0 && (
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '8px' }}>
+                {mediaUrls.length > 1 ? `Carousel Transmissions (${mediaUrls.length} frames)` : 'Attached Media'}
+              </div>
+              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
+                {mediaUrls.map((url, idx) => (
+                  <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '14px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--line)' }}>
+                    <img src={url} alt={`Upload ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMedia(idx)}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '22px',
+                        height: '22px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✕
+                    </button>
+                    {mediaUrls.length > 1 && (
+                      <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px' }}>
+                        #{idx + 1}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div title="Attach custom media">
+              <div title="Attach Photo or Reel Media (multi-upload supported for Carousel)">
                 <UploadButton
                   endpoint="mediaUploader"
                   onClientUploadComplete={(res: any) => {
-                    if (res && res[0]) {
-                      setMediaUrl(res[0].url)
-                      showToast('Media ready for transmission!')
+                    if (res && res.length > 0) {
+                      const newUrls = res.map((r: any) => r.url)
+                      setMediaUrls(prev => [...prev, ...newUrls])
+                      showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media frame attached!')
                     }
                   }}
                   onUploadError={(err: Error) => showToast(`Upload error: ${err.message}`)}
                 />
               </div>
+              <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>
+                {mediaUrls.length === 0 ? 'Attach image / reel' : '+ Add carousel slide'}
+              </span>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false)
+                  setMediaUrls([])
+                }}
                 className="btn-outline"
                 style={{ padding: '8px 18px' }}
               >
@@ -186,7 +266,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || (!content.trim() && !mediaUrl)}
+                disabled={isSubmitting || (!content.trim() && mediaUrls.length === 0)}
                 style={{
                   padding: '8px 24px',
                   borderRadius: '100px',
@@ -195,10 +275,10 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                   fontWeight: 700,
                   fontSize: '0.88rem',
                   cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting || (!content.trim() && !mediaUrl) ? 0.5 : 1
+                  opacity: isSubmitting || (!content.trim() && mediaUrls.length === 0) ? 0.5 : 1
                 }}
               >
-                {isSubmitting ? 'Broadcasting...' : 'Broadcast'}
+                {isSubmitting ? 'Broadcasting...' : isReelFormat ? 'Broadcast to Reels ▶' : 'Broadcast Signal'}
               </button>
             </div>
           </div>

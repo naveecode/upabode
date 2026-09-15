@@ -172,6 +172,20 @@ export async function toggleLike(postId: string) {
           userId: currentUser.id,
         },
       });
+
+      const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+      if (post && post.authorId !== currentUser.id) {
+        await prisma.notification.create({
+          data: {
+            userId: post.authorId,
+            fromId: currentUser.id,
+            type: 'like',
+            postId,
+            message: `@${currentUser.handle} liked your transmission`,
+          },
+        }).catch(() => {});
+      }
+
       return { success: true, liked: true };
     }
   } catch (error) {
@@ -203,6 +217,16 @@ export async function toggleFollow(authorId: string) {
           followingId: authorId,
         },
       });
+
+      await prisma.notification.create({
+        data: {
+          userId: authorId,
+          fromId: currentUser.id,
+          type: 'follow',
+          message: `@${currentUser.handle} started tracking your signals (followed you)`,
+        },
+      }).catch(() => {});
+
       return { success: true, followed: true };
     }
   } catch (error) {
@@ -384,9 +408,245 @@ export async function createPost(formData: FormData) {
     const { revalidatePath } = await import('next/cache');
     revalidatePath('/');
     revalidatePath('/reels');
+    revalidatePath('/explore');
     return { success: true, post };
   } catch (error) {
     console.error('Create post error:', error);
     return { error: 'Failed to create post.' };
+  }
+}
+
+export async function savePost(postId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const existing = await prisma.savedPost.findUnique({
+      where: {
+        userId_postId: {
+          userId: currentUser.id,
+          postId,
+        },
+      },
+    });
+
+    if (existing) {
+      await prisma.savedPost.delete({
+        where: { id: existing.id },
+      });
+      return { success: true, saved: false };
+    } else {
+      await prisma.savedPost.create({
+        data: {
+          userId: currentUser.id,
+          postId,
+        },
+      });
+
+      const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+      if (post && post.authorId !== currentUser.id) {
+        await prisma.notification.create({
+          data: {
+            userId: post.authorId,
+            fromId: currentUser.id,
+            type: 'save',
+            postId,
+            message: `@${currentUser.handle} bookmarked your transmission into their saved archive`,
+          },
+        }).catch(() => {});
+      }
+
+      return { success: true, saved: true };
+    }
+  } catch (error) {
+    console.error('Save post error:', error);
+    return { error: 'Failed to toggle saved post.' };
+  }
+}
+
+export async function addReelComment(
+  postId: string,
+  content: string,
+  xPercent: number,
+  yPercent: number
+) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  const trimmed = (content || '').trim();
+  if (!trimmed) return { error: 'Comment cannot be empty.' };
+
+  // Keep inside visible area
+  const clampedX = Math.max(5, Math.min(85, xPercent));
+  const clampedY = Math.max(8, Math.min(85, yPercent));
+
+  try {
+    const comment = await prisma.reelComment.create({
+      data: {
+        content: trimmed,
+        xPercent: clampedX,
+        yPercent: clampedY,
+        postId,
+        userId: currentUser.id,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
+      },
+    });
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (post && post.authorId !== currentUser.id) {
+      await prisma.notification.create({
+        data: {
+          userId: post.authorId,
+          fromId: currentUser.id,
+          type: 'comment',
+          postId,
+          message: `@${currentUser.handle} placed a localized note on your reel: "${trimmed.slice(0, 35)}"`,
+        },
+      }).catch(() => {});
+    }
+
+    return { success: true, comment };
+  } catch (error: any) {
+    console.error('Add reel comment error:', error);
+    return { error: error?.message || 'Failed to place comment.' };
+  }
+}
+
+export async function getReelComments(postId: string) {
+  try {
+    const comments = await prisma.reelComment.findMany({
+      where: { postId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { success: true, comments };
+  } catch (error) {
+    console.error('Get reel comments error:', error);
+    return { error: 'Failed to retrieve comments.', comments: [] };
+  }
+}
+
+export async function searchContent(query: string) {
+  const clean = query.trim();
+  if (!clean) return { success: true, users: [], posts: [] };
+  const cleanHandle = clean.replace(/^@/, '');
+
+  try {
+    const [users, posts] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          OR: [
+            { username: { contains: cleanHandle, mode: 'insensitive' } },
+            { handle: { contains: cleanHandle, mode: 'insensitive' } },
+            { email: { contains: cleanHandle, mode: 'insensitive' } },
+            { location: { contains: clean, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          username: true,
+          handle: true,
+          avatarUrl: true,
+          color: true,
+          location: true,
+          posts: { select: { id: true } },
+          followers: { select: { id: true } },
+        },
+        take: 16,
+      }),
+      prisma.post.findMany({
+        where: {
+          OR: [
+            { content: { contains: clean, mode: 'insensitive' } },
+            { channel: { contains: clean, mode: 'insensitive' } },
+            { mediaType: { contains: clean, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              handle: true,
+              avatarUrl: true,
+              color: true,
+            },
+          },
+          likes: true,
+          reelComments: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 36,
+      }),
+    ]);
+
+    return { success: true, users, posts };
+  } catch (error) {
+    console.error('Search content error:', error);
+    return { error: 'Failed to search content.', users: [], posts: [] };
+  }
+}
+
+export async function getNotifications() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.', notifications: [] };
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: currentUser.id },
+      include: {
+        from: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+    });
+    return { success: true, notifications };
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    return { error: 'Failed to fetch notifications.', notifications: [] };
+  }
+}
+
+export async function markNotificationsRead() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: currentUser.id, read: false },
+      data: { read: true },
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Mark read error:', error);
+    return { error: 'Failed to mark read.' };
   }
 }

@@ -4,6 +4,16 @@ import { hashPassword } from '../src/lib/password'
 const prisma = new PrismaClient()
 
 async function main() {
+  const tables = ['User', 'Post', 'Like', 'Follow', 'Chat', 'Message', 'SavedPost', 'ReelComment', 'Notification'];
+  for (const t of tables) {
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS "${t}" SET (schema_locked = false);`);
+      console.log(`Unlocked table ${t}`);
+    } catch (e: any) {
+      console.log(`Notice for ${t}: ${e.message}`);
+    }
+  }
+
   const defaultPassword = hashPassword('password123')
 
   const mira = await prisma.user.upsert({

@@ -41,15 +41,7 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   const otherUser = chat.users.find((u: any) => u.id !== user.id) || chat.users[0]
 
   return (
-    <div style={{
-      maxWidth: '860px',
-      margin: '0 auto',
-      height: 'calc(100vh - 100px)',
-      width: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '12px 16px 16px'
-    }}>
+    <div className="chat-room-page-wrapper">
       <ChatRoom 
         chatId={chat.id} 
         initialMessages={chat.messages} 

@@ -1113,22 +1113,25 @@ export default function ChatRoom({
       {/* ───────── Input Dock ───────── */}
       <div style={{
         position: 'relative',
-        padding: '14px 20px',
+        padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
         borderTop: '1px solid var(--line)',
-        background: 'rgba(7, 17, 31, 0.85)',
-        backdropFilter: 'blur(16px)',
+        background: 'rgba(7, 17, 31, 0.9)',
+        backdropFilter: 'blur(20px)',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        zIndex: 10
+        gap: '8px',
+        zIndex: 10,
+        flexShrink: 0
       }}>
         {/* Emoji Picker Popup */}
         {showEmojiPicker && (
           <div style={{
             position: 'absolute',
             bottom: '100%',
-            left: '20px',
-            marginBottom: '10px',
+            left: '12px',
+            right: '12px',
+            maxWidth: '300px',
+            margin: '0 auto 10px',
             background: 'var(--panel-solid)',
             border: '1px solid var(--line)',
             borderRadius: '18px',

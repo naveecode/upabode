@@ -19,11 +19,35 @@ export default async function Home() {
           },
         },
         likes: true,
+        reelComments: true,
       },
       orderBy: {
         createdAt: "desc",
       },
     });
+
+    // Content Suggestion Algorithm:
+    // score = (likes * 2 + comments * 3) * (isFollowed ? 1.5 : 1.0) + recencyBoost
+    const now = Date.now();
+    posts.sort((a, b) => {
+      const ageHoursA = Math.max(0, (now - new Date(a.createdAt).getTime()) / (1000 * 60 * 60));
+      const ageHoursB = Math.max(0, (now - new Date(b.createdAt).getTime()) / (1000 * 60 * 60));
+
+      const isFollowedA = currentUser && a.author?.followers?.some((f: any) => f.followerId === currentUser.id);
+      const isFollowedB = currentUser && b.author?.followers?.some((f: any) => f.followerId === currentUser.id);
+
+      const baseScoreA = ((a.likes?.length || 0) * 2 + (a.reelComments?.length || 0) * 3) * (isFollowedA ? 1.5 : 1.0);
+      const baseScoreB = ((b.likes?.length || 0) * 2 + (b.reelComments?.length || 0) * 3) * (isFollowedB ? 1.5 : 1.0);
+
+      const recencyBoostA = Math.max(0, 48 - ageHoursA) * 0.5;
+      const recencyBoostB = Math.max(0, 48 - ageHoursB) * 0.5;
+
+      const totalScoreA = baseScoreA + recencyBoostA;
+      const totalScoreB = baseScoreB + recencyBoostB;
+
+      return totalScoreB - totalScoreA;
+    });
+
   } catch (err: any) {
     console.error("Failed to load transmissions:", err);
     dbError = err.message || "Failed to connect to CockroachDB";
@@ -64,10 +88,10 @@ export default async function Home() {
       <section className="feed">
         <div className="feed-header">
           <div>
-            <div className="eyebrow">Earth sector • Solar net</div>
+            <div className="eyebrow">Upabode Network • Solar Feed</div>
             <h1>Signals from home.</h1>
             <p className="feed-subtitle">
-              Share moments, ideas, and cosmic field notes across planetary horizons.
+              Share moments, carousels, and cosmic field notes across planetary horizons.
             </p>
           </div>
 
@@ -127,7 +151,7 @@ export default async function Home() {
               📡 CockroachDB Connection Notice
             </h3>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: '8px' }}>
-              The database connection is initializing. If you are deploying on Render, please verify that <code>DATABASE_URL</code> is added in your Render Dashboard Environment settings.
+              The database connection is initializing.
             </p>
           </div>
         )}
@@ -141,18 +165,27 @@ export default async function Home() {
         <div className="info-card">
           <h2>Gesture protocol</h2>
           <p>
-            No tiny buttons needed. Use the direction of your signal to interact
-            with the network.
+            No buttons needed in Reels mode. Use the direction of your signal:
           </p>
 
           <div className="instruction">
             <span className="instruction-icon">→</span>
-            <span>Swipe right to follow a signal</span>
+            <span>Swipe right to follow an astronaut</span>
           </div>
 
           <div className="instruction">
             <span className="instruction-icon">←</span>
-            <span>Swipe left to like a signal</span>
+            <span>Swipe left to save transmission</span>
+          </div>
+
+          <div className="instruction">
+            <span className="instruction-icon">💬</span>
+            <span>Double tap to reveal localized notes</span>
+          </div>
+
+          <div className="instruction">
+            <span className="instruction-icon">📍</span>
+            <span>Long press to pin note at coordinate</span>
           </div>
         </div>
 
