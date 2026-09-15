@@ -29,6 +29,9 @@ export async function GET() {
   try {
     const userCount = await prisma.user.count();
     const postCount = await prisma.post.count();
+    const sampleUser = await prisma.user.findFirst({
+      select: { id: true, username: true, handle: true, email: true }
+    });
     return NextResponse.json({
       success: true,
       database: 'Connected successfully to CockroachDB',
@@ -36,6 +39,7 @@ export async function GET() {
       parsed,
       userCount,
       postCount,
+      sampleUser,
     });
   } catch (err: any) {
     return NextResponse.json({
