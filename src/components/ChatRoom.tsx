@@ -58,7 +58,7 @@ function ChatReelCard({ postId }: { postId: string }) {
           <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{post.content}</div>
         </div>
       </div>
-      <Link href={`/reels?post=${postId}`} style={{ display: 'block', padding: '8px', textAlign: 'center', background: 'var(--earth)', color: '#07111f', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
+      <Link href={`/reels?post=${postId}`} style={{ display: 'block', padding: '8px', textAlign: 'center', background: 'var(--earth)', color: 'var(--background)', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
         View Reel ↗
       </Link>
     </div>
@@ -571,7 +571,7 @@ export default function ChatRoom({
               width: '36px',
               height: '36px',
               borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgba(0,0,0,0.04)',
               border: '1px solid var(--line)',
               display: 'grid',
               placeItems: 'center',
@@ -708,7 +708,7 @@ export default function ChatRoom({
                 padding: '9px 18px',
                 borderRadius: '100px',
                 background: 'var(--earth)',
-                color: '#07111f',
+                color: 'var(--background)',
                 fontWeight: 700,
                 border: 'none',
                 cursor: 'pointer',
@@ -771,7 +771,7 @@ export default function ChatRoom({
                 display: 'grid',
                 placeItems: 'center',
                 fontWeight: 700,
-                color: '#07111f'
+                color: 'var(--background)'
               }}>
                 {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase()}
               </div>
@@ -810,7 +810,7 @@ export default function ChatRoom({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#07111f'
+            background: 'var(--background)'
           }}>
             {callType === 'video' ? (
               swappedPiP ? (
@@ -856,7 +856,7 @@ export default function ChatRoom({
                   display: 'grid',
                   placeItems: 'center',
                   fontSize: '3.5rem',
-                  color: '#07111f',
+                  color: 'var(--background)',
                   margin: '0 auto 20px',
                   boxShadow: '0 0 50px rgba(64, 201, 162, 0.4)',
                   animation: 'pulse 2s infinite'
@@ -1115,8 +1115,8 @@ export default function ChatRoom({
                   borderBottomLeftRadius: isMine ? '18px' : '4px',
                   background: isMine
                     ? 'linear-gradient(135deg, var(--earth), var(--earth-dark))'
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: isMine ? '#07111f' : 'var(--text)',
+                    : 'rgba(0,0,0,0.06)',
+                  color: isMine ? 'var(--background)' : 'var(--text)',
                   fontSize: '0.9rem',
                   lineHeight: 1.5,
                   wordBreak: 'break-word',
@@ -1194,7 +1194,7 @@ export default function ChatRoom({
         position: 'relative',
         padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
         borderTop: '1px solid var(--line)',
-        background: 'rgba(7, 17, 31, 0.9)',
+        background: 'var(--panel-solid)',
         backdropFilter: 'blur(20px)',
         display: 'flex',
         alignItems: 'center',
@@ -1254,7 +1254,7 @@ export default function ChatRoom({
             height: '40px',
             borderRadius: '50%',
             border: '1px solid var(--line)',
-            background: showEmojiPicker ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            background: showEmojiPicker ? 'rgba(64, 201, 162, 0.2)' : 'rgba(0,0,0,0.04)',
             color: 'var(--text)',
             fontSize: '1.15rem',
             cursor: 'pointer',
@@ -1294,7 +1294,7 @@ export default function ChatRoom({
                 display: 'grid',
                 placeItems: 'center',
                 fontSize: '1.15rem',
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'rgba(0,0,0,0.04)',
                 border: '1px solid var(--line)',
                 color: 'var(--muted)',
                 cursor: 'pointer'
@@ -1346,7 +1346,7 @@ export default function ChatRoom({
               flex: 1,
               padding: '12px 18px',
               borderRadius: '100px',
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgba(0,0,0,0.04)',
               border: '1px solid var(--line)',
               color: 'var(--text)',
               fontSize: '0.92rem',
@@ -1367,7 +1367,7 @@ export default function ChatRoom({
               height: '42px',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-              color: '#07111f',
+              color: 'var(--background)',
               border: 'none',
               fontSize: '1.2rem',
               cursor: 'pointer',
@@ -1388,7 +1388,7 @@ export default function ChatRoom({
               width: '42px',
               height: '42px',
               borderRadius: '50%',
-              background: isRecording ? 'var(--danger)' : 'rgba(255, 255, 255, 0.05)',
+              background: isRecording ? 'var(--danger)' : 'rgba(0,0,0,0.04)',
               border: '1px solid var(--line)',
               color: isRecording ? 'white' : 'var(--muted)',
               fontSize: '1.2rem',
@@ -1413,7 +1413,7 @@ export default function ChatRoom({
             position: 'fixed',
             inset: 0,
             zIndex: 999999,
-            background: 'rgba(0,0,0,0.95)',
+            background: 'rgba(0,0,0,0.85)',
             backdropFilter: 'blur(10px)',
             display: 'flex',
             alignItems: 'center',

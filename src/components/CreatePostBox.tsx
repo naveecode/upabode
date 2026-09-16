@@ -76,90 +76,127 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
 
   return (
     <div style={{
-      background: 'var(--panel)',
-      border: '1px solid var(--line)',
+      background: isOpen ? 'var(--panel)' : 'transparent',
+      border: isOpen ? '1px solid var(--line)' : 'none',
       borderRadius: '24px',
-      padding: '20px',
-      marginBottom: '26px',
-      backdropFilter: 'blur(16px)',
-      boxShadow: 'var(--shadow)',
-      transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+      padding: isOpen ? '24px' : '10px',
+      marginBottom: '30px',
+      backdropFilter: isOpen ? 'blur(16px)' : 'none',
+      boxShadow: isOpen ? 'var(--shadow)' : 'none',
+      transition: 'all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+      textAlign: 'center'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div className={`user-avatar ${currentUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
-          {currentUser?.avatarUrl || currentUser?.username?.charAt(0).toUpperCase() || '✦'}
-        </div>
-        <input 
-          type="text"
-          value={content}
-          onChange={(e) => {
-            setContent(e.target.value)
-            if (!isOpen) setIsOpen(true)
+      {!isOpen && mediaUrls.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0 10px' }}>
+          <div style={{ 
+            width: '90px', height: '90px', borderRadius: '50%', 
+            background: 'linear-gradient(135deg, var(--earth), var(--yellow))', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            boxShadow: '0 12px 40px rgba(197, 160, 89, 0.3)', 
+            color: '#fff', fontSize: '2.6rem', position: 'relative',
+            transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
           }}
-          onFocus={() => setIsOpen(true)}
-          placeholder="Transmit a cosmic signal or broadcast a reel..."
-          style={{
-            flex: 1,
-            padding: '12px 18px',
-            borderRadius: '100px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid var(--line)',
-            color: 'var(--text)',
-            fontSize: '0.9rem',
-            outline: 'none',
-            transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
-          }}
-        />
-        {!isOpen && (
+          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08) translateY(-4px)'}
+          onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
+          >
+            <UploadButton
+              endpoint="mediaUploader"
+              content={{ button() { return '📷' }, allowedContent() { return '' } }}
+              appearance={{
+                button: { width: '90px', height: '90px', background: 'transparent', border: 'none', cursor: 'pointer', outline: 'none', fontSize: '2.6rem' },
+                allowedContent: { display: 'none' }, container: { position: 'absolute', inset: 0, margin: 0, padding: 0 }
+              }}
+              onClientUploadComplete={(res: any) => {
+                if (res) {
+                  setMediaUrls(res.map((f: any) => f.url + (f.name?.match(/\.(mp4|webm|mov)$/i) ? '#video' : '')));
+                  setIsOpen(true);
+                  showToast('Media captured!');
+                }
+              }}
+            />
+          </div>
+          <h2 style={{ marginTop: '20px', color: 'var(--text)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }}>Capture & Broadcast</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '6px' }}>Share photos or videos across planetary horizons</p>
           <button 
             type="button"
             onClick={() => setIsOpen(true)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '100px',
-              background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-              color: '#07111f',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: 'pointer'
-            }}
+            style={{ marginTop: '16px', background: 'transparent', border: '1px solid var(--line)', padding: '8px 20px', borderRadius: '100px', fontSize: '0.85rem', color: 'var(--text)', cursor: 'pointer' }}
           >
-            Broadcast
+            Or write a text signal
           </button>
-        )}
-      </div>
-
-      {isOpen && (
-        <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
-          {/* Format selection */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => setPublishFormat('feed')}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div className={`user-avatar ${currentUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
+              {currentUser?.avatarUrl || currentUser?.username?.charAt(0).toUpperCase() || '✦'}
+            </div>
+            <input 
+              autoFocus
+              type="text"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Add a caption to your transmission..."
               style={{
-                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
-                borderColor: publishFormat === 'feed' ? 'var(--earth)' : 'var(--line)',
-                background: publishFormat === 'feed' ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: publishFormat === 'feed' ? 'var(--earth)' : 'var(--muted)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
+                flex: 1,
+                padding: '14px 20px',
+                borderRadius: '100px',
+                background: 'rgba(0, 0, 0, 0.04)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                fontSize: '0.95rem',
+                outline: 'none',
+                transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
               }}
-            >
-              🌌 Feed
-            </button>
-            <button
-              type="button"
-              onClick={() => setPublishFormat('reel')}
-              style={{
-                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
-                borderColor: publishFormat === 'reel' ? 'var(--earth)' : 'var(--line)',
-                background: publishFormat === 'reel' ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: publishFormat === 'reel' ? 'var(--earth)' : 'var(--muted)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              ▶ Reels
-            </button>
+            />
           </div>
+
+          <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
+            {/* Format selection */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setPublishFormat('feed')}
+                style={{
+                  padding: '8px 18px', borderRadius: '100px', border: '1px solid',
+                  borderColor: publishFormat === 'feed' ? 'var(--earth)' : 'var(--line)',
+                  background: publishFormat === 'feed' ? 'rgba(197, 160, 89, 0.15)' : 'rgba(0, 0, 0, 0.04)',
+                  color: publishFormat === 'feed' ? 'var(--earth)' : 'var(--muted)',
+                  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                  transition: '0.2s ease'
+                }}
+              >
+                🌌 Post to Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishFormat('reel')}
+                style={{
+                  padding: '8px 18px', borderRadius: '100px', border: '1px solid',
+                  borderColor: publishFormat === 'reel' ? 'var(--earth)' : 'var(--line)',
+                  background: publishFormat === 'reel' ? 'rgba(197, 160, 89, 0.15)' : 'rgba(0, 0, 0, 0.04)',
+                  color: publishFormat === 'reel' ? 'var(--earth)' : 'var(--muted)',
+                  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                  transition: '0.2s ease'
+                }}
+              >
+                ▶ Reel
+              </button>
+              <button
+                type="button"
+                onClick={() => setPublishFormat('story')}
+                style={{
+                  padding: '8px 18px', borderRadius: '100px', border: '1px solid',
+                  borderColor: publishFormat === 'story' ? 'var(--earth)' : 'var(--line)',
+                  background: publishFormat === 'story' ? 'rgba(197, 160, 89, 0.15)' : 'rgba(0, 0, 0, 0.04)',
+                  color: publishFormat === 'story' ? 'var(--earth)' : 'var(--muted)',
+                  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+                  transition: '0.2s ease'
+                }}
+              >
+                ⏳ 24h Status
+              </button>
+            </div>
 
           {/* Media Studio (Music & Filters) */}
           {mediaUrls.length > 0 && (

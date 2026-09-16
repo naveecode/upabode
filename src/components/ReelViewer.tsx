@@ -4,6 +4,73 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toggleFollow, savePost, addReelComment } from '../app/actions'
 import { showToast } from './Toast'
 
+function VideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showControl, setShowControl] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          videoRef.current?.play().catch(() => {});
+          setIsPlaying(true);
+        } else {
+          videoRef.current?.pause();
+          setIsPlaying(false);
+        }
+      });
+    }, { threshold: 0.6 });
+    if (videoRef.current) observer.observe(videoRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+    setShowControl(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setShowControl(false), 2000);
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000' }} onClick={togglePlay}>
+      <video
+        ref={videoRef}
+        src={src}
+        loop
+        playsInline
+        onPlay={(e) => {
+          setIsPlaying(true);
+          const target = e.target as HTMLVideoElement;
+          document.querySelectorAll('video, audio').forEach(media => {
+            if (media !== target) (media as HTMLMediaElement).pause();
+          });
+        }}
+        onPause={() => setIsPlaying(false)}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+      {showControl && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
+          display: 'grid', placeItems: 'center', color: 'white', fontSize: '2.4rem',
+          backdropFilter: 'blur(4px)', animation: 'pulse 0.2s ease-out'
+        }}>
+          {isPlaying ? '⏸' : '▶'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ReelComment {
   id: string
   content: string
@@ -452,25 +519,7 @@ export default function ReelViewer({
                   const safeUrl = mediaList[0];
                   
                   return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                    <video
-                      src={safeUrl}
-                      loop
-                      controls
-                      playsInline
-                      onPlay={(e) => {
-                        const target = e.target as HTMLVideoElement;
-                        document.querySelectorAll('video, audio').forEach(media => {
-                          if (media !== target) (media as HTMLMediaElement).pause();
-                        });
-                      }}
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain'
-                      }}
-                    />
+                    <VideoPlayer src={safeUrl} />
                   ) : (
                     <img
                       src={safeUrl}

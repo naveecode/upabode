@@ -4,10 +4,10 @@ import './globals.css'
 import '@uploadthing/react/styles.css'
 
 import { getCurrentUser } from './actions'
-import prisma from '../lib/prisma'
 import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
+import SwipeWrapper from '../components/SwipeWrapper'
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -30,14 +30,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const user = await getCurrentUser()
-  let unreadCount = 0
-  if (user) {
-    try {
-      unreadCount = await prisma.notification.count({
-        where: { userId: user.id, read: false },
-      })
-    } catch {}
+  let user: any = null
+  try {
+    user = await getCurrentUser()
+  } catch (err) {
+    console.error('Failed to get user:', err)
   }
 
   return (
@@ -48,21 +45,14 @@ export default async function RootLayout({
           <div className="topbar-right flex items-center gap-3 w-full justify-end">
             {user ? (
               <>
-                <Link href="/explore" className="icon-button" title="Explore & Search Media">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <Link href="/auth/register" className="bg-[var(--earth)] text-[var(--panel-solid)] px-4 py-1.5 rounded-full font-bold text-sm hover:bg-[var(--earth-dark)] transition-colors">
+                  + Signal
                 </Link>
-                <Link href="/notifications" className="icon-button relative" title="Notifications">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                  {unreadCount > 0 && (
-                    <span style={{
-                      position: 'absolute',
-                      top: '6px',
-                      right: '6px',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: 'var(--earth)',
-                      boxShadow: '0 0 8px var(--earth)'
+                <Link href="/chat" className="relative p-2 text-white hover:text-[var(--earth)] transition-colors">
+                  <span className="text-xl">💬</span>
+                  {user.notifications?.some((n: any) => !n.read) && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--danger)] rounded-full animate-pulse" style={{
+                      boxShadow: '0 0 10px var(--danger)'
                     }} />
                   )}
                 </Link>
@@ -80,9 +70,11 @@ export default async function RootLayout({
           </div>
         </header>
 
-        <div className="page-content" style={{ animation: 'fadeIn 0.3s ease-out', minHeight: 'calc(100vh - 76px)' }}>
-          {children}
-        </div>
+        <SwipeWrapper>
+          <div className="page-content">
+            {children}
+          </div>
+        </SwipeWrapper>
 
         <MobileNav />
       </body>

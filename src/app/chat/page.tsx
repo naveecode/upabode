@@ -56,7 +56,7 @@ export default async function ChatInbox() {
           display: 'flex',
           flexDirection: 'column',
           padding: '20px',
-          background: 'rgba(11, 23, 39, 0.4)'
+          background: 'var(--panel-solid)'
         }}>
           <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -157,7 +157,7 @@ export default async function ChatInbox() {
           justifyContent: 'center',
           padding: '40px',
           textAlign: 'center',
-          background: 'rgba(7, 17, 31, 0.3)'
+          background: 'transparent'
         }}>
           <div style={{
             width: '80px',

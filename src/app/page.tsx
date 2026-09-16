@@ -88,17 +88,6 @@ export default async function Home() {
       </aside>
 
       <section className="feed">
-        <div className="feed-header">
-          <div>
-            <div className="eyebrow">Upabode Network • Solar Feed</div>
-            <h1>Signals from home.</h1>
-            <p className="feed-subtitle">
-              Share moments, carousels, and cosmic field notes across planetary horizons.
-            </p>
-          </div>
-
-          <div className="feed-count">{posts.length} transmissions</div>
-        </div>
 
         <StoryTray currentUser={currentUser} />
         {/* Live Signal Broadcast Box */}

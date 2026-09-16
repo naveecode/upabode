@@ -5,6 +5,73 @@ import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
 import Link from "next/link";
 
+function VideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showControl, setShowControl] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          videoRef.current?.play().catch(() => {});
+          setIsPlaying(true);
+        } else {
+          videoRef.current?.pause();
+          setIsPlaying(false);
+        }
+      });
+    }, { threshold: 0.6 });
+    if (videoRef.current) observer.observe(videoRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+    setShowControl(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setShowControl(false), 2000);
+  };
+
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }} onClick={togglePlay}>
+      <video
+        ref={videoRef}
+        src={src}
+        loop
+        playsInline
+        onPlay={(e) => {
+          setIsPlaying(true);
+          const target = e.target as HTMLVideoElement;
+          document.querySelectorAll('video, audio').forEach(media => {
+            if (media !== target) (media as HTMLMediaElement).pause();
+          });
+        }}
+        onPause={() => setIsPlaying(false)}
+        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+      {showControl && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
+          display: 'grid', placeItems: 'center', color: 'white', fontSize: '2rem',
+          backdropFilter: 'blur(4px)', animation: 'pulse 0.2s ease-out'
+        }}>
+          {isPlaying ? '⏸' : '▶'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Post({ post, currentUserId }: { post: any; currentUserId?: string }) {
   const initialLiked = currentUserId && post.likes ? post.likes.some((l: any) => l.userId === currentUserId) : false;
   const initialFollowing = currentUserId && post.author?.followers ? post.author.followers.some((f: any) => f.followerId === currentUserId) : false;
@@ -12,6 +79,8 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [likesCount, setLikesCount] = useState(post.likes?.length || 0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [isArchived, setIsArchived] = useState(post.archived);
 
   // Carousel slide index
   const mediaList = post.mediaUrl ? post.mediaUrl.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
@@ -167,17 +236,17 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
 
   const handleDelete = async () => {
     if (confirm('Permanently delete this transmission?')) {
+      setIsDeleted(true);
       const { deletePost } = await import('../app/actions');
       await deletePost(post.id);
-      window.location.reload();
     }
     setShowOptions(false);
   };
 
   const handleArchive = async () => {
+    setIsArchived(!isArchived);
     const { archivePost } = await import('../app/actions');
     await archivePost(post.id);
-    window.location.reload();
     setShowOptions(false);
   };
 
@@ -229,8 +298,10 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     setShowOptions(false);
   };
 
+  if (isDeleted) return null;
+
   return (
-    <article className="post" data-post-id={post.id} style={{ opacity: post.archived ? 0.7 : 1 }}>
+    <article className="post" data-post-id={post.id} style={{ opacity: isArchived ? 0.6 : 1 }}>
       <div className="post-header" style={{ position: 'relative' }}>
         <div className="user">
           <div className={`user-avatar ${post.author?.color || 'green'}`}>
@@ -242,9 +313,9 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {post.archived && (
-            <span style={{ fontSize: '0.72rem', color: '#ffb347', background: 'rgba(255, 179, 71, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>
-              Archived
+          {isArchived && (
+            <span style={{ fontSize: '0.72rem', color: 'var(--earth)', background: 'rgba(197, 160, 89, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>
+              Private
             </span>
           )}
           <span style={{ fontSize: '0.72rem', color: 'var(--earth)', background: 'rgba(64, 201, 162, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>
@@ -270,7 +341,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                 {currentUserId === post.authorId && (
                   <>
                     <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
-                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
+                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Make Public' : 'Make Private'}</button>
                     <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
                   </>
                 )}
@@ -310,23 +381,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         {mediaList.length > 0 ? (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[currentSlide].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-              <video
-                src={mediaList[currentSlide]}
-                loop
-                controls
-                playsInline
-                onPlay={(e) => {
-                  const target = e.target as HTMLVideoElement;
-                  document.querySelectorAll('video, audio').forEach(media => {
-                    if (media !== target) (media as HTMLMediaElement).pause();
-                  });
-                }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain'
-                }}
-              />
+              <VideoPlayer src={mediaList[currentSlide]} />
             ) : (
               <img
                 src={mediaList[currentSlide]}
