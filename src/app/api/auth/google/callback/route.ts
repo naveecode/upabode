@@ -7,9 +7,9 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
 
-  const host = request.headers.get('host');
-  const protocol = host?.includes('localhost') ? 'http' : 'https';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '') : `${protocol}://${host}`;
 
   if (error) {
     return NextResponse.redirect(`${baseUrl}/auth/login?error=${error}`);
