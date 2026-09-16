@@ -4,24 +4,38 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toggleFollow, savePost, addReelComment } from '../app/actions'
 import { showToast } from './Toast'
 
-function VideoPlayer({ src, isActive }: { src: string, isActive: boolean }) {
+function VideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showControl, setShowControl] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!videoRef.current) return;
-    if (isActive) {
-      videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
-    } else {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
-  }, [isActive]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            if (videoRef.current) {
+              const playPromise = videoRef.current.play();
+              if (playPromise !== undefined) {
+                playPromise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+              }
+            }
+          } else {
+            if (videoRef.current && !videoRef.current.paused) {
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
+          }
+        });
+      },
+      { threshold: 0.6 }
+    );
 
-  const togglePlay = () => {
+    if (videoRef.current) observer.observe(videoRef.current);
+    return () => { if (videoRef.current) observer.disconnect(); };
+  }, []);
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play();
@@ -30,9 +44,6 @@ function VideoPlayer({ src, isActive }: { src: string, isActive: boolean }) {
       videoRef.current.pause();
       setIsPlaying(false);
     }
-    setShowControl(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setShowControl(false), 2000);
   };
 
   return (
@@ -52,14 +63,14 @@ function VideoPlayer({ src, isActive }: { src: string, isActive: boolean }) {
         onPause={() => setIsPlaying(false)}
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       />
-      {showControl && (
+      {!isPlaying && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
-          display: 'grid', placeItems: 'center', color: 'white', fontSize: '2.4rem',
-          backdropFilter: 'blur(4px)', animation: 'pulse 0.2s ease-out'
+          display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+          backdropFilter: 'blur(4px)'
         }}>
-          {isPlaying ? '⏸' : '▶'}
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
         </div>
       )}
     </div>
@@ -529,7 +540,7 @@ export default function ReelViewer({
                   const safeUrl = mediaList[0];
                   
                   return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                    <VideoPlayer src={safeUrl} isActive={idx === activeIdx} />
+                    <VideoPlayer src={safeUrl}  />
                   ) : (
                     <img
                       src={safeUrl}

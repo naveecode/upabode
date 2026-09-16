@@ -54,12 +54,31 @@ function AudioPlayer({ src }: { src: string }) {
 function VideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showControl, setShowControl] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting && videoRef.current && !videoRef.current.paused) {
+            videoRef.current.pause();
+            setIsPlaying(false);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
 
-  const togglePlay = () => {
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => {
+      if (videoRef.current) observer.unobserve(videoRef.current);
+    };
+  }, []);
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.play();
@@ -68,9 +87,6 @@ function VideoPlayer({ src }: { src: string }) {
       videoRef.current.pause();
       setIsPlaying(false);
     }
-    setShowControl(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setShowControl(false), 2000);
   };
 
   return (
@@ -90,14 +106,14 @@ function VideoPlayer({ src }: { src: string }) {
         onPause={() => setIsPlaying(false)}
         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
       />
-      {showControl && (
+      {!isPlaying && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
-          display: 'grid', placeItems: 'center', color: 'white', fontSize: '2rem',
-          backdropFilter: 'blur(4px)', animation: 'pulse 0.2s ease-out'
+          display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+          backdropFilter: 'blur(4px)'
         }}>
-          {isPlaying ? '⏸' : '▶'}
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
         </div>
       )}
     </div>

@@ -60,7 +60,8 @@ export async function GET(request: Request) {
 
     if (!user) {
       // Create a new user
-      const baseHandle = googleUser.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '');
+      const safeName = (googleUser.name || 'user').toLowerCase().replace(/[^a-z0-9_]/g, '');
+      const baseHandle = safeName.substring(0, 15);
       const uniqueHandle = `${baseHandle}_${Math.floor(Math.random() * 1000)}`;
       
       user = await prisma.user.create({
@@ -92,3 +93,4 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${baseUrl}/auth/login?error=OAuthException`);
   }
 }
+
