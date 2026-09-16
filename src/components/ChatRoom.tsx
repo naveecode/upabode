@@ -1123,7 +1123,7 @@ export default function ChatRoom({
                 }}>
                   {/* Media / Image */}
                   {msg.mediaUrl && (
-                    <div style={{ marginBottom: msg.content ? '8px' : 0, cursor: 'pointer' }} onClick={() => setFullscreenMedia(msg.mediaUrl)}>
+                    <div style={{ marginBottom: msg.content ? '8px' : 0, cursor: 'pointer' }} onClick={() => setFullscreenMedia(msg.mediaUrl || null)}>
                       {msg.mediaUrl.endsWith('.mp4') || msg.mediaUrl.includes('video') ? (
                         <video
                           src={msg.mediaUrl}
@@ -1458,5 +1458,7 @@ export default function ChatRoom({
     </div>
   )
 }
+
+
 
 

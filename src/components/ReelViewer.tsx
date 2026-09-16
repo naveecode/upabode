@@ -587,9 +587,9 @@ export default function ReelViewer({
               }}
             >
               {/* Media Background */}
-              <div className={post.visualFilter || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-                {post.musicTrack && (
-                  <audio src={post.musicTrack} autoPlay loop style={{ display: 'none' }} />
+              <div className={(post as any).visualFilter || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+                {(post as any).musicTrack && (
+                  <audio src={(post as any).musicTrack} autoPlay loop style={{ display: 'none' }} />
                 )}
                 
                 {post.mediaUrl ? (() => {
@@ -1203,6 +1203,7 @@ export default function ReelViewer({
     </div>
   )
 }
+
 
 
 

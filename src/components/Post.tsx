@@ -227,15 +227,15 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     const results = await searchUsers(query);
     setIsSearchingShare(false);
     if (!results.error) {
-      setShareUsers(results);
+      setShareUsers(results.users || []);
     }
   };
 
   const handleShareToUser = async (userId: string) => {
     const { startChat, shareReelToChat } = await import('../app/actions');
     const chat = await startChat(userId);
-    if (chat && chat.id) {
-      await shareReelToChat(chat.id, post.id);
+    if (chat && chat.chatId) {
+      await shareReelToChat(chat.chatId, post.id);
       showToast('Transmission shared to secure channel!');
       setShowShareModal(false);
     } else {
@@ -570,6 +570,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     </article>
   );
 }
+
 
 
 

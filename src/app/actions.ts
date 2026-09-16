@@ -874,14 +874,5 @@ export async function getPostById(postId: string) {
   }
 }
 
-export async function togglePostVisibility(postId: string, isPrivate: boolean) {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) return { error: 'Not authenticated.' };
-  try {
-    await prisma.post.update({ where: { id: postId, authorId: currentUser.id }, data: { isPrivate } });
-    return { success: true };
-  } catch (err) {
-    return { error: 'Failed to update visibility.' };
-  }
-}
+
 
