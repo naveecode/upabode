@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Post from './Post'
 
 interface ProfileViewProps {
   user: any
@@ -10,7 +11,7 @@ interface ProfileViewProps {
 }
 
 export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewProps) {
-  const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'settings'>('transmissions')
+  const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'settings' | 'followers' | 'following'>('transmissions')
   const [loggingOut, setLoggingOut] = useState(false)
 
   const handleLogoutClick = async () => {
@@ -100,8 +101,8 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
       }}>
         {[
           { label: 'Signals', value: user.posts?.length || 0, tab: 'transmissions' },
-          { label: 'Followers', value: user.followers?.length || 0 },
-          { label: 'Following', value: user.following?.length || 0 },
+          { label: 'Followers', value: user.followers?.length || 0, tab: 'followers' },
+          { label: 'Following', value: user.following?.length || 0, tab: 'following' },
           { label: 'Saved', value: savedPosts?.length || 0, tab: 'saved' },
         ].map((stat, i) => (
           <div
@@ -138,7 +139,9 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
         {[
           { id: 'transmissions', label: 'Transmissions', icon: '📡' },
           { id: 'saved', label: 'Saved Cache', icon: '🔖' },
-          { id: 'settings', label: 'Settings & Security', icon: '⚙️' },
+          { id: 'followers', label: 'Followers', icon: '👥' },
+          { id: 'following', label: 'Following', icon: '👣' },
+          { id: 'settings', label: 'Settings', icon: '⚙️' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -166,7 +169,7 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
 
       {/* ───────── Tab 1: Transmissions ───────── */}
       {activeTab === 'transmissions' && (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {user.posts?.length === 0 ? (
             <div style={{
               padding: '40px',
@@ -180,48 +183,9 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
               No transmissions broadcasted yet.<br />Share your first signal from the Home feed!
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
-              {user.posts.map((post: any) => (
-                <div
-                  key={post.id}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '1',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--line)',
-                    background: '#040a14'
-                  }}
-                >
-                  {post.mediaUrl ? (
-                    <img src={post.mediaUrl} alt="Post" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div className={`post-media ${getMediaClass(post.mediaType)}`} style={{ width: '100%', height: '100%' }} />
-                  )}
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(180deg, transparent 40%, rgba(4, 10, 20, 0.9) 90%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-end',
-                    padding: '12px'
-                  }}>
-                    <p style={{
-                      fontSize: '0.78rem',
-                      color: 'white',
-                      margin: 0,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}>
-                      {post.content}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            user.posts.map((post: any) => (
+              <Post key={post.id} post={{...post, author: user}} currentUserId={user.id} />
+            ))
           )}
         </div>
       )}
@@ -242,55 +206,77 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
               Your Saved Archive is currently empty.<br />Swipe left on any reel or post to bookmark it here!
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {savedPosts.map((saved: any) => {
                 const post = saved.post
                 if (!post) return null
-                return (
-                  <div
-                    key={saved.id}
-                    style={{
-                      position: 'relative',
-                      aspectRatio: '1',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      border: '1px solid var(--line)',
-                      background: '#040a14'
-                    }}
-                  >
-                    {post.mediaUrl ? (
-                      <img src={post.mediaUrl} alt="Saved" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div className={`post-media ${getMediaClass(post.mediaType)}`} style={{ width: '100%', height: '100%' }} />
-                    )}
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'linear-gradient(180deg, transparent 40%, rgba(4, 10, 20, 0.9) 90%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      padding: '12px'
-                    }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--earth)', fontWeight: 600, marginBottom: '2px' }}>
-                        @{post.author?.handle}
-                      </div>
-                      <p style={{
-                        fontSize: '0.78rem',
-                        color: 'white',
-                        margin: 0,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}>
-                        {post.content}
-                      </p>
-                    </div>
-                  </div>
-                )
+                return <Post key={post.id} post={post} currentUserId={user.id} />
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ───────── Tab: Followers ───────── */}
+      {activeTab === 'followers' && (
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {(!user.followers || user.followers.length === 0) ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              No followers yet.
+            </div>
+          ) : (
+            user.followers.map((f: any) => {
+              const follower = f.follower
+              if (!follower) return null
+              return (
+                <div key={follower.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                  <div className={`user-avatar ${follower.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
+                    {follower.avatarUrl || follower.username?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{follower.username}</div>
+                    <div style={{ color: 'var(--earth)', fontSize: '0.8rem' }}>@{follower.handle}</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Link href="/chat" style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Signal
+                    </Link>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* ───────── Tab: Following ───────── */}
+      {activeTab === 'following' && (
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {(!user.following || user.following.length === 0) ? (
+            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              Not following anyone yet.
+            </div>
+          ) : (
+            user.following.map((f: any) => {
+              const followed = f.following
+              if (!followed) return null
+              return (
+                <div key={followed.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                  <div className={`user-avatar ${followed.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
+                    {followed.avatarUrl || followed.username?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{followed.username}</div>
+                    <div style={{ color: 'var(--earth)', fontSize: '0.8rem' }}>@{followed.handle}</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto' }}>
+                    <Link href="/chat" style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Signal
+                    </Link>
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
       )}

@@ -8,6 +8,7 @@ export default async function ReelsPage() {
 
   try {
     posts = await prisma.post.findMany({
+      where: { archived: false },
       include: {
         author: {
           include: {

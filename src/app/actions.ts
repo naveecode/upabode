@@ -390,6 +390,8 @@ export async function createPost(formData: FormData) {
   const content = formData.get('content') as string;
   const mediaUrl = formData.get('mediaUrl') as string | null;
   const mediaType = formData.get('mediaType') as string | null;
+  const musicTrack = formData.get('musicTrack') as string | null;
+  const visualFilter = formData.get('visualFilter') as string | null;
 
   if (!content && !mediaUrl) {
     return { error: 'Post must contain content or media.' };
@@ -401,6 +403,8 @@ export async function createPost(formData: FormData) {
         content: content || '',
         mediaUrl,
         mediaType: mediaType || 'aurora',
+        musicTrack,
+        visualFilter,
         authorId: currentUser.id,
       },
     });
@@ -648,5 +652,176 @@ export async function markNotificationsRead() {
   } catch (error) {
     console.error('Mark read error:', error);
     return { error: 'Failed to mark read.' };
+  }
+}
+
+// ───────── STORIES (STATUS) ACTIONS ─────────
+
+export async function createStory(mediaUrl: string, content?: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiration
+
+    const story = await prisma.story.create({
+      data: {
+        mediaUrl,
+        content: content || null,
+        expiresAt,
+        authorId: currentUser.id,
+      },
+    });
+    return { success: true, story };
+  } catch (error) {
+    console.error('Create story error:', error);
+    return { error: 'Failed to broadcast story.' };
+  }
+}
+
+export async function getFeedStories() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: true, stories: [] };
+
+  try {
+    // Get stories from users I follow AND myself, which haven't expired
+    const following = await prisma.follow.findMany({
+      where: { followerId: currentUser.id },
+      select: { followingId: true },
+    });
+    const followingIds = following.map((f) => f.followingId);
+    followingIds.push(currentUser.id); // Include my own stories
+
+    const stories = await prisma.story.findMany({
+      where: {
+        authorId: { in: followingIds },
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        author: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true },
+        },
+        views: {
+          where: { userId: currentUser.id },
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { success: true, stories };
+  } catch (error) {
+    console.error('Get feed stories error:', error);
+    return { error: 'Failed to retrieve stories.', stories: [] };
+  }
+}
+
+export async function markStoryViewed(storyId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    await prisma.storyView.upsert({
+      where: { storyId_userId: { storyId, userId: currentUser.id } },
+      create: { storyId, userId: currentUser.id },
+      update: {}, // Do nothing if exists
+    });
+    return { success: true };
+  } catch (error) {
+    // Silent catch, this is a background ping
+    return { success: false };
+  }
+}
+
+// ───────── POST MANAGEMENT ACTIONS ─────────
+
+export async function editPostContent(postId: string, newContent: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.authorId !== currentUser.id) {
+      return { error: 'Unauthorized.' };
+    }
+
+    await prisma.post.update({
+      where: { id: postId },
+      data: { content: newContent },
+    });
+    
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/profile');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Edit post error:', error);
+    return { error: 'Failed to edit post.' };
+  }
+}
+
+export async function archivePost(postId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.authorId !== currentUser.id) return { error: 'Unauthorized.' };
+
+    const nextState = !post.archived;
+    await prisma.post.update({
+      where: { id: postId },
+      data: { archived: nextState },
+    });
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/profile');
+    revalidatePath('/');
+    return { success: true, archived: nextState };
+  } catch (error) {
+    console.error('Archive post error:', error);
+    return { error: 'Failed to archive post.' };
+  }
+}
+
+export async function deletePost(postId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.authorId !== currentUser.id) return { error: 'Unauthorized.' };
+
+    await prisma.post.delete({
+      where: { id: postId },
+    });
+
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/profile');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Delete post error:', error);
+    return { error: 'Failed to delete post.' };
+  }
+}
+
+export async function shareReelToChat(postId: string, chatId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    // Generate an absolute link to the reel using dynamic origin or a relative path
+    const url = `/reels?post=${postId}`;
+    
+    // We send a message utilizing the existing sendMessage infrastructure
+    // We format the content so the frontend can potentially intercept it as a rich link
+    const content = `Shared a cosmic reel transmission:\n${url}`;
+    
+    return await sendMessage(chatId, content, null, null);
+  } catch (error) {
+    console.error('Share reel error:', error);
+    return { error: 'Failed to share reel.' };
   }
 }

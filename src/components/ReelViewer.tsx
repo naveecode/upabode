@@ -60,6 +60,46 @@ export default function ReelViewer({
   const [pinCommentText, setPinCommentText] = useState('')
   const [isSubmittingPin, setIsSubmittingPin] = useState(false)
 
+  // Share Modal State
+  const [sharePostId, setSharePostId] = useState<string | null>(null)
+  const [shareSearchQuery, setShareSearchQuery] = useState('')
+  const [shareUsers, setShareUsers] = useState<any[]>([])
+  const [isSearchingShare, setIsSearchingShare] = useState(false)
+
+  const handleShareSearch = async (q: string) => {
+    setShareSearchQuery(q)
+    if (q.trim().length < 2) {
+      setShareUsers([])
+      return
+    }
+    setIsSearchingShare(true)
+    const { searchUsers } = await import('../app/actions')
+    const res = await searchUsers(q)
+    if (res.success && res.users) {
+      setShareUsers(res.users)
+    }
+    setIsSearchingShare(false)
+  }
+
+  const handleShareToUser = async (userId: string) => {
+    if (!sharePostId) return
+    const { startChat, shareReelToChat } = await import('../app/actions')
+    
+    showToast('Initializing secure channel...')
+    const chatRes = await startChat(userId)
+    if (chatRes.success && chatRes.chatId) {
+      const shareRes = await shareReelToChat(sharePostId, chatRes.chatId)
+      if (shareRes.success) {
+        showToast('Reel transmitted to channel successfully!')
+        setSharePostId(null)
+      } else {
+        showToast('Failed to transmit reel.')
+      }
+    } else {
+      showToast('Failed to open channel.')
+    }
+  }
+
   // Gesture Feedback Animation
   const [gestureFeedback, setGestureFeedback] = useState<{
     type: 'follow' | 'save' | 'comments'
@@ -381,31 +421,55 @@ export default function ReelViewer({
               }}
             >
               {/* Media Background */}
-              {post.mediaUrl ? (
-                <img
-                  src={post.mediaUrl}
-                  alt="Reel Media"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    pointerEvents: 'none'
-                  }}
-                />
-              ) : (
-                <div
-                  className={`post-media ${getMediaClass(post.mediaType)}`}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none'
-                  }}
-                />
-              )}
+              <div className={post.visualFilter || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+                {post.musicTrack && (
+                  <audio src={post.musicTrack} autoPlay loop style={{ display: 'none' }} />
+                )}
+                
+                {post.mediaUrl ? (
+                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                    <video
+                      src={post.mediaUrl}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={post.mediaUrl}
+                      alt="Reel Media"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )
+                ) : (
+                  <div
+                    className={`post-media ${getMediaClass(post.mediaType)}`}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                )}
+              </div>
 
               {/* Ambient Dark Gradient for Typography */}
               <div style={{
@@ -414,6 +478,31 @@ export default function ReelViewer({
                 background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 35%, rgba(7, 17, 31, 0.95) 88%)',
                 pointerEvents: 'none'
               }} />
+
+              {/* Share Button (Bottom Right) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
+                style={{
+                  position: 'absolute',
+                  bottom: '140px',
+                  right: '20px',
+                  background: 'rgba(0,0,0,0.6)',
+                  color: 'white',
+                  border: '1px solid var(--line)',
+                  borderRadius: '50%',
+                  width: '46px',
+                  height: '46px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                  zIndex: 20,
+                  backdropFilter: 'blur(8px)'
+                }}
+              >
+                ↗️
+              </button>
+
 
               {/* Top Status Indicators (No buttons) */}
               <div style={{
@@ -514,26 +603,29 @@ export default function ReelViewer({
                       display: 'grid',
                       placeItems: 'center'
                     }}>
-                      {/* Pulse Ring */}
-                      <div style={{
-                        position: 'absolute',
-                        inset: '-5px',
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(64, 201, 162, 0.5) 0%, transparent 70%)',
-                        animation: 'pulse 2s infinite'
-                      }} />
+                      {/* Pulse Ring - only when open */}
+                      {isOpen && (
+                        <div style={{
+                          position: 'absolute',
+                          inset: '-5px',
+                          borderRadius: '50%',
+                          background: 'radial-gradient(circle, rgba(64, 201, 162, 0.5) 0%, transparent 70%)',
+                          animation: 'pulse 2s infinite'
+                        }} />
+                      )}
 
                       <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{
-                        width: '32px',
-                        height: '32px',
-                        fontSize: '0.75rem',
+                        width: isOpen ? '32px' : '16px',
+                        height: isOpen ? '32px' : '16px',
+                        fontSize: isOpen ? '0.75rem' : '0rem', // Hide text when tiny
                         fontWeight: 700,
-                        border: '2px solid white',
+                        border: isOpen ? '2px solid white' : '1.5px solid rgba(255,255,255,0.8)',
                         boxShadow: '0 4px 15px rgba(0,0,0,0.6)',
-                        transition: 'transform 0.15s ease',
-                        transform: isOpen ? 'scale(1.2)' : 'scale(1)'
+                        transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        transform: isOpen ? 'scale(1.1)' : 'scale(1)',
+                        opacity: isOpen ? 1 : 0.85
                       }}>
-                        {comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦'}
+                        {isOpen && (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦')}
                       </div>
                     </div>
 
@@ -785,6 +877,99 @@ export default function ReelViewer({
           <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'white', textAlign: 'center' }}>
             {gestureFeedback.label}
           </span>
+        </div>
+      )}
+
+      {/* ───────── Share Modal Overlay ───────── */}
+      {sharePostId && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(10px)',
+          zIndex: 200,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            borderRadius: '24px',
+            width: '100%',
+            maxWidth: '400px',
+            padding: '24px',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setSharePostId(null)}
+              style={{
+                position: 'absolute', top: '16px', right: '16px', background: 'none',
+                border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer'
+              }}
+            >✕</button>
+            
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text)' }}>
+              Transmit Reel
+            </h3>
+            
+            <input
+              type="text"
+              placeholder="Search user by handle or name..."
+              value={shareSearchQuery}
+              onChange={(e) => handleShareSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 18px',
+                borderRadius: '100px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                outline: 'none',
+                marginBottom: '16px'
+              }}
+            />
+            
+            {isSearchingShare ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>Scanning frequencies...</div>
+            ) : shareUsers.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {shareUsers.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleShareToUser(u.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
+                      background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
+                      cursor: 'pointer', textAlign: 'left', transition: '0.2s'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                  >
+                    <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
+                      {u.avatarUrl || u.username.charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>@{u.handle}</div>
+                    </div>
+                    <div style={{ marginLeft: 'auto', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 700 }}>
+                      Send ↗
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : shareSearchQuery.length >= 2 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>No signals found.</div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '0.85rem' }}>
+                Type a handle to transmit this reel directly to a secure channel.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

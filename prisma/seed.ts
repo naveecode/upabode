@@ -4,7 +4,7 @@ import { hashPassword } from '../src/lib/password'
 const prisma = new PrismaClient()
 
 async function main() {
-  const tables = ['User', 'Post', 'Like', 'Follow', 'Chat', 'Message', 'SavedPost', 'ReelComment', 'Notification'];
+  const tables = ['User', 'Post', 'Like', 'Follow', 'Chat', '_ChatUsers', 'Message', 'SavedPost', 'ReelComment', 'Notification', 'Story', 'StoryView'];
   for (const t of tables) {
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE IF EXISTS "${t}" SET (schema_locked = false);`);

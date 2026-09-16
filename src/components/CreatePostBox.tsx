@@ -9,9 +9,11 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
   const [mediaType, setMediaType] = useState('aurora')
   const [mediaUrls, setMediaUrls] = useState<string[]>([])
-  const [isReelFormat, setIsReelFormat] = useState(false)
+  const [publishFormat, setPublishFormat] = useState<'feed' | 'reel' | 'story'>('feed')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [musicTrack, setMusicTrack] = useState('')
+  const [visualFilter, setVisualFilter] = useState('')
 
   const atmospheres = [
     { id: 'aurora', label: 'Aurora', emoji: '🌌' },
@@ -24,32 +26,43 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
     if (!content.trim() && mediaUrls.length === 0) return
 
     setIsSubmitting(true)
-    const formData = new FormData()
-    formData.append('content', content)
-    
-    // If multiple images: 'carousel', if format is reel: 'reel', else atmospheric sector
-    const effectiveMediaType = mediaUrls.length > 1 
-      ? 'carousel' 
-      : isReelFormat 
-      ? 'reel' 
-      : mediaType
-    formData.append('mediaType', effectiveMediaType)
-    
-    if (mediaUrls.length > 0) {
-      formData.append('mediaUrl', mediaUrls.join(','))
-    }
 
     try {
-      const res = await createPost(formData)
-      if (res.error) {
-        showToast(`Signal failed: ${res.error}`)
+      if (publishFormat === 'story') {
+        const { createStory } = await import('../app/actions')
+        const firstMedia = mediaUrls[0] || null
+        const res = await createStory(firstMedia!, content)
+        if (res.error) showToast(`Story failed: ${res.error}`)
+        else showToast('Status broadcasted for 24h!')
       } else {
-        showToast(mediaUrls.length > 1 ? 'Cosmic carousel transmitted!' : 'Signal transmitted into orbit!')
-        setContent('')
-        setMediaUrls([])
-        setIsReelFormat(false)
-        setIsOpen(false)
+        const formData = new FormData()
+        formData.append('content', content)
+        
+        const effectiveMediaType = mediaUrls.length > 1 
+          ? 'carousel' 
+          : publishFormat === 'reel' 
+          ? 'reel' 
+          : mediaType
+        formData.append('mediaType', effectiveMediaType)
+        
+        if (mediaUrls.length > 0) {
+          formData.append('mediaUrl', mediaUrls.join(','))
+        }
+        if (musicTrack) formData.append('musicTrack', musicTrack)
+        if (visualFilter) formData.append('visualFilter', visualFilter)
+
+        const res = await createPost(formData)
+        if (res.error) showToast(`Signal failed: ${res.error}`)
+        else showToast(mediaUrls.length > 1 ? 'Cosmic carousel transmitted!' : 'Signal transmitted into orbit!')
       }
+
+      setContent('')
+      setMediaUrls([])
+      setPublishFormat('feed')
+      setMusicTrack('')
+      setVisualFilter('')
+      setIsOpen(false)
+      window.location.reload()
     } catch (err) {
       showToast('Transmission failed')
     } finally {
@@ -119,45 +132,50 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       {isOpen && (
         <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
           {/* Format selection */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
             <button
               type="button"
-              onClick={() => setIsReelFormat(false)}
+              onClick={() => setPublishFormat('feed')}
               style={{
-                padding: '6px 14px',
-                borderRadius: '100px',
-                border: '1px solid',
-                borderColor: !isReelFormat ? 'var(--earth)' : 'var(--line)',
-                background: !isReelFormat ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: !isReelFormat ? 'var(--earth)' : 'var(--muted)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer'
+                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
+                borderColor: publishFormat === 'feed' ? 'var(--earth)' : 'var(--line)',
+                background: publishFormat === 'feed' ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                color: publishFormat === 'feed' ? 'var(--earth)' : 'var(--muted)',
+                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
               }}
             >
-              🌌 Atmospheric Feed / Carousel
+              🌌 Feed
             </button>
             <button
               type="button"
-              onClick={() => setIsReelFormat(true)}
+              onClick={() => setPublishFormat('reel')}
               style={{
-                padding: '6px 14px',
-                borderRadius: '100px',
-                border: '1px solid',
-                borderColor: isReelFormat ? 'var(--earth)' : 'var(--line)',
-                background: isReelFormat ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: isReelFormat ? 'var(--earth)' : 'var(--muted)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer'
+                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
+                borderColor: publishFormat === 'reel' ? 'var(--earth)' : 'var(--line)',
+                background: publishFormat === 'reel' ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                color: publishFormat === 'reel' ? 'var(--earth)' : 'var(--muted)',
+                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
               }}
             >
-              ▶ Broadcast to Reels
+              ▶ Reels
+            </button>
+            <button
+              type="button"
+              onClick={() => setPublishFormat('story')}
+              style={{
+                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
+                borderColor: publishFormat === 'story' ? '#ffb347' : 'var(--line)',
+                background: publishFormat === 'story' ? 'rgba(255, 179, 71, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                color: publishFormat === 'story' ? '#ffb347' : 'var(--muted)',
+                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              ⏱ Status (24h)
             </button>
           </div>
 
-          {/* Atmospheric Shader picker if not reel and no images */}
-          {mediaUrls.length === 0 && !isReelFormat && (
+          {/* Atmospheric Shader picker if feed and no images */}
+          {mediaUrls.length === 0 && publishFormat === 'feed' && (
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', fontWeight: 600 }}>
                 Atmospheric Background Shader
@@ -191,48 +209,105 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             </div>
           )}
 
-          {/* Uploaded Media Thumbnails (supports Carousel) */}
+          {/* Media Studio (Music & Filters) */}
           {mediaUrls.length > 0 && (
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '8px' }}>
-                {mediaUrls.length > 1 ? `Carousel Transmissions (${mediaUrls.length} frames)` : 'Attached Media'}
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: '16px',
+              border: '1px solid var(--line)'
+            }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--earth)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>✨</span> Media Studio
               </div>
-              <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
-                {mediaUrls.map((url, idx) => (
-                  <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '14px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--line)' }}>
-                    <img src={url} alt={`Upload ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMedia(idx)}
-                      style={{
-                        position: 'absolute',
-                        top: '4px',
-                        right: '4px',
-                        background: 'rgba(0, 0, 0, 0.75)',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: '22px',
-                        height: '22px',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontSize: '0.7rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      ✕
-                    </button>
-                    {mediaUrls.length > 1 && (
-                      <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px' }}>
-                        #{idx + 1}
-                      </span>
-                    )}
-                  </div>
-                ))}
+
+              {/* Uploaded Media Thumbnails (supports Carousel) */}
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
+                  {mediaUrls.map((url, idx) => (
+                    <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--line)' }}>
+                      <div className={visualFilter || ''} style={{ width: '100%', height: '100%' }}>
+                        {url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                          <video src={url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <img src={url} alt={`Upload ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMedia(idx)}
+                        style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: 'white', borderRadius: '50%', width: '22px', height: '22px', border: 'none', cursor: 'pointer', fontSize: '0.7rem' }}
+                      >
+                        ✕
+                      </button>
+                      {mediaUrls.length > 1 && (
+                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px' }}>
+                          #{idx + 1}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {/* Visual Filters */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Visual Filter
+                  </label>
+                  <select
+                    value={visualFilter}
+                    onChange={(e) => setVisualFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--panel)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--text)',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <option value="">No Filter (Original)</option>
+                    <option value="filter-grayscale">Grayscale / Noir</option>
+                    <option value="filter-sepia">Sepia / Vintage</option>
+                    <option value="filter-cyberpunk">Cyberpunk (Neon Hue)</option>
+                    <option value="filter-contrast">High Contrast</option>
+                  </select>
+                </div>
+
+                {/* Music Tracks */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Audio Track
+                  </label>
+                  <select
+                    value={musicTrack}
+                    onChange={(e) => setMusicTrack(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--panel)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--text)',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <option value="">Original Audio / None</option>
+                    <option value="/audio/cosmic-drift.mp3">Cosmic Drift (Ambient)</option>
+                    <option value="/audio/lunar-lounge.mp3">Lunar Lounge (Lo-Fi)</option>
+                    <option value="/audio/nebula-beats.mp3">Nebula Beats (Synthwave)</option>
+                    <option value="/audio/pulsar-synth.mp3">Pulsar Synth (Electronic)</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div title="Attach Photo or Reel Media (multi-upload supported for Carousel)">
                 <UploadButton
@@ -248,7 +323,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                 />
               </div>
               <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>
-                {mediaUrls.length === 0 ? 'Attach image / reel' : '+ Add carousel slide'}
+                {mediaUrls.length === 0 ? 'Attach media' : '+ Add more frames'}
               </span>
             </div>
 
@@ -258,6 +333,8 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                 onClick={() => {
                   setIsOpen(false)
                   setMediaUrls([])
+                  setMusicTrack('')
+                  setVisualFilter('')
                 }}
                 className="btn-outline"
                 style={{ padding: '8px 18px' }}
@@ -275,10 +352,11 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                   fontWeight: 700,
                   fontSize: '0.88rem',
                   cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting || (!content.trim() && mediaUrls.length === 0) ? 0.5 : 1
+                  opacity: isSubmitting || (!content.trim() && mediaUrls.length === 0) ? 0.5 : 1,
+                  border: 'none'
                 }}
               >
-                {isSubmitting ? 'Broadcasting...' : isReelFormat ? 'Broadcast to Reels ▶' : 'Broadcast Signal'}
+                {isSubmitting ? 'Broadcasting...' : publishFormat === 'reel' ? 'Broadcast Reel ▶' : publishFormat === 'story' ? 'Post Status' : 'Broadcast Signal'}
               </button>
             </div>
           </div>

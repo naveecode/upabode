@@ -3,6 +3,7 @@ import { getCurrentUser } from "./actions";
 import Post from "../components/Post";
 import Toast from "../components/Toast";
 import CreatePostBox from "../components/CreatePostBox";
+import StoryTray from "../components/StoryTray";
 
 export default async function Home() {
   const currentUser = await getCurrentUser();
@@ -12,6 +13,7 @@ export default async function Home() {
 
   try {
     posts = await prisma.post.findMany({
+      where: { archived: false },
       include: {
         author: {
           include: {
@@ -98,43 +100,7 @@ export default async function Home() {
           <div className="feed-count">{posts.length} transmissions</div>
         </div>
 
-        <div className="stories">
-          <div className="story">
-            <div className="story-ring">
-              <div className="story-inner">＋</div>
-            </div>
-            <span>Your signal</span>
-          </div>
-
-          <div className="story">
-            <div className="story-ring">
-              <div className="story-inner">🌌</div>
-            </div>
-            <span>Deep space</span>
-          </div>
-
-          <div className="story">
-            <div className="story-ring">
-              <div className="story-inner">🌱</div>
-            </div>
-            <span>Greenhouse</span>
-          </div>
-
-          <div className="story">
-            <div className="story-ring">
-              <div className="story-inner">🔭</div>
-            </div>
-            <span>Observers</span>
-          </div>
-
-          <div className="story">
-            <div className="story-ring">
-              <div className="story-inner">🛰️</div>
-            </div>
-            <span>Orbit lab</span>
-          </div>
-        </div>
-
+        <StoryTray currentUser={currentUser} />
         {/* Live Signal Broadcast Box */}
         <CreatePostBox currentUser={currentUser} />
 

@@ -23,6 +23,8 @@ model User {
 
   posts     Post[]
   likes     Like[]
+  stories   Story[]
+  storyViews StoryView[]
   
   followers Follow[] @relation("following")
   following Follow[] @relation("follower")
@@ -36,18 +38,43 @@ model User {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  content   String
-  mediaUrl  String?
-  mediaType String?  
-  channel   String   @default("earth")
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  content      String
+  mediaUrl     String?
+  mediaType    String?  
+  channel      String   @default("earth")
+  archived     Boolean  @default(false)
+  musicTrack   String?
+  visualFilter String?
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id])
+  createdAt    DateTime @default(now())
   
   likes        Like[]
   reelComments ReelComment[]
   savedBy      SavedPost[]
+}
+
+model Story {
+  id        String      @id @default(cuid())
+  mediaUrl  String
+  content   String?
+  expiresAt DateTime
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id])
+  createdAt DateTime    @default(now())
+  views     StoryView[]
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  storyId   String
+  userId    String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([storyId, userId])
 }
 
 model Like {

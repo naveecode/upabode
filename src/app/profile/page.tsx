@@ -22,8 +22,12 @@ export default async function ProfilePage() {
           posts: {
             orderBy: { createdAt: 'desc' }
           },
-          followers: true,
-          following: true
+          followers: {
+            include: { follower: true }
+          },
+          following: {
+            include: { following: true }
+          }
         }
       }),
       prisma.savedPost.findMany({

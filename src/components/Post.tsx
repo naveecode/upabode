@@ -152,9 +152,55 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     }
   };
 
+  const [showOptions, setShowOptions] = useState(false);
+  
+  const handleEdit = async () => {
+    const newContent = prompt('Edit your transmission:', post.content);
+    if (newContent !== null && newContent !== post.content) {
+      // Need to import editPostContent from actions
+      const { editPostContent } = await import('../app/actions');
+      await editPostContent(post.id, newContent);
+      window.location.reload();
+    }
+    setShowOptions(false);
+  };
+
+  const handleDelete = async () => {
+    if (confirm('Permanently delete this transmission?')) {
+      const { deletePost } = await import('../app/actions');
+      await deletePost(post.id);
+      window.location.reload();
+    }
+    setShowOptions(false);
+  };
+
+  const handleArchive = async () => {
+    const { archivePost } = await import('../app/actions');
+    await archivePost(post.id);
+    window.location.reload();
+    setShowOptions(false);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/reels?post=${post.id}`);
+    showToast('Transmission link copied to clipboard!');
+    setShowOptions(false);
+  };
+
+  const handleDownload = () => {
+    if (!post.mediaUrl) return;
+    const a = document.createElement('a');
+    a.href = post.mediaUrl;
+    a.download = `upabode-orbit-${post.id}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setShowOptions(false);
+  };
+
   return (
-    <article className="post" data-post-id={post.id}>
-      <div className="post-header">
+    <article className="post" data-post-id={post.id} style={{ opacity: post.archived ? 0.7 : 1 }}>
+      <div className="post-header" style={{ position: 'relative' }}>
         <div className="user">
           <div className={`user-avatar ${post.author?.color || 'green'}`}>
             {post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()}
@@ -165,33 +211,89 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {post.archived && (
+            <span style={{ fontSize: '0.72rem', color: '#ffb347', background: 'rgba(255, 179, 71, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>
+              Archived
+            </span>
+          )}
           <span style={{ fontSize: '0.72rem', color: 'var(--earth)', background: 'rgba(64, 201, 162, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>
             {post.channel || 'earth'}
           </span>
+          
+          {/* Post Options Menu */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowOptions(!showOptions)}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer', padding: '4px 8px' }}
+            >
+              ⋮
+            </button>
+            {showOptions && (
+              <div style={{
+                position: 'absolute', right: 0, top: '100%',
+                background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px',
+                padding: '8px', zIndex: 100, minWidth: '160px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                display: 'flex', flexDirection: 'column', gap: '4px'
+              }}>
+                {currentUserId === post.authorId && (
+                  <>
+                    <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
+                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
+                    <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
+                  </>
+                )}
+                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
+                {post.mediaUrl && (
+                  <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Swipe Zone / Media Area / Carousel */}
       <div
         ref={zoneRef}
-        className={`post-media ${mediaList.length === 0 ? getMediaClass(post.mediaType) : ''}`}
+        className={`post-media ${mediaList.length === 0 ? getMediaClass(post.mediaType) : ''} ${post.visualFilter || ''}`}
         data-swipe-zone
         style={{ position: 'relative', overflow: 'hidden' }}
       >
+        {post.musicTrack && (
+          <audio src={post.musicTrack} autoPlay loop muted={false} style={{ display: 'none' }} />
+        )}
+        
         {/* Render Carousel or Single Media Image */}
         {mediaList.length > 0 ? (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            <img
-              src={mediaList[currentSlide]}
-              alt={`Transmission slide ${currentSlide + 1}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                pointerEvents: 'none',
-                transition: 'opacity 0.2s ease'
-              }}
-            />
+            {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) ? (
+              <video
+                src={mediaList[currentSlide]}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  pointerEvents: 'none'
+                }}
+              />
+            ) : (
+              <img
+                src={mediaList[currentSlide]}
+                alt={`Transmission slide ${currentSlide + 1}`}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  pointerEvents: 'none',
+                  transition: 'opacity 0.2s ease'
+                }}
+              />
+            )}
 
             {/* Carousel navigation arrows if multiple slides */}
             {mediaList.length > 1 && (

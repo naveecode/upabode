@@ -406,8 +406,22 @@ export default function ChatRoom({
     setInputText(prev => prev + emoji)
   }
 
-  // Start Voice Note Recording
-  const startRecording = async () => {
+  const isRecordingRef = useRef(false)
+
+  // Toggle Voice Note Recording
+  const toggleRecording = async () => {
+    if (isRecordingRef.current) {
+      // Stop recording
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop()
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      }
+      setIsRecording(false)
+      isRecordingRef.current = false
+      return
+    }
+
+    // Start recording
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream)
@@ -427,6 +441,10 @@ export default function ChatRoom({
 
       mediaRecorder.onstop = async () => {
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
+        
+        // Prevent sending empty recordings (less than 1 chunk or very short)
+        if (audioChunksRef.current.length === 0) return
+
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         const reader = new FileReader()
         reader.readAsDataURL(audioBlob)
@@ -451,18 +469,12 @@ export default function ChatRoom({
 
       mediaRecorder.start()
       setIsRecording(true)
+      isRecordingRef.current = true
     } catch (e) {
       console.error('Microphone access denied:', e)
       alert('Could not access microphone. Please grant permission.')
-    }
-  }
-
-  // Stop Voice Note Recording
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
       setIsRecording(false)
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      isRecordingRef.current = false
     }
   }
 
@@ -761,29 +773,24 @@ export default function ChatRoom({
               swappedPiP ? (
                 // If swapped, local video is on main screen
                 <video
-                  ref={localVideoRef}
+                  ref={(el) => {
+                    if (el && localStream && el.srcObject !== localStream) el.srcObject = localStream;
+                  }}
                   autoPlay
                   playsInline
                   muted
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transform: 'scaleX(-1)'
-                  }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
                 />
               ) : (
                 // Remote video is on main screen
                 remoteStream ? (
                   <video
-                    ref={remoteVideoRef}
+                    ref={(el) => {
+                      if (el && remoteStream && el.srcObject !== remoteStream) el.srcObject = remoteStream;
+                    }}
                     autoPlay
                     playsInline
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
@@ -817,6 +824,18 @@ export default function ChatRoom({
                 <p style={{ color: 'var(--earth)', fontSize: '0.9rem' }}>
                   {callStatus === 'connected' ? `Audio Channel Active (${formatDuration(callDuration)})` : 'Calling astronaut...'}
                 </p>
+                {/* Hidden audio element for remote stream during audio-only calls */}
+                {remoteStream && (
+                  <audio
+                    ref={(audioElement) => {
+                      if (audioElement && audioElement.srcObject !== remoteStream) {
+                        audioElement.srcObject = remoteStream;
+                      }
+                    }}
+                    autoPlay
+                    playsInline
+                  />
+                )}
               </div>
             )}
           </div>
@@ -848,7 +867,9 @@ export default function ChatRoom({
                 // Remote is in PiP
                 remoteStream ? (
                   <video
-                    ref={remoteVideoRef}
+                    ref={(el) => {
+                      if (el && remoteStream && el.srcObject !== remoteStream) el.srcObject = remoteStream;
+                    }}
                     autoPlay
                     playsInline
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -861,16 +882,13 @@ export default function ChatRoom({
               ) : (
                 // Local is in PiP
                 <video
-                  ref={localVideoRef}
+                  ref={(el) => {
+                    if (el && localStream && el.srcObject !== localStream) el.srcObject = localStream;
+                  }}
                   autoPlay
                   playsInline
                   muted
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transform: 'scaleX(-1)'
-                  }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
                 />
               )}
               <div style={{
@@ -1197,9 +1215,18 @@ export default function ChatRoom({
               allowedContent() { return '' }
             }}
             appearance={{
-              button: {
+              container: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: 0,
+                padding: 0,
                 width: '40px',
                 height: '40px',
+              },
+              button: {
+                width: '100%',
+                height: '100%',
                 minWidth: '40px',
                 borderRadius: '50%',
                 padding: 0,
@@ -1292,10 +1319,7 @@ export default function ChatRoom({
           </button>
         ) : (
           <button
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
+            onClick={toggleRecording}
             style={{
               width: '42px',
               height: '42px',
@@ -1310,9 +1334,9 @@ export default function ChatRoom({
               flexShrink: 0,
               transition: '0.2s ease'
             }}
-            title={isRecording ? 'Release to beam voice log' : 'Hold to record voice transmission'}
+            title={isRecording ? 'Click to beam voice log' : 'Click to record voice transmission'}
           >
-            🎤
+            {isRecording ? '⏹' : '🎤'}
           </button>
         )}
       </div>
