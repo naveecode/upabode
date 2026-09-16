@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07111f;
-  --background-soft: #0d1b2d;
-  --panel: rgba(18, 34, 54, 0.78);
-  --panel-solid: #102239;
-  --text: #f3f7fb;
-  --muted: #91a5ba;
-  --line: rgba(255, 255, 255, 0.1);
-  --earth: #40c9a2;
-  --earth-dark: #159476;
-  --mars: #ed7656;
-  --moon: #cad5df;
-  --yellow: #f4c95d;
-  --danger: #ff6b7a;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  --background: #FCFBF8;
+  --background-soft: #F3F0E9;
+  --panel: rgba(255, 255, 255, 0.7);
+  --panel-solid: #FFFFFF;
+  --text: #1C1914;
+  --muted: #8A8175;
+  --line: rgba(28, 25, 20, 0.08);
+  --earth: #C5A059;
+  --earth-dark: #A68444;
+  --mars: #B85C5C;
+  --moon: #E5DFD3;
+  --yellow: #D1A741;
+  --danger: #B85C5C;
+  --shadow: 0 12px 30px rgba(45, 38, 28, 0.06);
 }
 
 * {
@@ -30,11 +30,9 @@ html {
 body {
   min-height: 100vh;
   color: var(--text);
-  background:
-    radial-gradient(circle at 15% 10%, rgba(64, 201, 162, 0.1), transparent 30%),
-    radial-gradient(circle at 90% 20%, rgba(237, 118, 86, 0.1), transparent 28%),
-    linear-gradient(135deg, #07111f 0%, #0b1727 48%, #07111f 100%);
+  background: var(--background);
   overflow-x: hidden;
+  font-family: var(--font-body), sans-serif;
 }
 
 body::before {
@@ -42,11 +40,10 @@ body::before {
   inset: 0;
   z-index: -1;
   content: "";
-  opacity: 0.35;
+  opacity: 0.4;
   pointer-events: none;
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 1px, transparent 1px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.4) 0 1px, transparent 1px);
+    radial-gradient(circle, rgba(197, 160, 89, 0.15) 0 1px, transparent 1px);
   background-position: 0 0, 80px 120px;
   background-size: 170px 170px, 240px 240px;
 }
@@ -124,12 +121,12 @@ button {
   border: 1px solid var(--line);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.05);
-  transition: 0.2s ease;
+  transition: 0.1s ease;
 }
 
 .icon-button:hover {
   border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0,0,0,0.08);
   transform: translateY(-2px);
 }
 
@@ -186,7 +183,7 @@ button {
   color: var(--text);
   background: transparent;
   text-align: left;
-  transition: 0.2s ease;
+  transition: 0.1s ease;
 }
 
 .planet-button:hover,
@@ -521,7 +518,7 @@ h1 {
   color: var(--muted);
   background: none;
   font-size: 0.84rem;
-  transition: 0.2s ease;
+  transition: 0.1s ease;
 }
 
 .action-button:hover {
@@ -1083,7 +1080,7 @@ h1 {
 }
 
 .chat-back:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0,0,0,0.08);
 }
 
 .chat-header-info {
@@ -1132,7 +1129,7 @@ h1 {
   flex-direction: column;
   gap: 12px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: rgba(0,0,0,0.08) transparent;
 }
 
 .message-bubble {
@@ -1271,7 +1268,7 @@ h1 {
 
 .chat-action-btn:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0,0,0,0.08);
 }
 
 /* ───────── Emoji Picker ───────── */
@@ -1307,7 +1304,7 @@ h1 {
 }
 
 .emoji-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0,0,0,0.08);
   transform: scale(1.15);
 }
 
@@ -1697,7 +1694,7 @@ h1 {
 }
 
 .btn-outline:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0,0,0,0.08);
   border-color: rgba(255, 255, 255, 0.25);
 }
 

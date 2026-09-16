@@ -790,7 +790,7 @@ export default function ChatRoom({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'rgba(255,255,255,0.1)',
+              background: 'rgba(0,0,0,0.08)',
               padding: '6px 14px',
               borderRadius: '100px',
               color: 'var(--muted)',
@@ -1072,7 +1072,7 @@ export default function ChatRoom({
         flexDirection: 'column',
         gap: '12px',
         scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(255, 255, 255, 0.1) transparent'
+        scrollbarColor: 'rgba(0,0,0,0.08) transparent'
       }}>
         {messages.length === 0 ? (
           <div style={{
@@ -1236,7 +1236,7 @@ export default function ChatRoom({
                   borderRadius: '8px',
                   transition: '0.15s ease'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.08)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
               >
                 {emoji}
@@ -1427,7 +1427,7 @@ export default function ChatRoom({
               position: 'absolute',
               top: '20px',
               right: '20px',
-              background: 'rgba(255,255,255,0.1)',
+              background: 'rgba(0,0,0,0.08)',
               border: 'none',
               color: 'white',
               width: '40px',

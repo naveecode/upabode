@@ -444,38 +444,47 @@ export default function ReelViewer({
                   <audio src={post.musicTrack} autoPlay loop style={{ display: 'none' }} />
                 )}
                 
-                {post.mediaUrl ? (
-                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
+                {post.mediaUrl ? (() => {
+                  const mediaList = post.mediaUrl.split(',');
+                  // Since we can't easily swipe left/right (used for save/follow), we'll just show the first frame in Reels view for now, OR we can add a local state for slide index. 
+                  // But wait, ReelViewer maps over all posts. We'd need a local state per post, which is hard in a map.
+                  // For now, let's just safely use the first URL to prevent it from breaking completely.
+                  const safeUrl = mediaList[0];
+                  
+                  return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
                     <video
-                      src={post.mediaUrl}
-                      autoPlay
+                      src={safeUrl}
                       loop
-                      muted
+                      controls
                       playsInline
+                      onPlay={(e) => {
+                        const target = e.target as HTMLVideoElement;
+                        document.querySelectorAll('video, audio').forEach(media => {
+                          if (media !== target) (media as HTMLMediaElement).pause();
+                        });
+                      }}
                       style={{
                         position: 'absolute',
                         inset: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover',
-                        pointerEvents: 'none'
+                        objectFit: 'contain'
                       }}
                     />
                   ) : (
                     <img
-                      src={post.mediaUrl}
+                      src={safeUrl}
                       alt="Reel Media"
                       style={{
                         position: 'absolute',
                         inset: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover',
-                        pointerEvents: 'none'
+                        objectFit: 'contain'
                       }}
                     />
-                  )
-                ) : (
+                  );
+                })() : (
                   <div
                     className={`post-media ${getMediaClass(post.mediaType)}`}
                     style={{
@@ -613,28 +622,37 @@ export default function ReelViewer({
                       zIndex: isOpen ? 40 : 20
                     }}
                   >
-                    {/* Minimal Pin Dot */}
+                    {/* Pill-shaped Pin */}
                     <div style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: '1.5px solid var(--earth)',
-                      display: 'grid',
-                      placeItems: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px 4px 4px',
+                      borderRadius: '100px',
+                      background: 'rgba(7, 17, 31, 0.75)',
+                      border: '1px solid var(--earth)',
                       backdropFilter: 'blur(8px)',
-                      boxShadow: isOpen ? '0 0 20px rgba(64, 201, 162, 0.6)' : 'none',
+                      boxShadow: isOpen ? '0 0 20px rgba(64, 201, 162, 0.6)' : '0 4px 12px rgba(0,0,0,0.4)',
                       cursor: 'pointer',
-                      transition: '0.2s ease',
-                      transform: isOpen ? 'scale(1.2)' : 'scale(1)'
+                      transition: 'all 0.2s ease',
+                      transform: isOpen ? 'scale(1.1)' : 'scale(1)',
+                      maxWidth: '120px'
                     }}>
                       <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{
-                        width: '18px', height: '18px', fontSize: '0.5rem',
-                        transition: '0.2s ease',
-                        transform: isOpen ? 'scale(1.1)' : 'scale(1)',
-                        opacity: isOpen ? 1 : 0.85
+                        width: '20px', height: '20px', fontSize: '0.6rem', flexShrink: 0
                       }}>
-                        {isOpen && (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦')}
+                        {comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦'}
+                      </div>
+                      <div style={{
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {comment.content.split(' ').slice(0, 3).join(' ')}
+                        {comment.content.split(' ').length > 3 ? '...' : ''}
                       </div>
                     </div>
 
@@ -705,7 +723,7 @@ export default function ReelViewer({
                   zIndex: 35,
                   boxShadow: '0 15px 40px rgba(0,0,0,0.7)'
                 }}>
-                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--earth)' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--earth)' }}>
                     All Notes ({post.reelComments!.length})
                   </div>
                   <div style={{ overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -727,15 +745,16 @@ export default function ReelViewer({
               {/* ───────── Pending Pin Comment Creator ───────── */}
               {pendingPin && pendingPin.postId === post.id && (
                 <div
-                  className="pin-interactive"
-                  onClick={(e) => e.stopPropagation()}
+                  className={isAddingComment ? "pin-interactive" : ""}
+                  onClick={(e) => { if (isAddingComment) e.stopPropagation(); }}
                   style={{
                     position: 'absolute',
                     left: `${pendingPin.xPercent}%`,
                     top: `${pendingPin.yPercent}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 50,
-                    animation: 'fadeIn 0.2s ease'
+                    animation: 'fadeIn 0.2s ease',
+                    pointerEvents: isAddingComment ? 'auto' : 'none'
                   }}
                 >
                   {/* Pin Target Beacon */}
@@ -798,7 +817,7 @@ export default function ReelViewer({
                           style={{
                             padding: '5px 12px',
                             borderRadius: '100px',
-                            background: 'rgba(255,255,255,0.1)',
+                            background: 'rgba(0,0,0,0.08)',
                             color: 'var(--muted)',
                             fontSize: '0.74rem',
                             fontWeight: 600,

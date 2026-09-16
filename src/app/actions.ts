@@ -5,6 +5,17 @@ import { getSession, setSession, clearSession } from '../lib/session';
 import { pusherServer } from '../lib/pusher';
 import { hashPassword, verifyPassword } from '../lib/password';
 
+export async function updateAvatar(url: string) {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Not authenticated' };
+  
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { avatarUrl: url }
+  });
+  return { success: true };
+}
+
 export async function registerUser(formData: FormData) {
   const username = (formData.get('username') as string || '').trim();
   let handle = (formData.get('handle') as string || '').trim().toLowerCase();

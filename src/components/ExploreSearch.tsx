@@ -102,26 +102,26 @@ export default function ExploreSearch({
             🔍
           </span>
           <input
+            autoFocus
             type="text"
+            placeholder="Search space anomalies, signals, or users..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search all cosmos media, transmissions, hashtags or astronaut handles..."
             style={{
-              flex: 1,
+              width: '100%',
               background: 'transparent',
               border: 'none',
               color: 'var(--text)',
-              fontSize: '0.98rem',
+              fontSize: '1rem',
               outline: 'none',
-              padding: '8px 0',
-              fontFamily: 'inherit'
+              padding: '10px 0'
             }}
           />
           {query && (
             <button
               onClick={() => setQuery('')}
               style={{
-                background: 'rgba(255,255,255,0.1)',
+                background: 'rgba(0,0,0,0.08)',
                 border: 'none',
                 color: 'var(--muted)',
                 borderRadius: '50%',

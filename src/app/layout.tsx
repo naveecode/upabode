@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { DM_Sans, Space_Grotesk } from 'next/font/google'
+import { Montserrat, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 import '@uploadthing/react/styles.css'
 
@@ -9,19 +9,20 @@ import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
 
-const dmSans = DM_Sans({
+const montserrat = Montserrat({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-body',
 })
 
-const spaceGrotesk = Space_Grotesk({
+const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
-  variable: '--font-space-grotesk',
+  weight: ['400', '600', '700'],
+  variable: '--font-heading',
 })
 
 export const metadata: Metadata = {
-  title: 'Upabode - Planetary Communication Network',
-  description: 'Connect across the cosmos with Upabode',
+  title: 'Upabode - Premium Communication',
+  description: 'Luxurious social connections with Upabode',
 }
 
 export default async function RootLayout({
@@ -41,15 +42,10 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${dmSans.variable} ${spaceGrotesk.variable} app-shell`}>
+      <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
         <SplashLoader />
         <header className="topbar">
-          <Link href="/" className="brand">
-            <span className="brand-mark"></span>
-            <span className="brand-name">Upabode</span>
-          </Link>
-
-          <div className="topbar-right flex items-center gap-3">
+          <div className="topbar-right flex items-center gap-3 w-full justify-end">
             {user ? (
               <>
                 <Link href="/explore" className="icon-button" title="Explore & Search Media">
@@ -70,13 +66,17 @@ export default async function RootLayout({
                     }} />
                   )}
                 </Link>
-                <Link href="/profile" className="avatar bg-[var(--panel-solid)] text-white w-9 h-9 rounded-full flex items-center justify-center font-bold border-2 border-[var(--earth)] hover:scale-105 transition-transform" title="Profile & Settings">
+                <Link href="/profile" className="avatar bg-[var(--panel-solid)] text-[var(--text)] w-9 h-9 rounded-full flex items-center justify-center font-bold border-2 border-[var(--earth)] hover:scale-105 transition-transform" title="Profile & Settings">
                   {user.username?.charAt(0).toUpperCase() || 'U'}
                 </Link>
               </>
             ) : (
               <Link href="/auth/login" className="bg-[var(--earth)] text-[#07111f] px-4 py-2 rounded-full font-bold text-sm hover:bg-[var(--earth-dark)] transition-colors">Sign in</Link>
             )}
+            <Link href="/" className="brand ml-4">
+              <span className="brand-mark"></span>
+              <span className="brand-name">Upabode</span>
+            </Link>
           </div>
         </header>
 

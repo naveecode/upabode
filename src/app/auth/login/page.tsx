@@ -159,24 +159,47 @@ export default function LoginPage() {
             type="submit"
             disabled={loading}
             style={{
-              width: '100%',
-              padding: '15px',
-              background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+              background: 'var(--earth)',
               color: '#07111f',
+              padding: '16px',
+              borderRadius: '12px',
               border: 'none',
-              borderRadius: '14px',
-              fontSize: '1rem',
-              fontWeight: '700',
+              fontWeight: 700,
+              fontSize: '1.05rem',
               cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: '8px',
               opacity: loading ? 0.7 : 1,
-              transition: '0.2s ease',
-              boxShadow: '0 4px 20px rgba(64, 201, 162, 0.3)'
+              transition: 'background 0.2s',
+              marginTop: '8px'
             }}
           >
-            {loading ? 'Authenticating...' : 'Enter System'}
+            {loading ? 'Authenticating...' : 'Establish Connection'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
+          <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />
+          <div style={{ color: 'var(--muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Or</div>
+          <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />
+        </div>
+
+        <a
+          href="/api/auth/google"
+          style={{
+            display: 'block',
+            textAlign: 'center',
+            background: 'white',
+            color: '#333',
+            padding: '14px',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: '1rem',
+            border: '1px solid #ddd'
+          }}
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style={{ width: '18px', height: '18px', display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }} />
+          Continue with Google
+        </a>
 
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>

@@ -350,9 +350,34 @@ export default function RegisterPage() {
               boxShadow: '0 4px 20px rgba(64, 201, 162, 0.3)'
             }}
           >
-            {loading ? 'Transmitting Credentials...' : 'Create Account'}
+            {loading ? 'Initializing...' : 'Initialize Quantum Link'}
           </button>
         </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
+          <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />
+          <div style={{ color: 'var(--muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Or</div>
+          <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />
+        </div>
+
+        <a
+          href="/api/auth/google"
+          style={{
+            display: 'block',
+            textAlign: 'center',
+            background: 'white',
+            color: '#333',
+            padding: '14px',
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: '1rem',
+            border: '1px solid #ddd'
+          }}
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style={{ width: '18px', height: '18px', display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }} />
+          Register with Google
+        </a>
 
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>

@@ -161,41 +161,6 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             </button>
           </div>
 
-          {/* Atmospheric Shader picker if feed and no images */}
-          {mediaUrls.length === 0 && publishFormat === 'feed' && (
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px', fontWeight: 600 }}>
-                Atmospheric Background Shader
-              </label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {atmospheres.map((atm) => (
-                  <button
-                    type="button"
-                    key={atm.id}
-                    onClick={() => setMediaType(atm.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '7px 14px',
-                      borderRadius: '100px',
-                      border: '1px solid',
-                      borderColor: mediaType === atm.id ? 'var(--earth)' : 'var(--line)',
-                      background: mediaType === atm.id ? 'rgba(64, 201, 162, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                      color: mediaType === atm.id ? 'var(--earth)' : 'var(--text)',
-                      fontSize: '0.82rem',
-                      cursor: 'pointer',
-                      transition: '0.15s ease'
-                    }}
-                  >
-                    <span>{atm.emoji}</span>
-                    <span>{atm.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Media Studio (Music & Filters) */}
           {mediaUrls.length > 0 && (
             <div style={{
@@ -215,7 +180,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                   {mediaUrls.map((url, idx) => (
                     <div key={idx} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--line)' }}>
                       <div className={visualFilter || ''} style={{ width: '100%', height: '100%' }}>
-                        {url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                        {url.match(/\.(mp4|webm|ogg|mov)$/i) || url.includes('#video') ? (
                           <video src={url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <img src={url} alt={`Upload ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -238,7 +203,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
                 {/* Visual Filters */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
@@ -268,56 +233,58 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                 {/* Music Tracks */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                    Audio Track
+                    Custom Audio Track
                   </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <select
-                      value={musicTrack}
-                      onChange={(e) => setMusicTrack(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: 'var(--panel)',
-                        border: '1px solid var(--line)',
-                        color: 'var(--text)',
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      <option value="">Original Audio / None</option>
-                      {/* Built-in Large Library */}
-                      <option value="/audio/cosmic-drift.mp3">Cosmic Drift (Ambient)</option>
-                      <option value="/audio/lunar-lounge.mp3">Lunar Lounge (Lo-Fi)</option>
-                      <option value="/audio/nebula-beats.mp3">Nebula Beats (Synthwave)</option>
-                      <option value="/audio/pulsar-synth.mp3">Pulsar Synth (Electronic)</option>
-                      <option value="/audio/stellar-groove.mp3">Stellar Groove (Pop)</option>
-                      <option value="/audio/zero-gravity.mp3">Zero Gravity (Trap)</option>
-                      <option value="/audio/martian-sunset.mp3">Martian Sunset (Acoustic)</option>
-                      <option value="/audio/event-horizon.mp3">Event Horizon (Cinematic)</option>
-                      <option value="/audio/solar-flare.mp3">Solar Flare (Rock)</option>
-                      <option value="/audio/galactic-jazz.mp3">Galactic Jazz (Jazz)</option>
-                      {/* If custom track is uploaded, show it as selected */}
-                      {musicTrack.includes('utfs.io') && (
-                        <option value={musicTrack}>Custom Uploaded Track</option>
-                      )}
-                    </select>
-                    
-                    {/* Custom Music Upload */}
-                    <div style={{ width: '40px', overflow: 'hidden' }} title="Upload custom audio">
-                      <UploadButton
-                        endpoint="mediaUploader"
-                        content={{ button() { return '🎵' }, allowedContent() { return '' } }}
-                        appearance={{
-                          button: { width: '40px', height: '100%', padding: 0, fontSize: '1.2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)', borderRadius: '8px', cursor: 'pointer' },
-                          allowedContent: { display: 'none' }, container: { margin: 0, padding: 0, height: '100%' }
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <select
+                        value={musicTrack}
+                        onChange={(e) => setMusicTrack(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          background: 'var(--panel)',
+                          border: '1px solid var(--line)',
+                          color: 'var(--text)',
+                          fontSize: '0.85rem'
                         }}
-                        onClientUploadComplete={(res: any) => {
-                          if (res && res[0]) {
-                            setMusicTrack(res[0].url);
-                            showToast('Custom audio track uploaded!');
-                          }
-                        }}
-                      />
+                      >
+                        <option value="">Original Audio / None</option>
+                        {/* Built-in Large Library */}
+                        <option value="/audio/cosmic-drift.mp3">Cosmic Drift (Ambient)</option>
+                        <option value="/audio/lunar-lounge.mp3">Lunar Lounge (Lo-Fi)</option>
+                        <option value="/audio/nebula-beats.mp3">Nebula Beats (Synthwave)</option>
+                        <option value="/audio/pulsar-synth.mp3">Pulsar Synth (Electronic)</option>
+                        <option value="/audio/stellar-groove.mp3">Stellar Groove (Pop)</option>
+                        <option value="/audio/zero-gravity.mp3">Zero Gravity (Trap)</option>
+                        <option value="/audio/martian-sunset.mp3">Martian Sunset (Acoustic)</option>
+                        <option value="/audio/event-horizon.mp3">Event Horizon (Cinematic)</option>
+                        <option value="/audio/solar-flare.mp3">Solar Flare (Rock)</option>
+                        <option value="/audio/galactic-jazz.mp3">Galactic Jazz (Jazz)</option>
+                        {/* If custom track is uploaded, show it as selected */}
+                        {musicTrack.includes('utfs.io') && (
+                          <option value={musicTrack}>Custom Uploaded Track</option>
+                        )}
+                      </select>
+                      
+                      {/* Custom Music Upload */}
+                      <div style={{ width: '120px', overflow: 'hidden' }} title="Upload custom audio">
+                        <UploadButton
+                          endpoint="mediaUploader"
+                          content={{ button() { return '🎵 Upload' }, allowedContent() { return '' } }}
+                          appearance={{
+                            button: { width: '100%', height: '100%', padding: '0 10px', fontSize: '0.85rem', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', border: '1px solid var(--earth)', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 },
+                            allowedContent: { display: 'none' }, container: { margin: 0, padding: 0, height: '100%' }
+                          }}
+                          onClientUploadComplete={(res: any) => {
+                            if (res && res[0]) {
+                              setMusicTrack(res[0].url);
+                              showToast('Custom audio track uploaded!');
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

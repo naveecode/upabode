@@ -181,10 +181,41 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     setShowOptions(false);
   };
 
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareSearchQuery, setShareSearchQuery] = useState('');
+  const [shareUsers, setShareUsers] = useState<any[]>([]);
+  const [isSearchingShare, setIsSearchingShare] = useState(false);
+
+  const handleShareSearch = async (query: string) => {
+    setShareSearchQuery(query);
+    if (query.length < 2) {
+      setShareUsers([]);
+      return;
+    }
+    setIsSearchingShare(true);
+    const { searchUsers } = await import('../app/actions');
+    const results = await searchUsers(query);
+    setIsSearchingShare(false);
+    if (!results.error) {
+      setShareUsers(results);
+    }
+  };
+
+  const handleShareToUser = async (userId: string) => {
+    const { startChat, shareReelToChat } = await import('../app/actions');
+    const chat = await startChat(userId);
+    if (chat && chat.id) {
+      await shareReelToChat(chat.id, post.id);
+      showToast('Transmission shared to secure channel!');
+      setShowShareModal(false);
+    } else {
+      showToast('Error sharing transmission.');
+    }
+  };
+
   const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/reels?post=${post.id}`);
-    showToast('Transmission link copied to clipboard!');
     setShowOptions(false);
+    setShowShareModal(true);
   };
 
   const handleDownload = () => {
@@ -238,14 +269,14 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
               }}>
                 {currentUserId === post.authorId && (
                   <>
-                    <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
-                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
-                    <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
+                    <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
+                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
+                    <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
                   </>
                 )}
-                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
+                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
                 {post.mediaUrl && (
-                  <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.2s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
+                  <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
                 )}
               </div>
             )}
@@ -261,7 +292,18 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         style={{ position: 'relative', overflow: 'hidden' }}
       >
         {post.musicTrack && (
-          <audio src={post.musicTrack} autoPlay loop muted={false} style={{ display: 'none' }} />
+          <audio 
+            src={post.musicTrack} 
+            loop 
+            controls 
+            onPlay={(e) => {
+              const target = e.target as HTMLAudioElement;
+              document.querySelectorAll('video, audio').forEach(media => {
+                if (media !== target) (media as HTMLMediaElement).pause();
+              });
+            }}
+            style={{ position: 'absolute', bottom: '10px', right: '10px', zIndex: 10, height: '30px' }} 
+          />
         )}
         
         {/* Render Carousel or Single Media Image */}
@@ -270,10 +312,15 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
             {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[currentSlide].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
               <video
                 src={mediaList[currentSlide]}
-                autoPlay
                 loop
                 controls
                 playsInline
+                onPlay={(e) => {
+                  const target = e.target as HTMLVideoElement;
+                  document.querySelectorAll('video, audio').forEach(media => {
+                    if (media !== target) (media as HTMLMediaElement).pause();
+                  });
+                }}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -289,7 +336,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                   height: '100%',
                   objectFit: 'cover',
                   pointerEvents: 'none',
-                  transition: 'opacity 0.2s ease'
+                  transition: 'opacity 0.1s ease'
                 }}
               />
             )}
@@ -365,7 +412,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                         height: '6px',
                         borderRadius: '100px',
                         background: idx === currentSlide ? 'var(--earth)' : 'rgba(255,255,255,0.4)',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.1s ease'
                       }}
                     />
                   ))}
@@ -424,6 +471,83 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           Experience in Reels Mode ▶
         </Link>
       </div>
+      {/* Modern Share Modal */}
+      {showShareModal && (
+        <div 
+          onClick={() => setShowShareModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: '400px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '24px', padding: '24px', position: 'relative' }}
+          >
+            <button 
+              onClick={() => setShowShareModal(false)}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer' }}
+            >✕</button>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text)' }}>Transmit Post</h3>
+            
+            <input
+              type="text"
+              placeholder="Search user by handle or name..."
+              value={shareSearchQuery}
+              onChange={(e) => handleShareSearch(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 18px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--line)', color: 'var(--text)', outline: 'none', marginBottom: '16px'
+              }}
+            />
+            
+            {isSearchingShare ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>Scanning frequencies...</div>
+            ) : shareUsers.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {shareUsers.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleShareToUser(u.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
+                      background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
+                      cursor: 'pointer', textAlign: 'left', transition: '0.1s'
+                    }}
+                  >
+                    <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
+                      {u.avatarUrl || u.username.charAt(0)}
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>@{u.handle}</div>
+                    </div>
+                    <div style={{ marginLeft: 'auto', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 700 }}>
+                      Send ↗
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : shareSearchQuery.length >= 2 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>No signals found.</div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '0.85rem' }}>
+                Type a handle to transmit this post directly to a secure channel.
+              </div>
+            )}
+
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/reels?post=${post.id}`);
+                showToast('Link copied!');
+              }}
+              style={{
+                width: '100%', marginTop: '16px', padding: '12px', borderRadius: '100px', background: 'rgba(0,0,0,0.05)',
+                color: 'var(--text)', border: '1px solid var(--line)', cursor: 'pointer', fontWeight: 600
+              }}
+            >
+              📋 Copy Link
+            </button>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

@@ -12,7 +12,8 @@ interface ProfileViewProps {
 }
 
 export default function ProfileView({ user, savedPosts, currentUserId, onLogout }: ProfileViewProps) {
-  const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'settings' | 'followers' | 'following'>('transmissions')
+  const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
+  const [activePostForModal, setActivePostForModal] = useState<any>(null)
   const [loggingOut, setLoggingOut] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
@@ -201,53 +202,50 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         ))}
       </div>
 
-      {/* ───────── Tab 1: Transmissions ───────── */}
-      {activeTab === 'transmissions' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {user.posts?.length === 0 ? (
-            <div style={{
-              padding: '40px',
-              textAlign: 'center',
-              background: 'var(--panel)',
-              borderRadius: '20px',
-              border: '1px dashed var(--line)',
-              color: 'var(--muted)'
-            }}>
-              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🪐</span>
-              No transmissions broadcasted yet.<br />Share your first signal from the Home feed!
+      {/* ───────── Grid Rendering Logic ───────── */}
+      {(activeTab === 'transmissions' || activeTab === 'saved') && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
+          {activeTab === 'transmissions' && user.posts?.length === 0 && (
+            <div style={{ gridColumn: 'span 3', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '20px' }}>
+              No transmissions yet.
             </div>
-          ) : (
-            user.posts.map((post: any) => (
-              <Post key={post.id} post={{...post, author: user}} currentUserId={user.id} />
-            ))
           )}
+          {activeTab === 'saved' && savedPosts?.length === 0 && (
+            <div style={{ gridColumn: 'span 3', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '20px' }}>
+              Archive is empty.
+            </div>
+          )}
+
+          {(activeTab === 'transmissions' ? user.posts : savedPosts?.map((s: any) => s.post).filter(Boolean))?.map((post: any) => (
+            <div 
+              key={post.id} 
+              onClick={() => setActivePostForModal({...post, author: activeTab === 'transmissions' ? user : post.author})}
+              style={{ width: '100%', aspectRatio: '1', background: 'var(--panel)', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+            >
+              {post.mediaUrl ? (
+                post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') ? (
+                  <video src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <img src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🪐</div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* ───────── Tab 2: Saved Cache ───────── */}
-      {activeTab === 'saved' && (
-        <div>
-          {savedPosts?.length === 0 ? (
-            <div style={{
-              padding: '40px',
-              textAlign: 'center',
-              background: 'var(--panel)',
-              borderRadius: '20px',
-              border: '1px dashed var(--line)',
-              color: 'var(--muted)'
-            }}>
-              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🔖</span>
-              Your Saved Archive is currently empty.<br />Swipe left on any reel or post to bookmark it here!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {savedPosts.map((saved: any) => {
-                const post = saved.post
-                if (!post) return null
-                return <Post key={post.id} post={post} currentUserId={user.id} />
-              })}
-            </div>
-          )}
+      {/* Post Modal */}
+      {activePostForModal && (
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.9)', overflowY: 'auto' }}
+          onClick={() => setActivePostForModal(null)}
+        >
+          <div style={{ position: 'absolute', top: '20px', right: '20px', color: 'white', fontSize: '2rem', cursor: 'pointer', zIndex: 10001 }}>✕</div>
+          <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
+            <Post post={activePostForModal} currentUserId={currentUserId} />
+          </div>
         </div>
       )}
 
@@ -336,6 +334,36 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           </div>
 
           <div style={{ display: 'grid', gap: '14px' }}>
+            {/* Avatar Uploader */}
+            <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className={`user-avatar ${user.color}`} style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>
+                  {user.avatarUrl ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : user.username.charAt(0)}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Profile Avatar</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--earth)' }}>Update Display Picture</div>
+                </div>
+              </div>
+              <div style={{ width: '100px', height: '40px', overflow: 'hidden' }}>
+                <UploadButton
+                  endpoint="mediaUploader"
+                  onClientUploadComplete={async (res: any) => {
+                    if (res && res[0]) {
+                      const { updateAvatar } = await import('../app/actions');
+                      await updateAvatar(res[0].url);
+                      window.location.reload();
+                    }
+                  }}
+                  appearance={{
+                    button: { background: 'var(--earth)', color: '#000', fontSize: '0.8rem', padding: '0 10px', height: '40px', width: '100%' },
+                    allowedContent: { display: 'none' }
+                  }}
+                  content={{ button: 'Upload' }}
+                />
+              </div>
+            </div>
+
             <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Username</div>

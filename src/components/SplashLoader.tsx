@@ -8,7 +8,7 @@ export default function SplashLoader() {
 
   useEffect(() => {
     // Check if splash was already shown in this session
-    const hasSeenSplash = sessionStorage.getItem('upabode_initialized')
+    const hasSeenSplash = localStorage.getItem('upabode_initialized')
     if (hasSeenSplash) {
       setVisible(false)
       return
@@ -18,7 +18,7 @@ export default function SplashLoader() {
       setFading(true)
       setTimeout(() => {
         setVisible(false)
-        sessionStorage.setItem('upabode_initialized', 'true')
+        localStorage.setItem('upabode_initialized', 'true')
       }, 400)
     }, 700)
 
@@ -111,7 +111,7 @@ export default function SplashLoader() {
         width: '180px',
         height: '3px',
         borderRadius: '100px',
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: 'rgba(0,0,0,0.08)',
         overflow: 'hidden',
         position: 'relative'
       }}>

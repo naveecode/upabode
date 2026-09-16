@@ -211,7 +211,7 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
             <div onClick={handleNextStory} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '70%', zIndex: 20 }} />
 
             {groupedStories[activeAuthorIndex].stories[activeStoryIndex].mediaUrl ? (
-              groupedStories[activeAuthorIndex].stories[activeStoryIndex].mediaUrl!.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+              groupedStories[activeAuthorIndex].stories[activeStoryIndex].mediaUrl!.match(/\.(mp4|webm|ogg|mov)$/i) || groupedStories[activeAuthorIndex].stories[activeStoryIndex].mediaUrl!.includes('#video') ? (
                 <video
                   src={groupedStories[activeAuthorIndex].stories[activeStoryIndex].mediaUrl!}
                   autoPlay loop playsInline
@@ -228,9 +228,9 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
 
             {groupedStories[activeAuthorIndex].stories[activeStoryIndex].content && (
               <div style={{
-                position: 'absolute', top: '50%', left: '20px', right: '20px', transform: 'translateY(-50%)',
-                textAlign: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 700,
-                textShadow: '0 2px 10px rgba(0,0,0,0.5)', pointerEvents: 'none'
+                position: 'absolute', bottom: '60px', left: '20px', right: '20px',
+                textAlign: 'center', color: 'white', fontSize: '1.25rem', fontWeight: 700,
+                textShadow: '0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)', pointerEvents: 'none'
               }}>
                 {groupedStories[activeAuthorIndex].stories[activeStoryIndex].content}
               </div>
