@@ -48,7 +48,7 @@ export default function CameraCapture({ onCapture, onClose }: { onCapture: (file
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         canvas.toBlob((blob) => {
           if (blob) {
-            const file = new File([blob], \capture-\.jpg\, { type: 'image/jpeg' });
+            const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
             onCapture(file);
           }
         }, 'image/jpeg', 0.9);
@@ -70,7 +70,7 @@ export default function CameraCapture({ onCapture, onClose }: { onCapture: (file
         
         {/* Top bar */}
         <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', display: 'flex', justifyContent: 'space-between' }}>
-          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%', width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer', backdropFilter: 'blur(10px)' }}>×</button>
+          <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%', width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer', backdropFilter: 'blur(10px)' }}>Ã—</button>
         </div>
       </div>
 
