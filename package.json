@@ -1,36 +1,36 @@
 {
-  "name": "upabode",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "postinstall": "prisma generate"
-  },
-  "dependencies": {
-    "@prisma/client": "^5.11.0",
-    "@uploadthing/react": "^7.3.3",
-    "jose": "^6.2.12",
-    "next": "16.3.5",
-    "peerjs": "^1.5.5",
-    "pusher": "^5.3.4",
-    "pusher-js": "^8.6.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "uploadthing": "^7.7.4"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.5",
-    "prisma": "^5.11.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.13",
-    "typescript": "^5"
-  }
+    "name":  "upabode",
+    "version":  "0.1.0",
+    "private":  true,
+    "scripts":  {
+                    "dev":  "next dev",
+                    "build":  "npm install \u0026\u0026 npx prisma generate \u0026\u0026 npx prisma db push \u0026\u0026 next build",
+                    "start":  "next start",
+                    "lint":  "eslint",
+                    "postinstall":  "prisma generate"
+                },
+    "dependencies":  {
+                         "@prisma/client":  "^5.11.0",
+                         "@uploadthing/react":  "^7.3.3",
+                         "jose":  "^6.2.12",
+                         "next":  "16.3.5",
+                         "peerjs":  "^1.5.5",
+                         "pusher":  "^5.3.4",
+                         "pusher-js":  "^8.6.0",
+                         "react":  "19.2.8",
+                         "react-dom":  "19.2.8",
+                         "uploadthing":  "^7.7.4"
+                     },
+    "devDependencies":  {
+                            "@tailwindcss/postcss":  "^4",
+                            "@types/node":  "^20",
+                            "@types/react":  "^19",
+                            "@types/react-dom":  "^19",
+                            "eslint":  "^9",
+                            "eslint-config-next":  "16.3.5",
+                            "prisma":  "^5.11.0",
+                            "tailwindcss":  "^4",
+                            "tsx":  "^4.23.13",
+                            "typescript":  "^5"
+                        }
 }
