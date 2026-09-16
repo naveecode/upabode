@@ -391,7 +391,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               {/* Avatar Uploader */}
               <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div className={user-avatar \} style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>
+                  <div className={`user-avatar ${user.color}`} style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>
                     {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username.charAt(0))}
                   </div>
                   <div>
