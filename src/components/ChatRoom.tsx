@@ -45,7 +45,7 @@ function ChatReelCard({ postId }: { postId: string }) {
     }}>
       <div style={{ position: 'relative', aspectRatio: '9/16' }}>
         {post.mediaUrl ? (
-          post.mediaType === 'video' || post.mediaUrl.endsWith('.mp4') ? (
+          post.mediaType === 'video' || post.mediaType === 'reel' || post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') ? (
             <video src={post.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted autoPlay loop playsInline />
           ) : (
             <img src={post.mediaUrl} alt="Reel" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1302,7 +1302,10 @@ export default function ChatRoom({
               allowedContent: { display: 'none' }
             }}
             onClientUploadComplete={(res: any) => {
-              if (res && res[0]) handleSendMedia(res[0].url)
+              if (res && res[0]) {
+                const isVideo = res[0].name?.match(/\.(mp4|webm|ogg|mov)$/i) || res[0].type?.includes('video');
+                handleSendMedia(isVideo ? `${res[0].url}#video` : res[0].url);
+              }
             }}
             onUploadError={(err: Error) => alert(`Upload Error: ${err.message}`)}
           />

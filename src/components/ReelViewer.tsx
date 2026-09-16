@@ -432,7 +432,7 @@ export default function ReelViewer({
                 )}
                 
                 {post.mediaUrl ? (
-                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaType === 'video' ? (
+                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
                     <video
                       src={post.mediaUrl}
                       autoPlay

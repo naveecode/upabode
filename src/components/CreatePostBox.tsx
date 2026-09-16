@@ -314,9 +314,12 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                   endpoint="mediaUploader"
                   onClientUploadComplete={(res: any) => {
                     if (res && res.length > 0) {
-                      const newUrls = res.map((r: any) => r.url)
-                      setMediaUrls(prev => [...prev, ...newUrls])
-                      showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media frame attached!')
+                      const newUrls = res.map((r: any) => {
+                        const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video');
+                        return isVideo ? `${r.url}#video` : r.url;
+                      });
+                      setMediaUrls(prev => [...prev, ...newUrls]);
+                      showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media frame attached!');
                     }
                   }}
                   onUploadError={(err: Error) => showToast(`Upload error: ${err.message}`)}
