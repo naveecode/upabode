@@ -303,15 +303,15 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   return (
     <article className="post" data-post-id={post.id} style={{ opacity: isArchived ? 0.6 : 1 }}>
       <div className="post-header" style={{ position: 'relative' }}>
-        <div className="user">
+        <Link href={`/profile/${post.author?.handle}`} className="user" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className={`user-avatar ${post.author?.color || 'green'}`}>
             {post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()}
           </div>
           <div className="user-details">
             <span className="username">{post.author?.username || post.author?.handle}</span>
-            <span className="location">@{post.author?.handle} {post.author?.location ? `• ${post.author.location}` : ''}</span>
+            <span className="user-meta">@{post.author?.handle} • {new Date(post.createdAt).toLocaleDateString()}</span>
           </div>
-        </div>
+        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isArchived && (
             <span style={{ fontSize: '0.72rem', color: 'var(--earth)', background: 'rgba(197, 160, 89, 0.1)', padding: '3px 8px', borderRadius: '100px', fontWeight: 600 }}>

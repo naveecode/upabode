@@ -77,26 +77,47 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '10px' }}>
           {!isCurrentUser && currentUserId && (
-            <Link
-              href={`/chat`}
-              style={{
-                padding: '8px 18px',
-                borderRadius: '100px',
-                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-                border: 'none',
-                color: '#07111f',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 4px 15px rgba(64, 201, 162, 0.3)'
-              }}
-            >
-              <span>💬</span>
-              <span>Message</span>
-            </Link>
+            <>
+              <button
+                onClick={async () => {
+                  const { toggleFollow } = await import('../app/actions');
+                  await toggleFollow(user.id);
+                  window.location.reload();
+                }}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '100px',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--earth)',
+                  color: 'var(--earth)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {user.followers?.some((f: any) => f.followerId === currentUserId) ? 'Unfollow' : 'Follow'}
+              </button>
+              <Link
+                href={`/chat`}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '100px',
+                  background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                  border: 'none',
+                  color: '#07111f',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 15px rgba(64, 201, 162, 0.3)'
+                }}
+              >
+                <span>💬</span>
+                <span>Message</span>
+              </Link>
+            </>
           )}
 
           {isCurrentUser && (
