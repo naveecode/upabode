@@ -4,27 +4,22 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toggleFollow, savePost, addReelComment } from '../app/actions'
 import { showToast } from './Toast'
 
-function VideoPlayer({ src }: { src: string }) {
+function VideoPlayer({ src, isActive }: { src: string, isActive: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showControl, setShowControl] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          videoRef.current?.play().catch(() => {});
-          setIsPlaying(true);
-        } else {
-          videoRef.current?.pause();
-          setIsPlaying(false);
-        }
-      });
-    }, { threshold: 0.6 });
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => observer.disconnect();
-  }, []);
+    if (!videoRef.current) return;
+    if (isActive) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [isActive]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -227,6 +222,13 @@ export default function ReelViewer({
     triggerFeedback('save', isPublic ? 'Saved (Public)' : 'Saved (Private)', '🔗');
     showToast(isPublic ? 'Saved publicly' : 'Saved privately');
     await savePost(postId, isPublic);
+  }
+
+  const handleDelete = async (postId: string) => {
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    showToast('Transmission deleted');
+    const { deletePost } = await import('../app/actions');
+    await deletePost(postId);
   }
 
   // Handle Swipe Right -> Follow
@@ -470,6 +472,11 @@ export default function ReelViewer({
       {/* Centered Reel Phone Frame */}
       <div
         ref={containerRef}
+        onScroll={(e) => {
+          const target = e.currentTarget;
+          const newIdx = Math.round(target.scrollTop / target.clientHeight);
+          if (newIdx !== activeIdx) setActiveIdx(newIdx);
+        }}
         style={{
           width: '100%',
           maxWidth: '430px',
@@ -522,7 +529,7 @@ export default function ReelViewer({
                   const safeUrl = mediaList[0];
                   
                   return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                    <VideoPlayer src={safeUrl} />
+                    <VideoPlayer src={safeUrl} isActive={idx === activeIdx} />
                   ) : (
                     <img
                       src={safeUrl}
@@ -558,6 +565,31 @@ export default function ReelViewer({
                 pointerEvents: 'none'
               }} />
 
+              {/* Options Button */}
+              {currentUser?.id === post.authorId && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); if(confirm('Delete transmission?')) { handleDelete(post.id); } }}
+                  style={{
+                    position: 'absolute',
+                    bottom: '196px',
+                    right: '20px',
+                    background: 'rgba(255,50,50,0.2)',
+                    color: 'white',
+                    border: '1px solid rgba(255,100,100,0.5)',
+                    borderRadius: '50%',
+                    width: '46px',
+                    height: '46px',
+                    display: 'grid',
+                    placeItems: 'center',
+                    cursor: 'pointer',
+                    zIndex: 20,
+                    backdropFilter: 'blur(8px)'
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              )}
+
               {/* Share Button (Bottom Right) */}
               <button
                 onClick={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
@@ -573,13 +605,12 @@ export default function ReelViewer({
                   height: '46px',
                   display: 'grid',
                   placeItems: 'center',
-                  fontSize: '1.2rem',
                   cursor: 'pointer',
                   zIndex: 20,
                   backdropFilter: 'blur(8px)'
                 }}
               >
-                ↗️
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               </button>
 
 
@@ -1123,3 +1154,6 @@ export default function ReelViewer({
     </div>
   )
 }
+
+
+

@@ -25,6 +25,7 @@ function AudioPlayer({ src }: { src: string }) {
         ref={audioRef}
         src={src}
         loop
+        autoPlay
         onPlay={(e) => {
           setIsPlaying(true);
           const target = e.target as HTMLAudioElement;
@@ -512,7 +513,13 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
               </>
             )}
           </div>
-        ) : null}
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 600, textShadow: '0 2px 10px rgba(0,0,0,0.3)', fontFamily: 'var(--font-heading)' }}>
+              {post.content}
+            </h2>
+          </div>
+        )}
 
         <span className="media-label">
           Transmission #{post.id.substring(post.id.length - 4)}
@@ -643,3 +650,4 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     </article>
   );
 }
+

@@ -7,7 +7,7 @@ import { getCurrentUser } from './actions'
 import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
-import SwipeWrapper from '../components/SwipeWrapper'
+
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -70,11 +70,11 @@ export default async function RootLayout({
           </div>
         </header>
 
-        <SwipeWrapper>
+        
           <div className="page-content">
             {children}
           </div>
-        </SwipeWrapper>
+        
 
         <MobileNav />
       </body>
