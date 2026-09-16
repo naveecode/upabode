@@ -267,18 +267,17 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         {/* Render Carousel or Single Media Image */}
         {mediaList.length > 0 ? (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) ? (
+            {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaType === 'video' ? (
               <video
                 src={mediaList[currentSlide]}
                 autoPlay
                 loop
-                muted
+                controls
                 playsInline
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
-                  pointerEvents: 'none'
+                  objectFit: 'contain'
                 }}
               />
             ) : (

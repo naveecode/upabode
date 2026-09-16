@@ -5,7 +5,7 @@ import Pusher from 'pusher-js'
 import Link from 'next/link'
 import Peer, { MediaConnection } from 'peerjs'
 import { UploadButton } from './UploadButton'
-import { sendMessage, getMessageById } from '../app/actions'
+import { sendMessage, getMessageById, getPostById } from '../app/actions'
 
 interface Message {
   id: string
@@ -21,6 +21,48 @@ interface Message {
     avatarUrl?: string | null
     color?: string | null
   }
+}
+
+function ChatReelCard({ postId }: { postId: string }) {
+  const [post, setPost] = useState<any>(null)
+  
+  useEffect(() => {
+    getPostById(postId).then(res => {
+      if (res.success) setPost(res.post)
+    })
+  }, [postId])
+
+  if (!post) return <div style={{ padding: '10px', fontSize: '0.8rem', color: 'var(--muted)' }}>Loading Reel...</div>
+
+  return (
+    <div style={{
+      width: '200px',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      border: '1px solid var(--line)',
+      background: '#040a14',
+      marginTop: '8px'
+    }}>
+      <div style={{ position: 'relative', aspectRatio: '9/16' }}>
+        {post.mediaUrl ? (
+          post.mediaType === 'video' || post.mediaUrl.endsWith('.mp4') ? (
+            <video src={post.mediaUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted autoPlay loop playsInline />
+          ) : (
+            <img src={post.mediaUrl} alt="Reel" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )
+        ) : (
+          <div className={`post-media ${post.mediaType || 'aurora'}`} style={{ width: '100%', height: '100%' }} />
+        )}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'white' }}>@{post.author?.handle}</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{post.content}</div>
+        </div>
+      </div>
+      <Link href={`/reels?post=${postId}`} style={{ display: 'block', padding: '8px', textAlign: 'center', background: 'var(--earth)', color: '#07111f', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none' }}>
+        View Reel ↗
+      </Link>
+    </div>
+  )
 }
 
 interface ChatUser {
@@ -69,6 +111,7 @@ export default function ChatRoom({
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoDisabled, setIsVideoDisabled] = useState(false)
   const [swappedPiP, setSwappedPiP] = useState(false)
+  const [fullscreenMedia, setFullscreenMedia] = useState<string | null>(null)
   const [incomingCall, setIncomingCall] = useState<{ call: MediaConnection; isVideo: boolean } | null>(null)
   
   // Streams
@@ -1081,18 +1124,32 @@ export default function ChatRoom({
                 }}>
                   {/* Media / Image */}
                   {msg.mediaUrl && (
-                    <div style={{ marginBottom: msg.content ? '8px' : 0 }}>
-                      <img
-                        src={msg.mediaUrl}
-                        alt="Attached transmission"
-                        style={{
-                          width: '100%',
-                          maxHeight: '300px',
-                          objectFit: 'cover',
-                          borderRadius: '12px',
-                          display: 'block'
-                        }}
-                      />
+                    <div style={{ marginBottom: msg.content ? '8px' : 0, cursor: 'pointer' }} onClick={() => setFullscreenMedia(msg.mediaUrl)}>
+                      {msg.mediaUrl.endsWith('.mp4') || msg.mediaUrl.includes('video') ? (
+                        <video
+                          src={msg.mediaUrl}
+                          style={{
+                            width: '100%',
+                            maxHeight: '300px',
+                            objectFit: 'cover',
+                            borderRadius: '12px',
+                            display: 'block'
+                          }}
+                          controls
+                        />
+                      ) : (
+                        <img
+                          src={msg.mediaUrl}
+                          alt="Attached transmission"
+                          style={{
+                            width: '100%',
+                            maxHeight: '300px',
+                            objectFit: 'cover',
+                            borderRadius: '12px',
+                            display: 'block'
+                          }}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -1107,9 +1164,13 @@ export default function ChatRoom({
                     </div>
                   )}
 
-                  {/* Text Content */}
+                  {/* Text Content & Reel Cards */}
                   {msg.content && (
-                    <p style={{ margin: 0, fontWeight: isMine ? 500 : 400 }}>{msg.content}</p>
+                    msg.content.startsWith('[REEL:') && msg.content.endsWith(']') ? (
+                      <ChatReelCard postId={msg.content.replace('[REEL:', '').replace(']', '')} />
+                    ) : (
+                      <p style={{ margin: 0, fontWeight: isMine ? 500 : 400 }}>{msg.content}</p>
+                    )
                   )}
                 </div>
 
@@ -1207,7 +1268,7 @@ export default function ChatRoom({
         </button>
 
         {/* Media Upload Button */}
-        <div style={{ flexShrink: 0 }} title="Attach Image Transmission">
+        <div style={{ flexShrink: 0, width: '40px', height: '40px', overflow: 'hidden', position: 'relative' }} title="Attach Image Transmission">
           <UploadButton
             endpoint="mediaUploader"
             content={{
@@ -1340,6 +1401,58 @@ export default function ChatRoom({
           </button>
         )}
       </div>
+
+      {/* Fullscreen Media Overlay */}
+      {fullscreenMedia && (
+        <div 
+          onClick={() => setFullscreenMedia(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(0,0,0,0.95)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <button 
+            onClick={() => setFullscreenMedia(null)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: 'white',
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              fontSize: '1.2rem',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            ✕
+          </button>
+          {fullscreenMedia.endsWith('.mp4') || fullscreenMedia.includes('video') ? (
+            <video 
+              src={fullscreenMedia} 
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              controls 
+              autoPlay 
+            />
+          ) : (
+            <img 
+              src={fullscreenMedia} 
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              alt="Fullscreen Media"
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

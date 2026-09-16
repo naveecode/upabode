@@ -7,14 +7,18 @@ import Post from './Post'
 interface ProfileViewProps {
   user: any
   savedPosts: any[]
-  onLogout: () => Promise<void>
+  currentUserId?: string
+  onLogout?: () => Promise<void>
 }
 
-export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewProps) {
+export default function ProfileView({ user, savedPosts, currentUserId, onLogout }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'settings' | 'followers' | 'following'>('transmissions')
   const [loggingOut, setLoggingOut] = useState(false)
 
+  const isCurrentUser = currentUserId === user.id
+
   const handleLogoutClick = async () => {
+    if (!onLogout) return
     setLoggingOut(true)
     await onLogout()
   }
@@ -69,27 +73,54 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
           )}
         </div>
 
-        {/* Quick Settings Action */}
-        <button
-          onClick={() => setActiveTab('settings')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '100px',
-            background: activeTab === 'settings' ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid',
-            borderColor: activeTab === 'settings' ? 'var(--earth)' : 'var(--line)',
-            color: activeTab === 'settings' ? 'var(--earth)' : 'var(--text)',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span>⚙️</span>
-          <span>Settings</span>
-        </button>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {!isCurrentUser && currentUserId && (
+            <Link
+              href={`/chat`}
+              style={{
+                padding: '8px 18px',
+                borderRadius: '100px',
+                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                border: 'none',
+                color: '#07111f',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 15px rgba(64, 201, 162, 0.3)'
+              }}
+            >
+              <span>💬</span>
+              <span>Message</span>
+            </Link>
+          )}
+
+          {isCurrentUser && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '100px',
+                background: activeTab === 'settings' ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid',
+                borderColor: activeTab === 'settings' ? 'var(--earth)' : 'var(--line)',
+                color: activeTab === 'settings' ? 'var(--earth)' : 'var(--text)',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>⚙️</span>
+              <span>Settings</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ───────── Stats Strip ───────── */}
@@ -134,15 +165,17 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
         gap: '10px',
         borderBottom: '1px solid var(--line)',
         marginBottom: '22px',
-        paddingBottom: '2px'
+        paddingBottom: '2px',
+        overflowX: 'auto',
+        scrollbarWidth: 'none'
       }}>
         {[
-          { id: 'transmissions', label: 'Transmissions', icon: '📡' },
-          { id: 'saved', label: 'Saved Cache', icon: '🔖' },
-          { id: 'followers', label: 'Followers', icon: '👥' },
-          { id: 'following', label: 'Following', icon: '👣' },
-          { id: 'settings', label: 'Settings', icon: '⚙️' },
-        ].map(tab => (
+          { id: 'transmissions', label: 'Transmissions', icon: '📡', show: true },
+          { id: 'saved', label: 'Saved Cache', icon: '🔖', show: isCurrentUser },
+          { id: 'followers', label: 'Followers', icon: '👥', show: true },
+          { id: 'following', label: 'Following', icon: '👣', show: true },
+          { id: 'settings', label: 'Settings', icon: '⚙️', show: isCurrentUser },
+        ].filter(t => t.show).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
@@ -158,7 +191,8 @@ export default function ProfileView({ user, savedPosts, onLogout }: ProfileViewP
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              transition: '0.15s ease'
+              transition: '0.15s ease',
+              whiteSpace: 'nowrap'
             }}
           >
             <span>{tab.icon}</span>

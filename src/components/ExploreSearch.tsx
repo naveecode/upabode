@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { searchContent, toggleLike } from '../app/actions'
+import { searchContent, toggleLike, toggleFollow } from '../app/actions'
 
 interface ExploreProps {
   initialUsers: any[]
@@ -221,40 +221,48 @@ export default function ExploreSearch({
                   transition: 'transform 0.2s ease, border-color 0.2s ease'
                 }}
               >
-                <div
-                  className={`user-avatar ${user.color || 'green'}`}
-                  style={{ width: '54px', height: '54px', margin: '0 auto 10px', fontSize: '1.25rem' }}
-                >
-                  {user.avatarUrl || user.username?.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.username}
-                </div>
-                <div style={{ color: 'var(--earth)', fontSize: '0.76rem', marginBottom: '10px' }}>
-                  @{user.handle}
-                </div>
-                {user.location && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    📍 {user.location}
+                <Link href={`/profile/${user.handle}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '10px' }}>
+                  <div
+                    className={`user-avatar ${user.color || 'green'}`}
+                    style={{ width: '54px', height: '54px', margin: '0 auto 10px', fontSize: '1.25rem', color: 'white' }}
+                  >
+                    {user.avatarUrl || user.username?.charAt(0).toUpperCase()}
                   </div>
-                )}
-                <Link
-                  href={`/chat`}
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.username}
+                  </div>
+                  <div style={{ color: 'var(--earth)', fontSize: '0.76rem', marginBottom: '10px' }}>
+                    @{user.handle}
+                  </div>
+                  {user.location && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      📍 {user.location}
+                    </div>
+                  )}
+                </Link>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!currentUserId) return;
+                    await toggleFollow(user.id);
+                  }}
                   style={{
+                    width: '100%',
                     display: 'block',
                     padding: '6px 14px',
                     borderRadius: '100px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid var(--line)',
-                    color: 'var(--text)',
+                    background: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'rgba(255,255,255,0.08)' : 'rgba(64, 201, 162, 0.15)',
+                    border: '1px solid',
+                    borderColor: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'var(--line)' : 'var(--earth)',
+                    color: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'var(--text)' : 'var(--earth)',
                     fontSize: '0.74rem',
                     fontWeight: 600,
-                    textDecoration: 'none',
+                    cursor: 'pointer',
                     transition: '0.15s ease'
                   }}
                 >
-                  Connect ↗
-                </Link>
+                  {user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'Following' : 'Connect ↗'}
+                </button>
               </div>
             ))}
           </div>

@@ -816,12 +816,27 @@ export async function shareReelToChat(postId: string, chatId: string) {
     const url = `/reels?post=${postId}`;
     
     // We send a message utilizing the existing sendMessage infrastructure
-    // We format the content so the frontend can potentially intercept it as a rich link
-    const content = `Shared a cosmic reel transmission:\n${url}`;
+    const content = `[REEL:${postId}]`;
     
     return await sendMessage(chatId, content, null, null);
   } catch (error) {
     console.error('Share reel error:', error);
     return { error: 'Failed to share reel.' };
+  }
+}
+export async function getPostById(postId: string) {
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: true,
+        likes: true,
+        reelComments: { include: { user: true } },
+        savedBy: true
+      }
+    });
+    return { success: true, post };
+  } catch (error) {
+    return { error: 'Failed to get post' };
   }
 }

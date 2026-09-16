@@ -181,6 +181,12 @@ export default function ReelViewer({
 
   // Handle Long Press -> Open comment box at (xPercent, yPercent)
   const handleLongPressTrigger = (clientX: number, clientY: number, targetCard: HTMLElement, postId: string) => {
+    // Only allow commenting if we are in comment viewing state (after double tap)
+    if (!showComments) {
+      showToast('Double tap first to reveal notes before pinning!')
+      return
+    }
+
     const rect = targetCard.getBoundingClientRect()
     const x = clientX - rect.left
     const y = clientY - rect.top
@@ -193,7 +199,6 @@ export default function ReelViewer({
       yPercent
     })
     setPinCommentText('')
-    setShowComments(true)
   }
 
   const handleCreatePin = async (e: React.FormEvent) => {
@@ -427,7 +432,7 @@ export default function ReelViewer({
                 )}
                 
                 {post.mediaUrl ? (
-                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                  post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaType === 'video' ? (
                     <video
                       src={post.mediaUrl}
                       autoPlay
@@ -576,10 +581,9 @@ export default function ReelViewer({
                 </div>
               </div>
 
-              {/* ───────── Localized Comments Overlay ───────── */}
-              {showComments && comments.map((comment) => {
+              {/* ───────── Spatial Comments (Max 20 Pins) ───────── */}
+              {showComments && (post.reelComments || []).slice(0, 20).map((comment) => {
                 const isOpen = activeTooltipId === comment.id
-
                 return (
                   <div
                     key={comment.id}
@@ -593,35 +597,27 @@ export default function ReelViewer({
                       left: `${comment.xPercent}%`,
                       top: `${comment.yPercent}%`,
                       transform: 'translate(-50%, -50%)',
-                      zIndex: isOpen ? 35 : 20,
-                      cursor: 'pointer'
+                      zIndex: isOpen ? 40 : 20
                     }}
                   >
-                    {/* Glowing Circular Avatar Pin */}
+                    {/* Minimal Pin Dot */}
                     <div style={{
-                      position: 'relative',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1.5px solid var(--earth)',
                       display: 'grid',
-                      placeItems: 'center'
+                      placeItems: 'center',
+                      backdropFilter: 'blur(8px)',
+                      boxShadow: isOpen ? '0 0 20px rgba(64, 201, 162, 0.6)' : 'none',
+                      cursor: 'pointer',
+                      transition: '0.2s ease',
+                      transform: isOpen ? 'scale(1.2)' : 'scale(1)'
                     }}>
-                      {/* Pulse Ring - only when open */}
-                      {isOpen && (
-                        <div style={{
-                          position: 'absolute',
-                          inset: '-5px',
-                          borderRadius: '50%',
-                          background: 'radial-gradient(circle, rgba(64, 201, 162, 0.5) 0%, transparent 70%)',
-                          animation: 'pulse 2s infinite'
-                        }} />
-                      )}
-
                       <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{
-                        width: isOpen ? '32px' : '16px',
-                        height: isOpen ? '32px' : '16px',
-                        fontSize: isOpen ? '0.75rem' : '0rem', // Hide text when tiny
-                        fontWeight: 700,
-                        border: isOpen ? '2px solid white' : '1.5px solid rgba(255,255,255,0.8)',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.6)',
-                        transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        width: '18px', height: '18px', fontSize: '0.5rem',
+                        transition: '0.2s ease',
                         transform: isOpen ? 'scale(1.1)' : 'scale(1)',
                         opacity: isOpen ? 1 : 0.85
                       }}>
@@ -677,6 +673,43 @@ export default function ReelViewer({
                   </div>
                 )
               })}
+
+              {/* ───────── Scrollable Overflow List (> 20 Comments) ───────── */}
+              {showComments && (post.reelComments?.length || 0) > 20 && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '120px',
+                  right: '20px',
+                  width: '260px',
+                  maxHeight: '35vh',
+                  background: 'rgba(11, 23, 39, 0.85)',
+                  backdropFilter: 'blur(25px)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  zIndex: 35,
+                  boxShadow: '0 15px 40px rgba(0,0,0,0.7)'
+                }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--earth)' }}>
+                    All Notes ({post.reelComments!.length})
+                  </div>
+                  <div style={{ overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {post.reelComments!.map(comment => (
+                      <div key={`list-${comment.id}`} style={{ display: 'flex', gap: '10px' }}>
+                        <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{ width: '28px', height: '28px', flexShrink: 0, fontSize: '0.75rem' }}>
+                          {comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>@{comment.user?.handle}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#f3f7fb', lineHeight: 1.3 }}>{comment.content}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* ───────── Pending Pin Comment Creator ───────── */}
               {pendingPin && pendingPin.postId === post.id && (
