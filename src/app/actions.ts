@@ -420,7 +420,7 @@ export async function createPost(formData: FormData) {
   }
 }
 
-export async function savePost(postId: string) {
+export async function savePost(postId: string, isPublic: boolean = false) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: 'Not authenticated.' };
 
@@ -444,6 +444,7 @@ export async function savePost(postId: string) {
         data: {
           userId: currentUser.id,
           postId,
+          isPublic
         },
       });
 

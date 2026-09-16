@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { DM_Sans, Space_Grotesk } from 'next/font/google'
 import './globals.css'
+import '@uploadthing/react/styles.css'
+
 import { getCurrentUser } from './actions'
 import prisma from '../lib/prisma'
 import Link from 'next/link'

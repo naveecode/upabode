@@ -159,19 +159,6 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             >
               ▶ Reels
             </button>
-            <button
-              type="button"
-              onClick={() => setPublishFormat('story')}
-              style={{
-                padding: '6px 14px', borderRadius: '100px', border: '1px solid',
-                borderColor: publishFormat === 'story' ? '#ffb347' : 'var(--line)',
-                background: publishFormat === 'story' ? 'rgba(255, 179, 71, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                color: publishFormat === 'story' ? '#ffb347' : 'var(--muted)',
-                fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              ⏱ Status (24h)
-            </button>
           </div>
 
           {/* Atmospheric Shader picker if feed and no images */}
@@ -283,25 +270,56 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                   <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
                     Audio Track
                   </label>
-                  <select
-                    value={musicTrack}
-                    onChange={(e) => setMusicTrack(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: 'var(--panel)',
-                      border: '1px solid var(--line)',
-                      color: 'var(--text)',
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    <option value="">Original Audio / None</option>
-                    <option value="/audio/cosmic-drift.mp3">Cosmic Drift (Ambient)</option>
-                    <option value="/audio/lunar-lounge.mp3">Lunar Lounge (Lo-Fi)</option>
-                    <option value="/audio/nebula-beats.mp3">Nebula Beats (Synthwave)</option>
-                    <option value="/audio/pulsar-synth.mp3">Pulsar Synth (Electronic)</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={musicTrack}
+                      onChange={(e) => setMusicTrack(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--panel)',
+                        border: '1px solid var(--line)',
+                        color: 'var(--text)',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      <option value="">Original Audio / None</option>
+                      {/* Built-in Large Library */}
+                      <option value="/audio/cosmic-drift.mp3">Cosmic Drift (Ambient)</option>
+                      <option value="/audio/lunar-lounge.mp3">Lunar Lounge (Lo-Fi)</option>
+                      <option value="/audio/nebula-beats.mp3">Nebula Beats (Synthwave)</option>
+                      <option value="/audio/pulsar-synth.mp3">Pulsar Synth (Electronic)</option>
+                      <option value="/audio/stellar-groove.mp3">Stellar Groove (Pop)</option>
+                      <option value="/audio/zero-gravity.mp3">Zero Gravity (Trap)</option>
+                      <option value="/audio/martian-sunset.mp3">Martian Sunset (Acoustic)</option>
+                      <option value="/audio/event-horizon.mp3">Event Horizon (Cinematic)</option>
+                      <option value="/audio/solar-flare.mp3">Solar Flare (Rock)</option>
+                      <option value="/audio/galactic-jazz.mp3">Galactic Jazz (Jazz)</option>
+                      {/* If custom track is uploaded, show it as selected */}
+                      {musicTrack.includes('utfs.io') && (
+                        <option value={musicTrack}>Custom Uploaded Track</option>
+                      )}
+                    </select>
+                    
+                    {/* Custom Music Upload */}
+                    <div style={{ width: '40px', overflow: 'hidden' }} title="Upload custom audio">
+                      <UploadButton
+                        endpoint="mediaUploader"
+                        content={{ button() { return '🎵' }, allowedContent() { return '' } }}
+                        appearance={{
+                          button: { width: '40px', height: '100%', padding: 0, fontSize: '1.2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)', borderRadius: '8px', cursor: 'pointer' },
+                          allowedContent: { display: 'none' }, container: { margin: 0, padding: 0, height: '100%' }
+                        }}
+                        onClientUploadComplete={(res: any) => {
+                          if (res && res[0]) {
+                            setMusicTrack(res[0].url);
+                            showToast('Custom audio track uploaded!');
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

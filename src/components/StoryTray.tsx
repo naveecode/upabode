@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFeedStories, markStoryViewed } from '../app/actions';
+import { getFeedStories, markStoryViewed, createStory } from '../app/actions';
+import { UploadButton } from './UploadButton';
 
 interface Story {
   id: string;
@@ -19,6 +20,10 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
   const [activeAuthorIndex, setActiveAuthorIndex] = useState<number | null>(null);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [statusMedia, setStatusMedia] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState('');
+  const [isUploadingStatus, setIsUploadingStatus] = useState(false);
 
   useEffect(() => {
     async function fetchStories() {
@@ -111,6 +116,26 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
         marginBottom: '20px',
         scrollbarWidth: 'none'
       }}>
+        <div
+          onClick={() => setShowUploadModal(true)}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: '8px', cursor: 'pointer', flexShrink: 0
+          }}
+        >
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)', border: '2px dashed var(--earth)',
+            display: 'grid', placeItems: 'center', fontSize: '1.5rem', color: 'var(--earth)',
+            transition: '0.2s ease'
+          }}>
+            +
+          </div>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text)', fontWeight: 600 }}>
+            Add Status
+          </span>
+        </div>
+
         {groupedStories.map((group, i) => (
           <div
             key={group.author.id}
@@ -210,6 +235,86 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
                 {groupedStories[activeAuthorIndex].stories[activeStoryIndex].content}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--panel)', width: '100%', maxWidth: '400px', borderRadius: '24px',
+            padding: '24px', border: '1px solid var(--line)', position: 'relative'
+          }}>
+            <button
+              onClick={() => { setShowUploadModal(false); setStatusMedia(null); setStatusText(''); }}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer' }}
+            >✕</button>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', color: 'white' }}>Broadcast Status</h3>
+            
+            {!statusMedia ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center', height: '200px', border: '2px dashed var(--line)', borderRadius: '16px' }}>
+                <span style={{ color: 'var(--muted)' }}>Upload Photo or Video</span>
+                <UploadButton
+                  endpoint="mediaUploader"
+                  onClientUploadComplete={(res: any) => {
+                    if (res && res[0]) {
+                      const isVid = res[0].name?.match(/\.(mp4|webm|ogg|mov)$/i) || res[0].type?.includes('video');
+                      setStatusMedia(isVid ? `${res[0].url}#video` : res[0].url);
+                    }
+                  }}
+                  onUploadError={(err: Error) => alert(`Upload Error: ${err.message}`)}
+                />
+              </div>
+            ) : (
+              <div style={{ width: '100%', aspectRatio: '9/16', background: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', marginBottom: '16px' }}>
+                {statusMedia.includes('#video') || statusMedia.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                  <video src={statusMedia} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <img src={statusMedia} alt="Status Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+                <button
+                  onClick={() => setStatusMedia(null)}
+                  style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}
+                >✕</button>
+              </div>
+            )}
+
+            <input
+              type="text"
+              placeholder="Add a caption... (optional)"
+              value={statusText}
+              onChange={e => setStatusText(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--line)', color: 'white', marginTop: '16px'
+              }}
+            />
+
+            <button
+              disabled={!statusMedia || isUploadingStatus}
+              onClick={async () => {
+                setIsUploadingStatus(true);
+                const res = await createStory(statusMedia!, statusText);
+                setIsUploadingStatus(false);
+                if (res.error) alert(res.error);
+                else {
+                  setShowUploadModal(false);
+                  setStatusMedia(null);
+                  setStatusText('');
+                  window.location.reload();
+                }
+              }}
+              style={{
+                width: '100%', padding: '14px', borderRadius: '12px', marginTop: '16px',
+                background: (!statusMedia || isUploadingStatus) ? 'var(--line)' : 'var(--earth)',
+                color: '#07111f', fontWeight: 700, border: 'none', cursor: (!statusMedia || isUploadingStatus) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isUploadingStatus ? 'Broadcasting...' : 'Post Status (24h)'}
+            </button>
           </div>
         </div>
       )}

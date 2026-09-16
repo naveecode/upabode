@@ -171,7 +171,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       }}>
         {[
           { id: 'transmissions', label: 'Transmissions', icon: '📡', show: true },
-          { id: 'saved', label: 'Saved Cache', icon: '🔖', show: isCurrentUser },
+          { id: 'saved', label: isCurrentUser ? 'Saved Cache' : 'Public Saves', icon: '🔖', show: true },
           { id: 'followers', label: 'Followers', icon: '👥', show: true },
           { id: 'following', label: 'Following', icon: '👣', show: true },
           { id: 'settings', label: 'Settings', icon: '⚙️', show: isCurrentUser },

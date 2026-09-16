@@ -136,6 +136,7 @@ model SavedPost {
   id        String   @id @default(cuid())
   userId    String
   postId    String
+  isPublic  Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

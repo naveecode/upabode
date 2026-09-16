@@ -130,6 +130,7 @@ export default function ReelViewer({
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastTapRef = useRef<number>(0)
   const isDraggingRef = useRef(false)
+  const [isAddingComment, setIsAddingComment] = useState(false)
 
   const triggerFeedback = (type: 'follow' | 'save' | 'comments', label: string, icon: string) => {
     setGestureFeedback({ type, label, icon })
@@ -142,14 +143,20 @@ export default function ReelViewer({
   const handleSwipeLeft = async (postId: string) => {
     const isCurrentlySaved = !!savedMap[postId]
     const nextState = !isCurrentlySaved
+    
+    let isPublic = false
+    if (nextState) {
+      isPublic = window.confirm("Save to your PUBLIC profile? (Click OK for Public, Cancel for Private)")
+    }
+    
     setSavedMap(prev => ({ ...prev, [postId]: nextState }))
     triggerFeedback(
       'save',
-      nextState ? 'Archived to Saved Cache' : 'Removed from Saved',
+      nextState ? (isPublic ? 'Saved (Public)' : 'Saved (Private)') : 'Removed from Saved',
       nextState ? '🔖' : '✕'
     )
-    showToast(nextState ? 'Transmitted to your Saved Archive' : 'Removed from Saved Archive')
-    await savePost(postId)
+    showToast(nextState ? (isPublic ? 'Saved publicly' : 'Saved privately') : 'Removed from Saved Archive')
+    await savePost(postId, isPublic)
   }
 
   // Handle Swipe Right -> Follow
@@ -168,15 +175,19 @@ export default function ReelViewer({
 
   // Handle Double Tap -> Toggle Comments Overlay
   const handleDoubleTap = () => {
-    setShowComments(prev => {
-      const next = !prev
-      triggerFeedback(
-        'comments',
-        next ? 'Localized Notes Revealed' : 'Notes Concealed',
-        next ? '💬' : '👁️'
-      )
-      return next
-    })
+    if (pendingPin) {
+      setIsAddingComment(true)
+    } else {
+      setShowComments(prev => {
+        const next = !prev
+        triggerFeedback(
+          'comments',
+          next ? 'Localized Notes Revealed' : 'Notes Concealed',
+          next ? '💬' : '👁️'
+        )
+        return next
+      })
+    }
   }
 
   // Handle Long Press -> Open comment box at (xPercent, yPercent)
@@ -198,6 +209,7 @@ export default function ReelViewer({
       xPercent,
       yPercent
     })
+    setIsAddingComment(false)
     setPinCommentText('')
   }
 
@@ -237,6 +249,7 @@ export default function ReelViewer({
     }))
 
     setPendingPin(null)
+    setIsAddingComment(false)
     setPinCommentText('')
     setIsSubmittingPin(false)
     showToast('Localized note pinned onto transmission!')
@@ -744,73 +757,76 @@ export default function ReelViewer({
                   </div>
 
                   {/* Glassmorphic Comment Popover */}
-                  <form
-                    onSubmit={handleCreatePin}
-                    style={{
-                      width: '230px',
-                      padding: '12px',
-                      borderRadius: '18px',
-                      background: 'rgba(11, 23, 39, 0.96)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1.5px solid var(--earth)',
-                      boxShadow: '0 16px 45px rgba(0,0,0,0.85)'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.74rem', color: 'var(--earth)', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      Pin Note at this coordinate
-                    </div>
-                    <input
-                      type="text"
-                      autoFocus
-                      value={pinCommentText}
-                      onChange={(e) => setPinCommentText(e.target.value)}
-                      placeholder="Type localized note..."
+                  {isAddingComment && (
+                    <form
+                      onSubmit={handleCreatePin}
                       style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.08)',
-                        border: '1px solid var(--line)',
-                        color: 'white',
-                        fontSize: '0.84rem',
-                        outline: 'none',
-                        marginBottom: '8px'
+                        width: '230px',
+                        padding: '12px',
+                        borderRadius: '18px',
+                        background: 'rgba(11, 23, 39, 0.96)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1.5px solid var(--earth)',
+                        boxShadow: '0 16px 45px rgba(0,0,0,0.85)'
                       }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setPendingPin(null)}
+                    >
+                      <div style={{ fontSize: '0.74rem', color: 'var(--earth)', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Pin Note at this coordinate
+                      </div>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={pinCommentText}
+                        onChange={(e) => setPinCommentText(e.target.value)}
+                        placeholder="Type localized note..."
                         style={{
-                          padding: '5px 12px',
-                          borderRadius: '100px',
-                          background: 'rgba(255,255,255,0.1)',
-                          color: 'var(--muted)',
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          cursor: 'pointer'
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid var(--line)',
+                          color: 'white',
+                          fontSize: '0.84rem',
+                          outline: 'none',
+                          marginBottom: '8px'
                         }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!pinCommentText.trim() || isSubmittingPin}
-                        style={{
-                          padding: '5px 14px',
-                          borderRadius: '100px',
-                          background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-                          color: '#07111f',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          border: 'none'
-                        }}
-                      >
-                        {isSubmittingPin ? 'Pinning...' : 'Pin Note'}
-                      </button>
-                    </div>
-                  </form>
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setPendingPin(null); setIsAddingComment(false); }}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '100px',
+                            background: 'rgba(255,255,255,0.1)',
+                            color: 'var(--muted)',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingPin || !pinCommentText.trim()}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '100px',
+                            background: 'var(--earth)',
+                            color: '#07111f',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            cursor: 'pointer',
+                            opacity: isSubmittingPin || !pinCommentText.trim() ? 0.5 : 1
+                          }}
+                        >
+                          {isSubmittingPin ? '...' : 'Drop'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
 

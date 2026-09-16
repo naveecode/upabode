@@ -40,10 +40,25 @@ export default async function OtherUserProfilePage({ params }: { params: Promise
     );
   }
 
+  const publicSavedPosts = await prisma.savedPost.findMany({
+    where: { userId: user.id, isPublic: true },
+    include: {
+      post: {
+        include: {
+          author: true,
+          likes: true,
+          reelComments: { include: { user: true } },
+          savedBy: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
   return (
     <ProfileView 
       user={user} 
-      savedPosts={[]} 
+      savedPosts={publicSavedPosts} 
       currentUserId={currentUser?.id} 
     />
   );
