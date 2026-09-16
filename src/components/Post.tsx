@@ -10,7 +10,7 @@ function AudioPlayer({ src }: { src: string }) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const toggleAudio = (e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent opening modal or triggering other clicks
+    if(e && e.stopPropagation) e.stopPropagation(); // prevent opening modal or triggering other clicks
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
       audioRef.current.play();
@@ -57,21 +57,7 @@ function VideoPlayer({ src }: { src: string }) {
   const [showControl, setShowControl] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          videoRef.current?.play().catch(() => {});
-          setIsPlaying(true);
-        } else {
-          videoRef.current?.pause();
-          setIsPlaying(false);
-        }
-      });
-    }, { threshold: 0.6 });
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => observer.disconnect();
-  }, []);
+  
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -133,6 +119,11 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const zoneRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.targetTouches[0].clientX; touchEndX.current = e.targetTouches[0].clientX; };
+  const handleTouchMove = (e: React.TouchEvent) => { touchEndX.current = e.targetTouches[0].clientX; };
+  const handleTouchEnd = () => { if(touchStartX.current - touchEndX.current > 50) { nextSlide(new Event('swipe') as any); } if(touchEndX.current - touchStartX.current > 50) { prevSlide(new Event('swipe') as any); } touchStartX.current = 0; touchEndX.current = 0; };
 
   const handleLike = async (fromSwipe = false) => {
     setIsLiked(!isLiked);
@@ -158,14 +149,14 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   };
 
   const nextSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    if(e && e.stopPropagation) e.stopPropagation();
     if (currentSlide < mediaList.length - 1) {
       setCurrentSlide(prev => prev + 1);
     }
   };
 
   const prevSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    if(e && e.stopPropagation) e.stopPropagation();
     if (currentSlide > 0) {
       setCurrentSlide(prev => prev - 1);
     }
@@ -311,6 +302,9 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
       {/* Swipe Zone / Media Area / Carousel */}
       <div
         ref={zoneRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         className={`post-media ${mediaList.length === 0 ? getMediaClass(post.mediaType) : ''} ${post.visualFilter || ''}`}
         data-swipe-zone
         style={{ position: 'relative', overflow: 'hidden' }}
@@ -554,4 +548,9 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     </article>
   );
 }
+
+
+
+
+
 

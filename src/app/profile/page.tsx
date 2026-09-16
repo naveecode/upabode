@@ -72,8 +72,10 @@ export default async function ProfilePage() {
   return (
     <ProfileView
       user={user}
+      currentUserId={currentUser.id}
       savedPosts={savedPosts}
       onLogout={handleLogout}
     />
   );
 }
+

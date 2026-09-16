@@ -15,6 +15,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
   const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
   const [activePostForModal, setActivePostForModal] = useState<any>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+    const [showProfileOptions, setShowProfileOptions] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
 
@@ -121,26 +122,35 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           )}
 
           {isCurrentUser && (
-            <button
-              onClick={() => setActiveTab('settings')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '100px',
-                background: activeTab === 'settings' ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid',
-                borderColor: activeTab === 'settings' ? 'var(--earth)' : 'var(--line)',
-                color: activeTab === 'settings' ? 'var(--earth)' : 'var(--text)',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>⚙️</span>
-              <span>Settings</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowProfileOptions(!showProfileOptions)}
+                style={{
+                  padding: '8px',
+                  borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              {showProfileOptions && (
+                <div style={{
+                  position: 'absolute', top: '110%', right: '0', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px',
+                  padding: '8px', zIndex: 100, minWidth: '180px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '4px'
+                }}>
+                  <button onClick={() => { setActiveTab('settings'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Profile</button>
+                  <button onClick={() => { setActiveTab('saved'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Private Saves</button>
+                  <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -157,7 +167,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           { label: 'Followers', value: user.followers?.length || 0, tab: 'followers' },
           { label: 'Following', value: user.following?.length || 0, tab: 'following' },
           { label: 'Saved', value: savedPosts?.length || 0, tab: 'saved' },
-        ].map((stat, i) => (
+        ].filter(stat => stat.tab !== 'saved' || isCurrentUser).map((stat, i) => (
           <div
             key={i}
             onClick={() => stat.tab && setActiveTab(stat.tab as any)}
@@ -196,7 +206,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           { id: 'saved', label: isCurrentUser ? 'Saved Cache' : 'Public Saves', icon: '🔖', show: true },
           { id: 'followers', label: 'Followers', icon: '👥', show: true },
           { id: 'following', label: 'Following', icon: '👣', show: true },
-          { id: 'settings', label: 'Settings', icon: '⚙️', show: isCurrentUser },
+          
         ].filter(t => t.show).map(tab => (
           <button
             key={tab.id}
@@ -441,3 +451,5 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     </div>
   )
 }
+
+

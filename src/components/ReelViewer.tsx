@@ -566,29 +566,7 @@ export default function ReelViewer({
               }} />
 
               {/* Options Button */}
-              {currentUser?.id === post.authorId && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); if(confirm('Delete transmission?')) { handleDelete(post.id); } }}
-                  style={{
-                    position: 'absolute',
-                    bottom: '196px',
-                    right: '20px',
-                    background: 'rgba(255,50,50,0.2)',
-                    color: 'white',
-                    border: '1px solid rgba(255,100,100,0.5)',
-                    borderRadius: '50%',
-                    width: '46px',
-                    height: '46px',
-                    display: 'grid',
-                    placeItems: 'center',
-                    cursor: 'pointer',
-                    zIndex: 20,
-                    backdropFilter: 'blur(8px)'
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                </button>
-              )}
+              
 
               {/* Share Button (Bottom Right) */}
               <button
@@ -1154,6 +1132,7 @@ export default function ReelViewer({
     </div>
   )
 }
+
 
 
 
