@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Post from './Post'
 import { updateProfile, updateAvatar } from '../app/actions'
-import { UploadButton } from '../lib/uploadthing'
+import UploadButton from './UploadButton'
 
 interface ProfileViewProps {
   user: any
@@ -455,6 +455,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     </div>
   )
 }
+
 
 
 
