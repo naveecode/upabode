@@ -120,8 +120,30 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
           onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
           onClick={() => setShowCamera(true)}
           >
-            📷
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
           </div>
+          
+          <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
+            <select 
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                padding: '6px 12px',
+                borderRadius: '100px',
+                fontSize: '0.8rem',
+                outline: 'none',
+                cursor: 'pointer',
+                appearance: 'none',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <option value="earth">🌎 Earth (Active)</option>
+              <option value="mars" disabled>🪐 Mars (Coming Soon)</option>
+              <option value="moon" disabled>🌕 Moon (Coming Soon)</option>
+            </select>
+          </div>
+
           <div style={{ marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
             <div style={{ overflow: 'hidden', height: '36px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)' }}>
               <UploadButton
@@ -161,24 +183,31 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             <div className={`user-avatar ${currentUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
               {currentUser?.avatarUrl || currentUser?.username?.charAt(0).toUpperCase() || '✦'}
             </div>
-            <input 
-              autoFocus
-              type="text"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Add a caption to your transmission..."
-              style={{
-                flex: 1,
-                padding: '14px 20px',
-                borderRadius: '100px',
-                background: 'rgba(0, 0, 0, 0.04)',
-                border: '1px solid var(--line)',
-                color: 'var(--text)',
-                fontSize: '0.95rem',
-                outline: 'none',
-                transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
-              }}
-            />
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input 
+                autoFocus
+                type="text"
+                value={content}
+                onChange={(e) => setContent(e.target.value.slice(0, 100))}
+                placeholder="Add a caption to your transmission..."
+                maxLength={100}
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  paddingRight: '50px',
+                  borderRadius: '100px',
+                  background: 'rgba(0, 0, 0, 0.04)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+                }}
+              />
+              <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.7rem', color: content.length >= 100 ? 'var(--danger)' : 'var(--muted)' }}>
+                {content.length}/100
+              </span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} style={{ marginTop: '16px', borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
@@ -421,3 +450,4 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
     </div>
   )
 }
+

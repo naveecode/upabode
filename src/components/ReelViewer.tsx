@@ -640,7 +640,7 @@ export default function ReelViewer({
                     border: '1px solid var(--line)',
                     color: 'var(--earth)'
                   }}>
-                    Sector #{idx + 1}
+                    
                   </span>
 
                   {isSaved && (
@@ -1154,6 +1154,7 @@ export default function ReelViewer({
     </div>
   )
 }
+
 
 
 

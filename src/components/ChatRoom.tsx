@@ -99,6 +99,7 @@ export default function ChatRoom({
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [inputText, setInputText] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+    const [showChatOptions, setShowChatOptions] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [mounted, setMounted] = useState(false)
@@ -265,7 +266,7 @@ export default function ChatRoom({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: incomingCall.isVideo,
-        audio: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       setLocalStream(stream)
       call.answer(stream)
@@ -307,7 +308,7 @@ export default function ChatRoom({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: type === 'video',
-        audio: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       setLocalStream(stream)
 
@@ -466,7 +467,7 @@ export default function ChatRoom({
 
     // Start recording
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
@@ -605,9 +606,7 @@ export default function ChatRoom({
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)' }}>
-              {otherUser.username}
-            </div>
+            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{otherUser.username}<span style={{ fontSize: '0.65rem', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--earth)', letterSpacing: '0.05em' }}>E2E ENCRYPTED</span></div>
             <div style={{ color: 'var(--earth)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--earth)', display: 'inline-block' }}></span>
               @{otherUser.handle} · Signal Active
@@ -1459,3 +1458,5 @@ export default function ChatRoom({
     </div>
   )
 }
+
+

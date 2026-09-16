@@ -7,8 +7,12 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
 
+  const host = request.headers.get('host');
+  const protocol = host?.includes('localhost') ? 'http' : 'https';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/login?error=${error}`);
+    return NextResponse.redirect(`${baseUrl}/auth/login?error=${error}`);
   }
 
   if (!code) {
@@ -17,7 +21,7 @@ export async function GET(request: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+  const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
   try {
     // Exchange code for token
@@ -36,7 +40,7 @@ export async function GET(request: Request) {
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok) {
       console.error('Google Token Error:', tokenData);
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/login?error=GoogleAuthFailed`);
+      return NextResponse.redirect(`${baseUrl}/auth/login?error=GoogleAuthFailed`);
     }
 
     // Get user info
@@ -46,7 +50,7 @@ export async function GET(request: Request) {
     const googleUser = await userResponse.json();
 
     if (!userResponse.ok) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/login?error=GoogleUserFailed`);
+      return NextResponse.redirect(`${baseUrl}/auth/login?error=GoogleUserFailed`);
     }
 
     // Upsert user in DB
@@ -82,9 +86,9 @@ export async function GET(request: Request) {
     // Set JWT Session
     await setSession(user.id);
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/`);
+    return NextResponse.redirect(`${baseUrl}/`);
   } catch (err) {
     console.error('Google OAuth Error:', err);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/login?error=OAuthException`);
+    return NextResponse.redirect(`${baseUrl}/auth/login?error=OAuthException`);
   }
 }

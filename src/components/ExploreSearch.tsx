@@ -507,9 +507,7 @@ export default function ExploreSearch({
 
                 {/* Sector Information */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--earth)', background: 'rgba(64, 201, 162, 0.1)', padding: '4px 10px', borderRadius: '100px', border: '1px solid rgba(64, 201, 162, 0.2)' }}>
-                    Sector: {selectedPost.channel || 'earth'}
-                  </span>
+                  
                   <span style={{ fontSize: '0.75rem', color: 'var(--muted)', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 10px', borderRadius: '100px' }}>
                     {new Date(selectedPost.createdAt).toLocaleDateString()}
                   </span>
@@ -578,3 +576,4 @@ export default function ExploreSearch({
     </div>
   )
 }
+
