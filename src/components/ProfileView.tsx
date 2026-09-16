@@ -20,6 +20,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     const [showProfileOptions, setShowProfileOptions] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ username: user?.username || '', handle: user?.handle || '' })
+  const [editStatus, setEditStatus] = useState('')
 
   const handleLogoutClick = async () => {
     if (!onLogout) return
@@ -455,6 +458,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     </div>
   )
 }
+
 
 
 
