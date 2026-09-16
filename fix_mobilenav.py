@@ -1,4 +1,6 @@
-'use client'
+import re
+
+content = ''''use client'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -44,7 +46,8 @@ export default function MobileNav() {
 
   return (
     <>
-      <style>{`        .mobile-tabs-wave {
+      <style>{
+        .mobile-tabs-wave {
           position: fixed;
           bottom: 0;
           left: 0;
@@ -124,7 +127,7 @@ export default function MobileNav() {
           opacity: 0;
           transform: translateY(20px);
         }
-      `}</style>
+      }</style>
       
       <nav 
         ref={navRef}
@@ -133,17 +136,17 @@ export default function MobileNav() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${safeIndex * 100}vw / ${tabs.length} - 60px + (100vw / ${tabs.length} / 2)))` }}>
+        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: \	ranslateX(calc(\vw / \ - 60px + (100vw / \ / 2)))\ }}>
           <path d="M0,24 C30,24 40,0 60,0 C80,0 90,24 120,24 Z" fill="var(--background)" />
         </svg>
         
-        <div className="tab-indicator" style={{ transform: `translateX(calc(${safeIndex * 100}vw / ${tabs.length} - 28px + (100vw / ${tabs.length} / 2)))` }} />
+        <div className="tab-indicator" style={{ transform: \	ranslateX(calc(\vw / \ - 28px + (100vw / \ / 2)))\ }} />
 
         {tabs.map((tab, idx) => (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`tab-item ${idx === safeIndex ? "active" : ""}`}
+            className={\	ab-item \\}
             draggable={false}
           >
             <div className="tab-icon">{tab.icon}</div>
@@ -154,4 +157,7 @@ export default function MobileNav() {
     </>
   )
 }
+'''
 
+with open('src/components/MobileNav.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
