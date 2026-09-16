@@ -246,7 +246,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
       <div className="post-header" style={{ position: 'relative' }}>
         <Link href={`/profile/${post.author?.handle}`} className="user" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className={`user-avatar ${post.author?.color || 'green'}`}>
-            {post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()}
+            {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
           </div>
           <div className="user-details">
             <span className="username">{post.author?.username || post.author?.handle}</span>
@@ -510,7 +510,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                     }}
                   >
                     <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
-                      {u.avatarUrl || u.username.charAt(0)}
+                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username.charAt(0))}
                     </div>
                     <div>
                       <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>

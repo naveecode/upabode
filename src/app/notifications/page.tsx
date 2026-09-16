@@ -142,7 +142,7 @@ export default async function NotificationsPage() {
               {/* Actor Avatar */}
               {n.from && (
                 <div className={`user-avatar ${n.from.color || 'green'}`} style={{ width: '36px', height: '36px', fontSize: '0.85rem', flexShrink: 0 }}>
-                  {n.from.avatarUrl || n.from.username.charAt(0).toUpperCase()}
+                  {n.from.avatarUrl?.startsWith?.('http') ? <img src={n.from.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (n.from.avatarUrl || n.from.username.charAt(0).toUpperCase())}
                 </div>
               )}
 

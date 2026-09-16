@@ -226,7 +226,7 @@ export default function ExploreSearch({
                     className={`user-avatar ${user.color || 'green'}`}
                     style={{ width: '54px', height: '54px', margin: '0 auto 10px', fontSize: '1.25rem', color: 'white' }}
                   >
-                    {user.avatarUrl || user.username?.charAt(0).toUpperCase()}
+                    {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username?.charAt(0).toUpperCase())}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {user.username}
@@ -375,7 +375,7 @@ export default function ExploreSearch({
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '26px', height: '26px', fontSize: '0.72rem' }}>
-                          {post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()}
+                          {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
                         </div>
                         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'white' }}>
                           @{post.author?.handle}
@@ -476,7 +476,7 @@ export default function ExploreSearch({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div className={`user-avatar ${selectedPost.author?.color || 'green'}`} style={{ width: '40px', height: '40px', fontSize: '0.95rem' }}>
-                      {selectedPost.author?.avatarUrl || selectedPost.author?.username?.charAt(0).toUpperCase()}
+                      {selectedPost.author?.avatarUrl?.startsWith?.('http') ? <img src={selectedPost.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (selectedPost.author?.avatarUrl || selectedPost.author?.username?.charAt(0).toUpperCase())}
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{selectedPost.author?.username}</div>

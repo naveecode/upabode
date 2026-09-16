@@ -691,7 +691,7 @@ export default function ReelViewer({
                       <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{
                         width: '20px', height: '20px', fontSize: '0.6rem', flexShrink: 0
                       }}>
-                        {comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦'}
+                        {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦')}
                       </div>
                       <div style={{
                         color: 'white',
@@ -780,7 +780,7 @@ export default function ReelViewer({
                     {post.reelComments!.map(comment => (
                       <div key={`list-${comment.id}`} style={{ display: 'flex', gap: '10px' }}>
                         <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{ width: '28px', height: '28px', flexShrink: 0, fontSize: '0.75rem' }}>
-                          {comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase()}
+                          {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase())}
                         </div>
                         <div>
                           <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>@{comment.user?.handle}</div>
@@ -908,7 +908,7 @@ export default function ReelViewer({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                   <div className={`user-avatar ${post.author.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem', flexShrink: 0 }}>
-                    {post.author.avatarUrl || post.author.username.charAt(0).toUpperCase()}
+                    {post.author.avatarUrl?.startsWith?.('http') ? <img src={post.author.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author.avatarUrl || post.author.username.charAt(0).toUpperCase())}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'white' }}>
@@ -1068,7 +1068,7 @@ export default function ReelViewer({
                     onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                   >
                     <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
-                      {u.avatarUrl || u.username.charAt(0)}
+                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username.charAt(0))}
                     </div>
                     <div>
                       <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>

@@ -602,7 +602,7 @@ export default function ChatRoom({
             color: 'white',
             border: '2px solid rgba(255,255,255,0.2)'
           }}>
-            {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase() || '✦'}
+            {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase() || '✦')}
           </div>
 
           <div>
@@ -772,7 +772,7 @@ export default function ChatRoom({
                 fontWeight: 700,
                 color: 'var(--background)'
               }}>
-                {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase()}
+                {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase())}
               </div>
               <div>
                 <div style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem' }}>
@@ -860,7 +860,7 @@ export default function ChatRoom({
                   boxShadow: '0 0 50px rgba(64, 201, 162, 0.4)',
                   animation: 'pulse 2s infinite'
                 }}>
-                  {otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase()}
+                  {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase())}
                 </div>
                 <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '6px' }}>{otherUser.username}</h2>
                 <p style={{ color: 'var(--earth)', fontSize: '0.9rem' }}>

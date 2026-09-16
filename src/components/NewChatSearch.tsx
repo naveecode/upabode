@@ -106,7 +106,7 @@ export default function NewChatSearch() {
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
                   <div className={`user-avatar ${user.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem', flexShrink: 0 }}>
-                    {user.avatarUrl || user.username?.charAt(0).toUpperCase()}
+                    {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username?.charAt(0).toUpperCase())}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{user.username}</div>

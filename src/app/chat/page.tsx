@@ -117,7 +117,7 @@ export default async function ChatInbox() {
                     }}
                   >
                     <div className={`chat-item-avatar user-avatar ${otherUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '0.95rem', flexShrink: 0 }}>
-                      {otherUser?.avatarUrl || otherUser?.username?.charAt(0).toUpperCase() || '✦'}
+                      {otherUser?.avatarUrl?.startsWith?.('http') ? <img src={otherUser?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser?.avatarUrl || otherUser?.username?.charAt(0).toUpperCase() || '✦')}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>

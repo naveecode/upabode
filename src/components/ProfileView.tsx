@@ -53,7 +53,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           className={`user-avatar ${user.color || 'green'}`}
           style={{ width: '80px', height: '80px', fontSize: '2rem', fontWeight: 800, flexShrink: 0, boxShadow: '0 0 30px rgba(64, 201, 162, 0.25)' }}
         >
-          {user.avatarUrl || user.username?.charAt(0).toUpperCase() || '✦'}
+          {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username?.charAt(0).toUpperCase() || '✦')}
         </div>
 
         <div style={{ flex: 1, minWidth: '200px' }}>
@@ -294,7 +294,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               return (
                 <div key={follower.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
                   <div className={`user-avatar ${follower.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
-                    {follower.avatarUrl || follower.username?.charAt(0).toUpperCase()}
+                    {follower.avatarUrl?.startsWith?.('http') ? <img src={follower.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (follower.avatarUrl || follower.username?.charAt(0).toUpperCase())}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{follower.username}</div>
@@ -326,7 +326,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               return (
                 <div key={followed.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
                   <div className={`user-avatar ${followed.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
-                    {followed.avatarUrl || followed.username?.charAt(0).toUpperCase()}
+                    {followed.avatarUrl?.startsWith?.('http') ? <img src={followed.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (followed.avatarUrl || followed.username?.charAt(0).toUpperCase())}
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{followed.username}</div>

@@ -154,7 +154,7 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
               display: 'grid', placeItems: 'center'
             }}>
               <div className={`user-avatar ${group.author.color || 'green'}`} style={{ width: '100%', height: '100%', fontSize: '1.2rem', border: '2px solid var(--bg)' }}>
-                {group.author.avatarUrl || group.author.username.charAt(0).toUpperCase()}
+                {group.author.avatarUrl?.startsWith?.('http') ? <img src={group.author.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (group.author.avatarUrl || group.author.username.charAt(0).toUpperCase())}
               </div>
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text)', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

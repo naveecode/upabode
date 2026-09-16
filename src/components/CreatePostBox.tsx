@@ -181,7 +181,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
         <div style={{ textAlign: 'left' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div className={`user-avatar ${currentUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
-              {currentUser?.avatarUrl || currentUser?.username?.charAt(0).toUpperCase() || '✦'}
+              {currentUser?.avatarUrl?.startsWith?.('http') ? <img src={currentUser?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (currentUser?.avatarUrl || currentUser?.username?.charAt(0).toUpperCase() || '✦')}
             </div>
             <div style={{ flex: 1, position: 'relative' }}>
               <input 
