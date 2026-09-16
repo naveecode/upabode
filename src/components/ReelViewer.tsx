@@ -4,9 +4,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { toggleFollow, savePost, addReelComment } from '../app/actions'
 import { showToast } from './Toast'
 
-function VideoPlayer({ src }: { src: string }) {
+function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [brightness, setBrightness] = useState(1);
   const [volume, setVolume] = useState(1);
   const [showIndicator, setShowIndicator] = useState<'volume' | 'brightness' | null>(null);
@@ -14,21 +16,46 @@ function VideoPlayer({ src }: { src: string }) {
   // Touch drag state
   const touchState = useRef({ startY: 0, startVal: 0, type: '' });
 
+  const playMedia = useCallback(async () => {
+    if (!videoRef.current) return;
+    try {
+      videoRef.current.muted = false;
+      videoRef.current.volume = volume;
+      await videoRef.current.play();
+      setIsPlaying(true);
+      setIsMuted(false);
+      if (audioRef.current && musicTrack) {
+        audioRef.current.volume = volume;
+        audioRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      // Browser autoplay policy blocked unmuted sound. Play muted so video still plays smoothly:
+      try {
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          await videoRef.current.play();
+          setIsPlaying(true);
+          setIsMuted(true);
+        }
+      } catch (e) {
+        setIsPlaying(false);
+      }
+    }
+  }, [volume, musicTrack]);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            if (videoRef.current) {
-              const playPromise = videoRef.current.play();
-              if (playPromise !== undefined) {
-                playPromise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-              }
-            }
+            playMedia();
           } else {
             if (videoRef.current && !videoRef.current.paused) {
               videoRef.current.pause();
               setIsPlaying(false);
+            }
+            if (audioRef.current && !audioRef.current.paused) {
+              audioRef.current.pause();
             }
           }
         });
@@ -38,17 +65,44 @@ function VideoPlayer({ src }: { src: string }) {
 
     if (videoRef.current) observer.observe(videoRef.current);
     return () => { if (videoRef.current) observer.disconnect(); };
-  }, []);
+  }, [playMedia]);
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+      videoRef.current.muted = false;
+      videoRef.current.volume = volume || 1;
+      setIsMuted(false);
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      if (audioRef.current && musicTrack) {
+        audioRef.current.volume = volume || 1;
+        audioRef.current.play().catch(() => {});
+      }
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
+      if (audioRef.current) audioRef.current.pause();
+    }
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+    if (!nextMuted) {
+      videoRef.current.volume = 1;
+      setVolume(1);
+      if (audioRef.current) {
+        audioRef.current.muted = false;
+        audioRef.current.volume = 1;
+      }
+      showToast('Audio Unmuted 🔊');
+    } else {
+      if (audioRef.current) audioRef.current.muted = true;
+      showToast('Audio Muted 🔇');
     }
   };
 
@@ -69,16 +123,23 @@ function VideoPlayer({ src }: { src: string }) {
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchState.current.type) return;
     const touch = e.touches[0];
-    const diff = (touchState.current.startY - touch.clientY) * 0.01; // sensitivity
+    const diff = (touchState.current.startY - touch.clientY) * 0.01;
     let newVal = touchState.current.startVal + diff;
-    newVal = Math.max(0, Math.min(newVal, 2)); // max brightness 2x, max volume 1
+    newVal = Math.max(0, Math.min(newVal, 2));
     
     if (touchState.current.type === 'brightness') {
       setBrightness(newVal);
       setShowIndicator('brightness');
     } else {
       newVal = Math.min(newVal, 1);
-      if (videoRef.current) videoRef.current.volume = newVal;
+      if (videoRef.current) {
+        videoRef.current.volume = newVal;
+        if (newVal > 0) {
+          videoRef.current.muted = false;
+          setIsMuted(false);
+        }
+      }
+      if (audioRef.current) audioRef.current.volume = newVal;
       setVolume(newVal);
       setShowIndicator('volume');
     }
@@ -106,12 +167,47 @@ function VideoPlayer({ src }: { src: string }) {
           setIsPlaying(true);
           const target = e.target as HTMLVideoElement;
           document.querySelectorAll('video, audio').forEach(media => {
-            if (media !== target) (media as HTMLMediaElement).pause();
+            if (media !== target && media !== audioRef.current) (media as HTMLMediaElement).pause();
           });
         }}
         onPause={() => setIsPlaying(false)}
         style={{ width: '100%', height: '100%', objectFit: 'contain', filter: `brightness(${brightness})` }}
       />
+
+      {musicTrack && (
+        <audio ref={audioRef} src={musicTrack} loop />
+      )}
+
+      {/* Floating Audio Mute/Unmute Toggle */}
+      <button
+        type="button"
+        onClick={toggleMute}
+        style={{
+          position: 'absolute',
+          top: '24px',
+          right: '20px',
+          zIndex: 40,
+          width: '42px',
+          height: '42px',
+          borderRadius: '50%',
+          background: 'rgba(0, 0, 0, 0.55)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer'
+        }}
+        aria-label={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+      >
+        {isMuted ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        )}
+      </button>
+
       {!isPlaying && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
@@ -128,7 +224,7 @@ function VideoPlayer({ src }: { src: string }) {
           position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px',
           color: 'white', fontSize: '14px', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', gap: '8px'
+          display: 'flex', alignItems: 'center', gap: '8px', zIndex: 40
         }}>
           {showIndicator === 'brightness' ? 'Brightness: ' + Math.round(brightness * 50) + '%' : 'Volume: ' + Math.round(volume * 100) + '%'}
         </div>
@@ -588,19 +684,12 @@ export default function ReelViewer({
             >
               {/* Media Background */}
               <div className={(post as any).visualFilter || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-                {(post as any).musicTrack && (
-                  <audio src={(post as any).musicTrack} autoPlay loop style={{ display: 'none' }} />
-                )}
-                
                 {post.mediaUrl ? (() => {
                   const mediaList = post.mediaUrl.split(',');
-                  // Since we can't easily swipe left/right (used for save/follow), we'll just show the first frame in Reels view for now, OR we can add a local state for slide index. 
-                  // But wait, ReelViewer maps over all posts. We'd need a local state per post, which is hard in a map.
-                  // For now, let's just safely use the first URL to prevent it from breaking completely.
                   const safeUrl = mediaList[0];
                   
                   return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                    <VideoPlayer src={safeUrl}  />
+                    <VideoPlayer src={safeUrl} musicTrack={(post as any).musicTrack} />
                   ) : (
                     <img
                       src={safeUrl}

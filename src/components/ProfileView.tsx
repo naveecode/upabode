@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Post from './Post'
-import { updateProfile, updateAvatar } from '../app/actions'
+import { updateProfile, updateAvatar, toggleFollow } from '../app/actions'
 import { UploadButton } from './UploadButton'
 
 interface ProfileViewProps {
@@ -17,12 +17,22 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
   const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
   const [activePostForModal, setActivePostForModal] = useState<any>(null)
   const [loggingOut, setLoggingOut] = useState(false)
-    const [showProfileOptions, setShowProfileOptions] = useState(false)
+  const [showProfileOptions, setShowProfileOptions] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
   const [isEditing, setIsEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ username: user?.username || '', handle: user?.handle || '' })
+  
+  const initialUsername = (user?.username?.startsWith('http') || (user?.username && user.username.length > 35))
+    ? (user?.handle || 'Cosmic Traveler')
+    : (user?.username || '')
+
+  const [editForm, setEditForm] = useState({ username: initialUsername, handle: user?.handle || '' })
   const [editStatus, setEditStatus] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const [isFollowingUser, setIsFollowingUser] = useState(
+    user.followers?.some((f: any) => f.followerId === currentUserId) ?? false
+  )
 
   const handleLogoutClick = async () => {
     if (!onLogout) return
@@ -30,23 +40,36 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     await onLogout()
   }
 
-  const getMediaClass = (mediaType?: string | null) => {
-    switch (mediaType) {
-      case 'aurora': return 'aurora'
-      case 'mars-landscape': return 'mars-landscape'
-      case 'ocean': return 'ocean'
-      default: return 'aurora'
+  const handleSaveProfile = async () => {
+    setIsSaving(true)
+    setEditStatus('Saving...')
+    try {
+      const fd = new FormData()
+      fd.append('username', editForm.username.trim())
+      fd.append('handle', editForm.handle.trim())
+      const res = await updateProfile(fd)
+      if (res.error) {
+        setEditStatus(res.error)
+      } else {
+        setEditStatus('Profile updated successfully!')
+        setIsEditing(false)
+        window.location.reload()
+      }
+    } catch (e: any) {
+      setEditStatus('Error updating profile')
+    } finally {
+      setIsSaving(false)
     }
   }
 
   return (
-    <div className="profile-page" style={{ maxWidth: '780px', margin: '0 auto', padding: '30px 20px 90px' }}>
+    <div className="profile-page" style={{ maxWidth: '780px', margin: '0 auto', padding: '24px 16px 90px' }}>
       {/* ───────── Profile Hero Header ───────── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '24px',
-        marginBottom: '28px',
+        gap: '20px',
+        marginBottom: '24px',
         background: 'var(--panel)',
         padding: '24px',
         borderRadius: '24px',
@@ -56,17 +79,21 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       }}>
         <div
           className={`user-avatar ${user.color || 'green'}`}
-          style={{ width: '80px', height: '80px', fontSize: '2rem', fontWeight: 800, flexShrink: 0, boxShadow: '0 0 30px rgba(64, 201, 162, 0.25)' }}
+          style={{ width: '76px', height: '76px', fontSize: '2rem', fontWeight: 800, flexShrink: 0, boxShadow: '0 0 30px rgba(197, 160, 89, 0.25)' }}
         >
-          {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username?.charAt(0).toUpperCase() || '✦')}
+          {user.avatarUrl?.startsWith?.('http') ? (
+            <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="avatar" />
+          ) : (
+            user.avatarUrl || user.username?.charAt(0).toUpperCase() || '✦'
+          )}
         </div>
 
         <div style={{ flex: 1, minWidth: '200px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.6rem', margin: 0, fontWeight: 700 }}>
-              {user.username}
+            <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.5rem', margin: 0, fontWeight: 700, wordBreak: 'break-word' }}>
+              {user.username?.startsWith('http') ? user.handle : user.username}
             </h1>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', padding: '3px 10px', borderRadius: '100px', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.72rem', background: 'rgba(197, 160, 89, 0.15)', color: 'var(--earth)', padding: '3px 10px', borderRadius: '100px', fontWeight: 700 }}>
               Astronaut
             </span>
           </div>
@@ -81,80 +108,101 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {!isCurrentUser && currentUserId && (
             <>
               <button
                 onClick={async () => {
-                  const { toggleFollow } = await import('../app/actions');
-                  await toggleFollow(user.id);
-                  window.location.reload();
+                  setIsFollowingUser(!isFollowingUser)
+                  await toggleFollow(user.id)
                 }}
                 style={{
-                  padding: '8px 18px',
+                  padding: '8px 20px',
                   borderRadius: '100px',
-                  background: 'var(--panel)',
-                  border: '1px solid var(--earth)',
-                  color: 'var(--earth)',
+                  background: isFollowingUser ? 'transparent' : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                  border: isFollowingUser ? '1px solid var(--earth)' : 'none',
+                  color: isFollowingUser ? 'var(--earth)' : '#07111f',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: '0.2s ease'
                 }}
               >
-                {user.followers?.some((f: any) => f.followerId === currentUserId) ? 'Unfollow' : 'Follow'}
+                {isFollowingUser ? 'Unfollow' : 'Follow'}
               </button>
               <Link
                 href={`/chat`}
                 style={{
                   padding: '8px 18px',
                   borderRadius: '100px',
-                  background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-                  border: 'none',
-                  color: '#07111f',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
                   fontSize: '0.82rem',
                   fontWeight: 700,
                   textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 15px rgba(64, 201, 162, 0.3)'
+                  gap: '6px'
                 }}
               >
                 <span>💬</span>
-                <span>Message</span>
+                <span>Signal</span>
               </Link>
             </>
           )}
 
           {isCurrentUser && (
-            <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
-                onClick={() => setShowProfileOptions(!showProfileOptions)}
+                onClick={() => {
+                  setActiveTab('settings')
+                  setIsEditing(true)
+                }}
                 style={{
-                  padding: '8px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--line)',
-                  color: 'var(--text)',
-                  fontSize: '1rem',
+                  padding: '8px 18px',
+                  borderRadius: '100px',
+                  background: 'var(--panel)',
+                  border: '1.5px solid var(--earth)',
+                  color: 'var(--earth)',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  transition: '0.2s'
                 }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                Edit Profile
               </button>
-              {showProfileOptions && (
-                <div style={{
-                  position: 'absolute', top: '110%', right: '0', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px',
-                  padding: '8px', zIndex: 100, minWidth: '180px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '4px'
-                }}>
-                  <button onClick={() => { setActiveTab('settings'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Profile</button>
-                  <button onClick={() => { setActiveTab('saved'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Private Saves</button>
-                  <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
-                </div>
-              )}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowProfileOptions(!showProfileOptions)}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '50%',
+                    background: 'rgba(28, 25, 20, 0.05)',
+                    border: '1px solid var(--line)',
+                    color: 'var(--text)',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  aria-label="Profile options"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+                {showProfileOptions && (
+                  <div style={{
+                    position: 'absolute', top: '110%', right: '0', background: 'var(--panel-solid)', border: '1px solid var(--line)', borderRadius: '12px',
+                    padding: '8px', zIndex: 100, minWidth: '180px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '4px'
+                  }}>
+                    <button onClick={() => { setActiveTab('settings'); setIsEditing(true); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Parameters</button>
+                    <button onClick={() => { setActiveTab('saved'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Private Saves</button>
+                    <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -164,8 +212,8 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '12px',
-        marginBottom: '26px'
+        gap: '10px',
+        marginBottom: '24px'
       }}>
         {[
           { label: 'Signals', value: user.posts?.length || 0, tab: 'transmissions' },
@@ -180,16 +228,16 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               background: 'var(--panel)',
               border: '1px solid var(--line)',
               borderRadius: '16px',
-              padding: '14px',
+              padding: '12px 8px',
               textAlign: 'center',
               cursor: stat.tab ? 'pointer' : 'default',
-              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+              transition: '0.2s ease'
             }}
           >
             <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
               {stat.value}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
               {stat.label}
             </div>
           </div>
@@ -199,9 +247,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       {/* ───────── Tabs Navigation ───────── */}
       <div style={{
         display: 'flex',
-        gap: '10px',
+        gap: '8px',
         borderBottom: '1px solid var(--line)',
-        marginBottom: '22px',
+        marginBottom: '20px',
         paddingBottom: '2px',
         overflowX: 'auto',
         scrollbarWidth: 'none'
@@ -211,13 +259,16 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           { id: 'saved', label: isCurrentUser ? 'Saved Cache' : 'Public Saves', icon: '🔖', show: true },
           { id: 'followers', label: 'Followers', icon: '👥', show: true },
           { id: 'following', label: 'Following', icon: '👣', show: true },
-          
+          { id: 'settings', label: 'Edit Profile', icon: '⚙️', show: isCurrentUser },
         ].filter(t => t.show).map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => {
+              setActiveTab(tab.id as any)
+              if (tab.id === 'settings') setIsEditing(true)
+            }}
             style={{
-              padding: '10px 18px',
+              padding: '10px 16px',
               borderBottom: '2px solid',
               borderColor: activeTab === tab.id ? 'var(--earth)' : 'transparent',
               color: activeTab === tab.id ? 'var(--earth)' : 'var(--muted)',
@@ -228,7 +279,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
+              transition: '0.2s ease',
               whiteSpace: 'nowrap'
             }}
           >
@@ -240,7 +291,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
 
       {/* ───────── Grid Rendering Logic ───────── */}
       {(activeTab === 'transmissions' || activeTab === 'saved') && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
           {activeTab === 'transmissions' && user.posts?.length === 0 && (
             <div style={{ gridColumn: 'span 3', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '20px' }}>
               No transmissions yet.
@@ -256,16 +307,19 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
             <div 
               key={post.id} 
               onClick={() => setActivePostForModal({...post, author: activeTab === 'transmissions' ? user : post.author})}
-              style={{ width: '100%', aspectRatio: '1', background: 'var(--panel)', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+              style={{ width: '100%', aspectRatio: '1', background: 'var(--panel)', cursor: 'pointer', overflow: 'hidden', position: 'relative', borderRadius: '8px' }}
             >
               {post.mediaUrl ? (
                 post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') ? (
                   <video src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <img src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Post thumbnail" />
                 )
               ) : (
-                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', fontSize: '2rem' }}>🪐</div>
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', fontSize: '0.78rem', color: 'var(--muted)', textAlign: 'center' }}>
+                  <span style={{ fontSize: '1.4rem', marginBottom: '4px' }}>📝</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{post.content}</span>
+                </div>
               )}
             </div>
           ))}
@@ -275,11 +329,11 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       {/* Post Modal */}
       {activePostForModal && (
         <div 
-          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.9)', overflowY: 'auto' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', overflowY: 'auto' }}
           onClick={() => setActivePostForModal(null)}
         >
-          <div style={{ position: 'absolute', top: '20px', right: '20px', color: 'white', fontSize: '2rem', cursor: 'pointer', zIndex: 10001 }}>✕</div>
-          <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px' }} onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'absolute', top: '16px', right: '16px', color: 'white', fontSize: '1.8rem', cursor: 'pointer', zIndex: 10001, width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: 'rgba(0,0,0,0.5)' }}>✕</div>
+          <div style={{ maxWidth: '600px', margin: '40px auto', padding: '16px' }} onClick={e => e.stopPropagation()}>
             <Post post={activePostForModal} currentUserId={currentUserId} />
           </div>
         </div>
@@ -287,7 +341,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
 
       {/* ───────── Tab: Followers ───────── */}
       {activeTab === 'followers' && (
-        <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ display: 'grid', gap: '10px' }}>
           {(!user.followers || user.followers.length === 0) ? (
             <div style={{ padding: '30px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
               No followers yet.
@@ -297,17 +351,17 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               const follower = f.follower
               if (!follower) return null
               return (
-                <div key={follower.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
-                  <div className={`user-avatar ${follower.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
+                <div key={follower.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                  <div className={`user-avatar ${follower.color || 'green'}`} style={{ width: '44px', height: '44px', fontSize: '1.1rem' }}>
                     {follower.avatarUrl?.startsWith?.('http') ? <img src={follower.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (follower.avatarUrl || follower.username?.charAt(0).toUpperCase())}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{follower.username}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.94rem' }}>{follower.username}</div>
                     <div style={{ color: 'var(--earth)', fontSize: '0.8rem' }}>@{follower.handle}</div>
                   </div>
                   <div style={{ marginLeft: 'auto' }}>
-                    <Link href="/chat" style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}>
-                      Signal
+                    <Link href={`/profile/${follower.handle}`} style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(197, 160, 89, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 700 }}>
+                      View
                     </Link>
                   </div>
                 </div>
@@ -319,7 +373,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
 
       {/* ───────── Tab: Following ───────── */}
       {activeTab === 'following' && (
-        <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ display: 'grid', gap: '10px' }}>
           {(!user.following || user.following.length === 0) ? (
             <div style={{ padding: '30px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
               Not following anyone yet.
@@ -329,17 +383,17 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               const followed = f.following
               if (!followed) return null
               return (
-                <div key={followed.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
-                  <div className={`user-avatar ${followed.color || 'green'}`} style={{ width: '46px', height: '46px', fontSize: '1.2rem' }}>
+                <div key={followed.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', background: 'var(--panel)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+                  <div className={`user-avatar ${followed.color || 'green'}`} style={{ width: '44px', height: '44px', fontSize: '1.1rem' }}>
                     {followed.avatarUrl?.startsWith?.('http') ? <img src={followed.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (followed.avatarUrl || followed.username?.charAt(0).toUpperCase())}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{followed.username}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.94rem' }}>{followed.username}</div>
                     <div style={{ color: 'var(--earth)', fontSize: '0.8rem' }}>@{followed.handle}</div>
                   </div>
                   <div style={{ marginLeft: 'auto' }}>
-                    <Link href="/chat" style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}>
-                      Signal
+                    <Link href={`/profile/${followed.handle}`} style={{ padding: '6px 14px', borderRadius: '100px', background: 'rgba(197, 160, 89, 0.15)', color: 'var(--earth)', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 700 }}>
+                      View
                     </Link>
                   </div>
                 </div>
@@ -349,123 +403,177 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         </div>
       )}
 
-      {/* ───────── Tab 3: Settings & Security ───────── */}
-      {activeTab === 'settings' && (
-          <div style={{
-            background: 'var(--panel)',
-            border: '1px solid var(--line)',
-            borderRadius: '24px',
-            padding: '28px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '22px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.25rem', marginBottom: '6px' }}>
-                  Account Parameters
-                </h2>
-                <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: 0 }}>
-                  Your quantum credentials registered across the Upabode network.
-                </p>
+      {/* ───────── Tab: Settings & Edit Profile ───────── */}
+      {activeTab === 'settings' && isCurrentUser && (
+        <div style={{
+          background: 'var(--panel)',
+          border: '1px solid var(--line)',
+          borderRadius: '24px',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.3rem', margin: '0 0 4px', fontWeight: 700 }}>
+                Edit Astronaut Profile
+              </h2>
+              <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: 0 }}>
+                Update your display name, handle, and avatar across Upabode.
+              </p>
+            </div>
+            <button 
+              onClick={handleSaveProfile}
+              disabled={isSaving}
+              style={{
+                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                color: '#07111f',
+                border: 'none',
+                padding: '10px 24px',
+                borderRadius: '100px',
+                cursor: isSaving ? 'wait' : 'pointer',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                boxShadow: '0 4px 15px rgba(197, 160, 89, 0.3)',
+                transition: '0.2s'
+              }}
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+
+          {editStatus && (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              background: editStatus.includes('success') ? 'rgba(197, 160, 89, 0.12)' : 'rgba(184, 92, 92, 0.12)',
+              color: editStatus.includes('success') ? 'var(--earth)' : 'var(--danger)',
+              border: `1px solid ${editStatus.includes('success') ? 'var(--earth)' : 'var(--danger)'}`
+            }}>
+              {editStatus}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {/* Avatar Uploader */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className={`user-avatar ${user.color}`} style={{ width: '60px', height: '60px', fontSize: '1.5rem', flexShrink: 0 }}>
+                  {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username.charAt(0))}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Profile Avatar</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--earth)', marginTop: '2px' }}>Upload Display Picture</div>
+                </div>
               </div>
-              <button 
-                onClick={async () => {
-                  if (isEditing) {
-                    setEditStatus('Saving...');
-                                        const fd = new FormData();
-                    fd.append('username', editForm.username);
-                    fd.append('handle', editForm.handle);
-                    const res = await updateProfile(fd);
-                    if (res.error) setEditStatus(res.error);
-                    else { setEditStatus('Saved!'); setIsEditing(false); window.location.reload(); }
-                  } else {
-                    setIsEditing(true);
-                  }
+              <div style={{ minWidth: '120px' }}>
+                <UploadButton
+                  endpoint="mediaUploader"
+                  onClientUploadComplete={async (res: any) => {
+                    if (res && res[0]) {
+                      await updateAvatar(res[0].url)
+                      window.location.reload()
+                    }
+                  }}
+                  appearance={{
+                    button: { background: 'var(--earth)', color: '#07111f', fontSize: '0.82rem', fontWeight: 700, padding: '8px 16px', height: '40px', borderRadius: '100px' },
+                    allowedContent: { display: 'none' }
+                  }}
+                  content={{ button: 'Upload Photo' }}
+                />
+              </div>
+            </div>
+
+            {/* Username Input */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <label htmlFor="username-input" style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 700 }}>
+                Username / Display Name
+              </label>
+              <input 
+                id="username-input"
+                type="text"
+                maxLength={35}
+                value={editForm.username} 
+                onChange={e => setEditForm({...editForm, username: e.target.value})} 
+                placeholder="Enter display name"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: 'var(--background)',
+                  border: '1.5px solid var(--earth)',
+                  borderRadius: '10px',
+                  color: 'var(--text)',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  outline: 'none'
                 }}
-                style={{ background: isEditing ? 'var(--earth)' : 'rgba(255,255,255,0.1)', color: isEditing ? '#000' : '#fff', border: 'none', padding: '6px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+              />
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
+                Shown on your transmissions, signals, and public profile.
+              </div>
+            </div>
+
+            {/* Cosmic Handle Input */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <label htmlFor="handle-input" style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 700 }}>
+                Cosmic Handle
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--earth)', fontWeight: 800, fontSize: '16px', pointerEvents: 'none' }}>@</span>
+                <input 
+                  id="handle-input"
+                  type="text"
+                  maxLength={25}
+                  value={editForm.handle} 
+                  onChange={e => setEditForm({...editForm, handle: e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()})} 
+                  placeholder="cosmic_handle"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '12px 14px 12px 32px',
+                    background: 'var(--background)',
+                    border: '1.5px solid var(--earth)',
+                    borderRadius: '10px',
+                    color: 'var(--text)',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
+                Unique handle used for mentions, search, and direct links.
+              </div>
+            </div>
+
+            {/* Save Button bottom */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button 
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                style={{
+                  background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                  color: '#07111f',
+                  border: 'none',
+                  padding: '12px 32px',
+                  borderRadius: '100px',
+                  cursor: isSaving ? 'wait' : 'pointer',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 18px rgba(197, 160, 89, 0.35)',
+                  width: '100%'
+                }}
               >
-                {isEditing ? 'Save Changes' : 'Edit Profile'}
+                {isSaving ? 'Saving Changes...' : 'Save Profile Parameters'}
               </button>
             </div>
-
-            {editStatus && <div style={{ color: editStatus === 'Saved!' ? 'var(--earth)' : 'var(--danger)', fontSize: '0.8rem' }}>{editStatus}</div>}
-
-            <div style={{ display: 'grid', gap: '14px' }}>
-              {/* Avatar Uploader */}
-              <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div className={`user-avatar ${user.color}`} style={{ width: '60px', height: '60px', fontSize: '1.5rem' }}>
-                    {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (user.avatarUrl || user.username.charAt(0))}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Profile Avatar</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--earth)' }}>Update Display Picture</div>
-                  </div>
-                </div>
-                <div style={{ width: '100px', height: '40px', overflow: 'hidden' }}>
-                  <UploadButton
-                    endpoint="mediaUploader"
-                    onClientUploadComplete={async (res: any) => {
-                      if (res && res[0]) {
-                                                await updateAvatar(res[0].url);
-                        window.location.reload();
-                      }
-                    }}
-                    appearance={{
-                      button: { background: 'var(--earth)', color: '#000', fontSize: '0.8rem', padding: '0 10px', height: '40px', width: '100%' },
-                      allowedContent: { display: 'none' }
-                    }}
-                    content={{ button: 'Upload' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Username</div>
-                  {isEditing ? (
-                    <input 
-                      maxLength={30} style={{ position: 'relative', zIndex: 10, background: 'rgba(0,0,0,0.5)', border: '1px solid var(--line)', color: '#fff', padding: '4px 8px', borderRadius: '6px', width: '100%', marginTop: '4px' }} value={editForm.username} 
-                      onChange={e => setEditForm({...editForm, username: e.target.value})} 
-                      />
-                  ) : (
-                    <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>{user.username}</div>
-                  )}
-                </div>
-                {!isEditing && <span style={{ fontSize: '0.74rem', color: 'var(--earth)' }}>Active</span>}
-              </div>
-
-              <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Cosmic Handle</div>
-                  {isEditing ? (
-                    <input 
-                      value={editForm.handle} 
-                      onChange={e => setEditForm({...editForm, handle: e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()})} 
-                      />
-                  ) : (
-                    <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>@{user.handle}</div>
-                  )}
-                </div>
-              </div>
-
-            </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

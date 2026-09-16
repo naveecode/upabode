@@ -13,41 +13,35 @@ export default function MobileNav() {
   }
 
   const tabs = [
-    { href: '/', label: 'Feed', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> },
-    { href: '/explore', label: 'Explore', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> },
-    { href: '/reels', label: 'Reels', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg> },
-    { href: '/chat', label: 'Signals', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> },
-    { href: '/profile', label: 'Profile', icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
+    { href: '/', label: 'Feed', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> },
+    { href: '/explore', label: 'Explore', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> },
+    { href: '/reels', label: 'Reels', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg> },
+    { href: '/chat', label: 'Signals', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> },
+    { href: '/profile', label: 'Profile', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
   ]
 
   const activeIndex = tabs.findIndex(t => t.href === '/' ? pathname === '/' : pathname.startsWith(t.href))
   const safeIndex = activeIndex === -1 ? 0 : activeIndex
 
-  const [touchX, setTouchX] = useState<number | null>(null)
   const [visualIndex, setVisualIndex] = useState(safeIndex)
-  const navRef = useRef<HTMLElement>(null)
 
-  // Sync visual index with actual route
   useEffect(() => {
     setVisualIndex(safeIndex)
   }, [safeIndex])
 
-  const handleTouchStart = (e: React.TouchEvent) => setTouchX(e.touches[0].clientX)
-  
   const handleTouchMove = (e: React.TouchEvent) => {
-    const currentX = e.touches[0].clientX;
-    const width = window.innerWidth;
-    const tabWidth = width / tabs.length;
-    let newIndex = Math.floor(currentX / tabWidth);
-    newIndex = Math.max(0, Math.min(newIndex, tabs.length - 1));
-    setVisualIndex(newIndex);
+    const currentX = e.touches[0].clientX
+    const width = window.innerWidth
+    const tabWidth = width / tabs.length
+    let newIndex = Math.floor(currentX / tabWidth)
+    newIndex = Math.max(0, Math.min(newIndex, tabs.length - 1))
+    setVisualIndex(newIndex)
   }
 
   const handleTouchEnd = () => {
     if (visualIndex !== safeIndex) {
-       router.push(tabs[visualIndex].href);
+      router.push(tabs[visualIndex].href)
     }
-    setTouchX(null)
   }
 
   return (
@@ -58,27 +52,41 @@ export default function MobileNav() {
           bottom: 0;
           left: 0;
           right: 0;
-          height: 70px;
+          width: 100vw;
+          max-width: 100vw;
+          height: 68px;
           background: var(--panel-solid);
           display: flex;
-          justify-content: space-around;
           align-items: center;
-          border-top-left-radius: 20px;
-          border-top-right-radius: 20px;
-          box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+          border-top: 1px solid rgba(28, 25, 20, 0.08);
+          box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.07);
           z-index: 1000;
-          padding-bottom: env(safe-area-inset-bottom, 10px);
+          padding-bottom: env(safe-area-inset-bottom, 8px);
+          overflow: hidden;
+          box-sizing: border-box;
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
-        /* The liquid wave SVG background */
-        .tab-wave-bg {
+        /* The sliding cavity dock */
+        .tab-cavity-slider {
+          position: absolute;
+          top: -1px;
+          left: 0;
+          width: ${100 / tabs.length}%;
+          height: 24px;
+          pointer-events: none;
+          transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+          z-index: 1;
+        }
+
+        .tab-cavity-svg {
           position: absolute;
           top: 0;
-          width: 120px;
-          height: 24px;
-          transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          z-index: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 76px;
+          height: 22px;
+          overflow: visible;
         }
         
         .tab-item {
@@ -92,53 +100,71 @@ export default function MobileNav() {
           z-index: 2;
           color: var(--muted);
           text-decoration: none;
-          transition: color 0.2s;
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
-        }
-        
-        .tab-item.active {
-          color: var(--panel-solid);
+          user-select: none;
         }
         
         .tab-icon {
-          transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          transform: translateY(12px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), color 0.3s ease;
+          transform: translateY(0);
+          color: var(--muted);
+          opacity: 0.75;
         }
+
         .tab-item.active .tab-icon {
-          transform: translateY(-24px);
-          color: var(--panel-solid);
+          transform: translateY(4px) scale(1.15);
+          color: var(--earth);
+          opacity: 1;
+          filter: drop-shadow(0 2px 8px rgba(197, 160, 89, 0.4));
         }
         
         .tab-label {
-          font-size: 0.7rem;
-          font-weight: 600;
-          opacity: 1;
-          transform: translateY(12px);
-          transition: all 0.4s;
+          font-size: 0.68rem;
+          font-weight: 500;
+          margin-top: 3px;
+          transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+          color: var(--muted);
+          opacity: 0.75;
         }
+
         .tab-item.active .tab-label {
-          opacity: 0;
-          transform: translateY(20px);
+          color: var(--earth);
+          font-weight: 700;
+          transform: translateY(3px);
+          opacity: 1;
         }
       `}</style>
       
       <nav 
-        ref={navRef}
         className="mobile-tabs-wave"
-        onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${visualIndex * (100 / tabs.length)}vw + ${50 / tabs.length}vw - 60px))` }}>
-          <path d="M0,0 C30,0 40,24 60,24 C80,24 90,0 120,0 Z" fill="var(--background)" />
-        </svg>
+        {/* Sliding Cavity (Wavy Dip) */}
+        <div 
+          className="tab-cavity-slider"
+          style={{ transform: `translateX(${visualIndex * 100}%)` }}
+        >
+          <svg className="tab-cavity-svg" viewBox="0 0 76 22">
+            <path 
+              d="M 0 0 C 18 0, 20 20, 38 20 C 56 20, 58 0, 76 0 Z" 
+              fill="var(--background)" 
+              stroke="rgba(28, 25, 20, 0.1)" 
+              strokeWidth="1.5"
+            />
+          </svg>
+        </div>
 
         {tabs.map((tab, idx) => (
           <Link
             key={tab.href}
             href={tab.href}
-            className={`tab-item ${idx === safeIndex ? "active" : ""}`}
+            className={`tab-item ${idx === visualIndex ? 'active' : ''}`}
+            onClick={() => setVisualIndex(idx)}
             draggable={false}
           >
             <div className="tab-icon">{tab.icon}</div>
@@ -149,8 +175,3 @@ export default function MobileNav() {
     </>
   )
 }
-
-
-
-
-

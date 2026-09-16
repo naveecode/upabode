@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Montserrat, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 import '@uploadthing/react/styles.css'
@@ -8,7 +8,6 @@ import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
 import HeaderActions from '../components/HeaderActions'
-
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -21,7 +20,12 @@ const cormorant = Cormorant_Garamond({
   variable: '--font-heading',
 })
 
-export const viewport = { width: 'device-width', initialScale: 1, maximumScale: 1, userScalable: false }
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 
 export const metadata: Metadata = {
   title: 'Upabode - Premium Communication',
@@ -54,17 +58,12 @@ export default async function RootLayout({
           </div>
         </header>
 
-        
-          <div className="page-content">
-            {children}
-          </div>
-        
+        <div className="page-content">
+          {children}
+        </div>
 
         <MobileNav />
       </body>
     </html>
   )
 }
-
-
-

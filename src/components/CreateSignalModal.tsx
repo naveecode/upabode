@@ -29,14 +29,13 @@ export default function CreateSignalModal({ onClose }: { onClose: () => void }) 
       }} onClick={e => e.stopPropagation()}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem' }}>Transmit Signal</h3>
         <textarea
-          autoFocus
-          placeholder="What's on your mind? Stylized text signals..."
+          placeholder="What's on your mind? Transmit a stylized text signal..."
           value={content}
           onChange={e => setContent(e.target.value)}
           style={{
-            width: '100%', minHeight: '150px', background: 'var(--panel-solid)', color: '#fff',
-            border: '1px solid var(--line)', borderRadius: '12px', padding: '12px', fontSize: '1rem',
-            resize: 'none', marginBottom: '16px', fontFamily: 'inherit'
+            width: '100%', minHeight: '150px', background: 'var(--panel-solid)', color: 'var(--text)',
+            border: '1px solid var(--line)', borderRadius: '12px', padding: '14px', fontSize: '16px',
+            resize: 'none', marginBottom: '16px', fontFamily: 'inherit', outline: 'none'
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
