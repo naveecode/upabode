@@ -5,6 +5,27 @@ import { getSession, setSession, clearSession } from '../lib/session';
 import { pusherServer } from '../lib/pusher';
 import { hashPassword, verifyPassword } from '../lib/password';
 
+export async function updateProfile(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { error: 'Not authenticated' };
+  
+  const username = (formData.get('username') as string || '').trim();
+  let handle = (formData.get('handle') as string || '').trim().toLowerCase();
+  if (handle.startsWith('@')) handle = handle.substring(1);
+  
+  if (handle.length < 3) return { error: 'Handle must be at least 3 characters' };
+
+  try {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { username, handle }
+    });
+    return { success: true };
+  } catch(e) {
+    return { error: 'Handle might already be taken' };
+  }
+}
+
 export async function updateAvatar(url: string) {
   const user = await getCurrentUser();
   if (!user) return { error: 'Not authenticated' };
@@ -863,3 +884,4 @@ export async function togglePostVisibility(postId: string, isPrivate: boolean) {
     return { error: 'Failed to update visibility.' };
   }
 }
+
