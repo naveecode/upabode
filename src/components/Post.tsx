@@ -5,6 +5,51 @@ import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
 import Link from "next/link";
 
+function AudioPlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const toggleAudio = (e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent opening modal or triggering other clicks
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+    } else {
+      audioRef.current.pause();
+    }
+  };
+
+  return (
+    <div style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20 }}>
+      <audio
+        ref={audioRef}
+        src={src}
+        loop
+        onPlay={(e) => {
+          setIsPlaying(true);
+          const target = e.target as HTMLAudioElement;
+          document.querySelectorAll('video, audio').forEach(media => {
+            if (media !== target) (media as HTMLMediaElement).pause();
+          });
+        }}
+        onPause={() => setIsPlaying(false)}
+      />
+      <button
+        onClick={toggleAudio}
+        style={{
+          width: '40px', height: '40px', borderRadius: '50%', background: isPlaying ? 'var(--earth)' : 'rgba(0,0,0,0.6)',
+          border: '1px solid var(--earth)', color: isPlaying ? '#000' : 'var(--earth)', fontSize: '1.2rem',
+          display: 'grid', placeItems: 'center', cursor: 'pointer', backdropFilter: 'blur(4px)',
+          animation: isPlaying ? 'pulse 2s infinite' : 'none', transition: '0.3s ease'
+        }}
+        title="Toggle Music"
+      >
+        🎵
+      </button>
+    </div>
+  );
+}
+
 function VideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -345,7 +390,10 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                     <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
                   </>
                 )}
-                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
+                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                  Share
+                </button>
                 {post.mediaUrl && (
                   <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
                 )}
@@ -363,18 +411,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         style={{ position: 'relative', overflow: 'hidden' }}
       >
         {post.musicTrack && (
-          <audio 
-            src={post.musicTrack} 
-            loop 
-            controls 
-            onPlay={(e) => {
-              const target = e.target as HTMLAudioElement;
-              document.querySelectorAll('video, audio').forEach(media => {
-                if (media !== target) (media as HTMLMediaElement).pause();
-              });
-            }}
-            style={{ position: 'absolute', bottom: '10px', right: '10px', zIndex: 10, height: '30px' }} 
-          />
+          <AudioPlayer src={post.musicTrack} />
         )}
         
         {/* Render Carousel or Single Media Image */}

@@ -206,24 +206,27 @@ export default function ReelViewer({
     }, 1100)
   }
 
+  const [saveModalPostId, setSaveModalPostId] = useState<string | null>(null);
+
   // Handle Swipe Left -> Save
   const handleSwipeLeft = async (postId: string) => {
-    const isCurrentlySaved = !!savedMap[postId]
-    const nextState = !isCurrentlySaved
-    
-    let isPublic = false
-    if (nextState) {
-      isPublic = window.confirm("Save to your PUBLIC profile? (Click OK for Public, Cancel for Private)")
+    const isCurrentlySaved = !!savedMap[postId];
+    if (isCurrentlySaved) {
+      setSavedMap(prev => ({ ...prev, [postId]: false }));
+      triggerFeedback('save', 'Removed from Saved', '❌');
+      showToast('Removed from Saved Archive');
+      await savePost(postId, false);
+    } else {
+      setSaveModalPostId(postId);
     }
-    
-    setSavedMap(prev => ({ ...prev, [postId]: nextState }))
-    triggerFeedback(
-      'save',
-      nextState ? (isPublic ? 'Saved (Public)' : 'Saved (Private)') : 'Removed from Saved',
-      nextState ? '🔖' : '✕'
-    )
-    showToast(nextState ? (isPublic ? 'Saved publicly' : 'Saved privately') : 'Removed from Saved Archive')
-    await savePost(postId, isPublic)
+  }
+
+  const confirmSave = async (postId: string, isPublic: boolean) => {
+    setSaveModalPostId(null);
+    setSavedMap(prev => ({ ...prev, [postId]: true }));
+    triggerFeedback('save', isPublic ? 'Saved (Public)' : 'Saved (Private)', '🔗');
+    showToast(isPublic ? 'Saved publicly' : 'Saved privately');
+    await savePost(postId, isPublic);
   }
 
   // Handle Swipe Right -> Follow
@@ -638,17 +641,6 @@ export default function ReelViewer({
                       💬 {comments.length} localized
                     </span>
                   )}
-                  <span style={{
-                    fontSize: '0.72rem',
-                    color: isFollowing ? 'var(--earth)' : 'var(--muted)',
-                    background: 'rgba(7, 17, 31, 0.65)',
-                    backdropFilter: 'blur(12px)',
-                    padding: '4px 10px',
-                    borderRadius: '100px',
-                    border: '1px solid var(--line)'
-                  }}>
-                    {isFollowing ? 'Tracking ✓' : '● Live'}
-                  </span>
                 </div>
               </div>
 
@@ -1086,6 +1078,45 @@ export default function ReelViewer({
                 Type a handle to transmit this reel directly to a secure channel.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Save Modal */}
+      {saveModalPostId && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '20px'
+        }} onClick={() => setSaveModalPostId(null)}>
+          <div style={{
+            background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '24px', padding: '24px',
+            maxWidth: '340px', width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text)' }}>Archive Coordinates</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '0.9rem', color: 'var(--muted)' }}>
+              How would you like to save this transmission?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button onClick={() => confirmSave(saveModalPostId, true)} style={{
+                padding: '12px', borderRadius: '12px', border: '1px solid var(--earth)', background: 'rgba(197, 160, 89, 0.1)',
+                color: 'var(--earth)', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px'
+              }}>
+                <span style={{ fontSize: '1.05rem' }}>Public Archive</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8, fontWeight: 400 }}>Visible on your profile</span>
+              </button>
+              <button onClick={() => confirmSave(saveModalPostId, false)} style={{
+                padding: '12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'rgba(0,0,0,0.2)',
+                color: 'var(--text)', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px'
+              }}>
+                <span style={{ fontSize: '1.05rem' }}>Private Vault</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.5, fontWeight: 400 }}>Only you can see this</span>
+              </button>
+            </div>
+            <button onClick={() => setSaveModalPostId(null)} style={{
+              marginTop: '16px', padding: '8px 20px', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer'
+            }}>
+              Cancel
+            </button>
           </div>
         </div>
       )}

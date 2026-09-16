@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { createPost } from '../app/actions'
-import { UploadButton } from './UploadButton'
+import { UploadButton, useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
+import CameraCapture from './CameraCapture'
 
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
@@ -12,8 +13,10 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [publishFormat, setPublishFormat] = useState<'feed' | 'reel' | 'story'>('feed')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [showCamera, setShowCamera] = useState(false)
   const [musicTrack, setMusicTrack] = useState('')
   const [visualFilter, setVisualFilter] = useState('')
+  const { startUpload, isUploading } = useUploadThing("mediaUploader")
 
   const atmospheres = [
     { id: 'aurora', label: 'Aurora', emoji: '🌌' },
@@ -70,6 +73,21 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
     }
   }
 
+  const handleCapture = async (file: File) => {
+    setShowCamera(false);
+    showToast("Uploading capture...");
+    try {
+      const res = await startUpload([file]);
+      if (res && res.length > 0) {
+        setMediaUrls(prev => [...prev, res[0].url]);
+        setIsOpen(true);
+        showToast("Capture attached!");
+      }
+    } catch (e: any) {
+      showToast(`Upload failed: ${e.message}`);
+    }
+  };
+
   const handleRemoveMedia = (index: number) => {
     setMediaUrls(prev => prev.filter((_, i) => i !== index))
   }
@@ -86,34 +104,46 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       transition: 'all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
       textAlign: 'center'
     }}>
-      {!isOpen && mediaUrls.length === 0 ? (
+      {showCamera ? (
+        <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />
+      ) : !isOpen && mediaUrls.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0 10px' }}>
           <div style={{ 
             width: '90px', height: '90px', borderRadius: '50%', 
             background: 'linear-gradient(135deg, var(--earth), var(--yellow))', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
             boxShadow: '0 12px 40px rgba(197, 160, 89, 0.3)', 
-            color: '#fff', fontSize: '2.6rem', position: 'relative',
+            color: '#fff', fontSize: '2.6rem', position: 'relative', cursor: 'pointer',
             transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
           }}
           onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08) translateY(-4px)'}
           onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
+          onClick={() => setShowCamera(true)}
           >
-            <UploadButton
-              endpoint="mediaUploader"
-              content={{ button() { return '📷' }, allowedContent() { return '' } }}
-              appearance={{
-                button: { width: '90px', height: '90px', background: 'transparent', border: 'none', cursor: 'pointer', outline: 'none', fontSize: '2.6rem' },
-                allowedContent: { display: 'none' }, container: { position: 'absolute', inset: 0, margin: 0, padding: 0 }
-              }}
-              onClientUploadComplete={(res: any) => {
-                if (res) {
-                  setMediaUrls(res.map((f: any) => f.url + (f.name?.match(/\.(mp4|webm|mov)$/i) ? '#video' : '')));
-                  setIsOpen(true);
-                  showToast('Media captured!');
-                }
-              }}
-            />
+            📷
+          </div>
+          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ overflow: 'hidden', height: '36px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)' }}>
+              <UploadButton
+                endpoint="mediaUploader"
+                content={{ button() { return '🖼️ Gallery' }, allowedContent() { return '' } }}
+                appearance={{
+                  button: { width: 'auto', padding: '0 16px', height: '100%', background: 'transparent', color: 'var(--text)', border: 'none', cursor: 'pointer', outline: 'none', fontSize: '0.85rem', fontWeight: 600 },
+                  allowedContent: { display: 'none' }, container: { margin: 0, padding: 0 }
+                }}
+                onClientUploadComplete={(res: any) => {
+                  if (res) {
+                    const newUrls = res.map((r: any) => {
+                      const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video')
+                      return isVideo ? `${r.url}#video` : r.url
+                    })
+                    setMediaUrls(prev => [...prev, ...newUrls])
+                    setIsOpen(true)
+                    showToast('Media attached! Choose format.')
+                  }
+                }}
+              />
+            </div>
           </div>
           <h2 style={{ marginTop: '20px', color: 'var(--text)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }}>Capture & Broadcast</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '6px' }}>Share photos or videos across planetary horizons</p>
