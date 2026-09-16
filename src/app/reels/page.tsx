@@ -9,35 +9,22 @@ export default async function ReelsPage() {
   try {
     posts = await prisma.post.findMany({
       where: { archived: false },
+      orderBy: { createdAt: 'desc' },
       include: {
-        author: {
-          include: {
-            followers: true,
-          },
-        },
+        author: { include: { followers: true } },
         likes: true,
         savedBy: true,
         reelComments: {
           include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                handle: true,
-                avatarUrl: true,
-                color: true,
-              },
-            },
+            user: { select: { id: true, username: true, handle: true, avatarUrl: true, color: true } }
           },
-          orderBy: {
-            createdAt: 'asc',
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+          orderBy: { createdAt: 'asc' }
+        }
+      }
     });
+
+    // Filter out carousels and keep only videos/reels
+    posts = posts.filter(p => p.mediaUrl && !p.mediaUrl.includes(',') && (p.mediaType === 'reel' || p.mediaType === 'video' || p.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i)));
   } catch (err: any) {
     console.error('Failed to load reels:', err);
   }

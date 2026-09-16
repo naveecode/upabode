@@ -59,22 +59,26 @@ function VideoPlayer({ src }: { src: string }) {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting && videoRef.current && !videoRef.current.paused) {
-            videoRef.current.pause();
-            setIsPlaying(false);
+          if (entry.isIntersecting) {
+            if (videoRef.current && videoRef.current.paused) {
+              const playPromise = videoRef.current.play();
+              if (playPromise !== undefined) {
+                playPromise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+              }
+            }
+          } else {
+            if (videoRef.current && !videoRef.current.paused) {
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.6 } // Needs to be 60% visible to autoplay
     );
 
-    if (videoRef.current) {
-      observer.observe(videoRef.current);
-    }
-
-    return () => {
-      if (videoRef.current) observer.unobserve(videoRef.current);
-    };
+    if (videoRef.current) observer.observe(videoRef.current);
+    return () => { if (videoRef.current) observer.disconnect(); };
   }, []);
 
   const togglePlay = (e: React.MouseEvent) => {
@@ -104,7 +108,7 @@ function VideoPlayer({ src }: { src: string }) {
           });
         }}
         onPause={() => setIsPlaying(false)}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
       {!isPlaying && (
         <div style={{
@@ -480,9 +484,11 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         <p className="caption">
           <strong>@{post.author?.handle}</strong> {post.content}
         </p>
-        <Link href="/reels" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--earth)', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 600 }}>
-          Experience in Reels Mode ▶
-        </Link>
+        {mediaList.length === 1 && (mediaList[0].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[0].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video') && (
+          <Link href="/reels" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--earth)', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 600 }}>
+            Experience in Reels Mode &rarr;
+          </Link>
+        )}
       </div>
       {/* Modern Share Modal */}
       {showShareModal && (

@@ -37,7 +37,7 @@ export default async function ExplorePage() {
         take: 48,
       }),
     ]);
-    users = results[0];
+    users = results[0].filter(u => !currentUser || u.id !== currentUser.id);
     posts = results[1];
 
     // Content Suggestion Algorithm:
@@ -86,3 +86,4 @@ export default async function ExplorePage() {
     </div>
   );
 }
+

@@ -261,7 +261,7 @@ export default function ExploreSearch({
                     transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                   }}
                 >
-                  {user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'Following' : 'Connect ↗'}
+                  {user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'Unfollow' : 'Follow'}
                 </button>
               </div>
             ))}
@@ -576,4 +576,5 @@ export default function ExploreSearch({
     </div>
   )
 }
+
 

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Post from './Post'
+import { updateProfile, updateAvatar } from '../app/actions'
+import { UploadButton } from '../lib/uploadthing'
 
 interface ProfileViewProps {
   user: any
@@ -368,8 +370,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                 onClick={async () => {
                   if (isEditing) {
                     setEditStatus('Saving...');
-                    const { updateProfile } = await import('../app/actions');
-                    const fd = new FormData();
+                                        const fd = new FormData();
                     fd.append('username', editForm.username);
                     fd.append('handle', editForm.handle);
                     const res = await updateProfile(fd);
@@ -404,8 +405,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                     endpoint="mediaUploader"
                     onClientUploadComplete={async (res: any) => {
                       if (res && res[0]) {
-                        const { updateAvatar } = await import('../app/actions');
-                        await updateAvatar(res[0].url);
+                                                await updateAvatar(res[0].url);
                         window.location.reload();
                       }
                     }}
@@ -455,5 +455,8 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     </div>
   )
 }
+
+
+
 
 
