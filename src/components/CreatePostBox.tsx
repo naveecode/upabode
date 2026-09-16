@@ -83,7 +83,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       marginBottom: '26px',
       backdropFilter: 'blur(16px)',
       boxShadow: 'var(--shadow)',
-      transition: 'border-color 0.2s ease'
+      transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div className={`user-avatar ${currentUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '1rem', flexShrink: 0 }}>
@@ -107,7 +107,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             color: 'var(--text)',
             fontSize: '0.9rem',
             outline: 'none',
-            transition: 'border-color 0.2s ease'
+            transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
           }}
         />
         {!isOpen && (

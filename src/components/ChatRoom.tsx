@@ -578,7 +578,7 @@ export default function ChatRoom({
               color: 'var(--text)',
               textDecoration: 'none',
               fontSize: '1.1rem',
-              transition: '0.2s ease'
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
             title="Back to Signals"
           >
@@ -631,7 +631,7 @@ export default function ChatRoom({
               placeItems: 'center',
               cursor: isInCall ? 'not-allowed' : 'pointer',
               fontSize: '1.1rem',
-              transition: '0.2s ease'
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
             title="Encrypted Voice Call"
           >
@@ -652,7 +652,7 @@ export default function ChatRoom({
               placeItems: 'center',
               cursor: isInCall ? 'not-allowed' : 'pointer',
               fontSize: '1.15rem',
-              transition: '0.2s ease'
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
             title="Quantum P2P Video Call"
           >
@@ -901,7 +901,7 @@ export default function ChatRoom({
                 cursor: 'pointer',
                 zIndex: 40,
                 background: '#0b1727',
-                transition: 'transform 0.2s ease, border-color 0.2s ease'
+                transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
               }}
               onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
               onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
@@ -980,7 +980,7 @@ export default function ChatRoom({
                 backdropFilter: 'blur(16px)',
                 borderWidth: isMuted ? '1px' : '0px',
                 borderColor: 'var(--danger)',
-                transition: '0.2s ease'
+                transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
               }}
               title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
             >
@@ -1005,7 +1005,7 @@ export default function ChatRoom({
                   backdropFilter: 'blur(16px)',
                   borderWidth: isVideoDisabled ? '1px' : '0px',
                   borderColor: 'var(--danger)',
-                  transition: '0.2s ease'
+                  transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                 }}
                 title={isVideoDisabled ? 'Turn On Camera' : 'Turn Off Camera'}
               >
@@ -1029,7 +1029,7 @@ export default function ChatRoom({
                   display: 'grid',
                   placeItems: 'center',
                   backdropFilter: 'blur(16px)',
-                  transition: '0.2s ease'
+                  transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                 }}
                 title="Swap Camera View"
               >
@@ -1052,7 +1052,7 @@ export default function ChatRoom({
                 display: 'grid',
                 placeItems: 'center',
                 boxShadow: '0 8px 30px rgba(255, 107, 122, 0.5)',
-                transition: '0.2s ease'
+                transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
               }}
               title="Terminate Call"
             >
@@ -1096,7 +1096,7 @@ export default function ChatRoom({
                   flexDirection: 'column',
                   alignSelf: isMine ? 'flex-end' : 'flex-start',
                   maxWidth: '78%',
-                  animation: 'fadeIn 0.2s ease-out'
+                  animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease-out'
                 }}
               >
                 <span style={{
@@ -1234,7 +1234,7 @@ export default function ChatRoom({
                   cursor: 'pointer',
                   padding: '6px',
                   borderRadius: '8px',
-                  transition: '0.15s ease'
+                  transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.08)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
@@ -1351,7 +1351,7 @@ export default function ChatRoom({
               color: 'var(--text)',
               fontSize: '0.92rem',
               outline: 'none',
-              transition: 'border-color 0.2s ease'
+              transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
             onFocus={(e) => (e.target.style.borderColor = 'var(--earth)')}
             onBlur={(e) => (e.target.style.borderColor = 'var(--line)')}
@@ -1396,7 +1396,7 @@ export default function ChatRoom({
               display: 'grid',
               placeItems: 'center',
               flexShrink: 0,
-              transition: '0.2s ease'
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
             title={isRecording ? 'Click to beam voice log' : 'Click to record voice transmission'}
           >

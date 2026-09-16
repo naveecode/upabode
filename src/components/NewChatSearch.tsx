@@ -100,7 +100,7 @@ export default function NewChatSearch() {
                     background: 'transparent',
                     color: 'var(--text)',
                     cursor: 'pointer',
-                    transition: 'background 0.15s ease'
+                    transition: 'background 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

@@ -65,7 +65,7 @@ export default function MobileNav() {
             style={{
               textDecoration: 'none',
               color: isActive ? 'var(--earth)' : 'var(--muted)',
-              transition: 'color 0.2s ease, transform 0.15s ease',
+              transition: 'color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
               transform: isActive ? 'scale(1.08)' : 'scale(1)'
             }}
           >

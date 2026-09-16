@@ -127,7 +127,7 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
             width: '64px', height: '64px', borderRadius: '50%',
             background: 'rgba(255,255,255,0.05)', border: '2px dashed var(--earth)',
             display: 'grid', placeItems: 'center', fontSize: '1.5rem', color: 'var(--earth)',
-            transition: '0.2s ease'
+            transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
           }}>
             +
           </div>
@@ -172,7 +172,7 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
       {activeAuthorIndex !== null && (
         <div style={{
           position: 'fixed', inset: 0, background: '#030812', zIndex: 1000,
-          display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out'
+          display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease-out'
         }}>
           <div style={{ display: 'flex', gap: '4px', padding: '16px 16px 8px 16px', zIndex: 10 }}>
             {groupedStories[activeAuthorIndex].stories.map((s, idx) => (

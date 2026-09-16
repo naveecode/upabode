@@ -147,7 +147,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               padding: '14px',
               textAlign: 'center',
               cursor: stat.tab ? 'pointer' : 'default',
-              transition: '0.15s ease'
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
           >
             <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
@@ -192,7 +192,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              transition: '0.15s ease',
+              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
               whiteSpace: 'nowrap'
             }}
           >
@@ -409,7 +409,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                 fontWeight: 700,
                 fontSize: '0.88rem',
                 cursor: loggingOut ? 'not-allowed' : 'pointer',
-                transition: '0.2s ease'
+                transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
               }}
             >
               {loggingOut ? 'Disconnecting Quantum Link...' : 'Disconnect Quantum Link (Log Out)'}

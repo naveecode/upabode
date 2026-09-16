@@ -33,7 +33,7 @@ export default function SplashLoader() {
         position: 'fixed',
         inset: 0,
         zIndex: 99999,
-        background: '#040913',
+        background: 'var(--background)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -84,11 +84,11 @@ export default function SplashLoader() {
 
       {/* Upabode Brand Typography */}
       <h1 style={{
-        fontFamily: 'var(--font-space-grotesk)',
-        fontSize: '2rem',
+        fontFamily: 'var(--font-heading)',
+        fontSize: '2.4rem',
         fontWeight: 800,
-        letterSpacing: '0.12em',
-        color: '#f3f7fb',
+        letterSpacing: '0.08em',
+        color: 'var(--text)',
         marginBottom: '8px',
         textTransform: 'uppercase'
       }}>

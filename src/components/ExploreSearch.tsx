@@ -96,7 +96,7 @@ export default function ExploreSearch({
           padding: '6px 20px',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
           backdropFilter: 'blur(16px)',
-          transition: 'border-color 0.2s ease'
+          transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
         }}>
           <span style={{ fontSize: '1.2rem', marginRight: '12px', color: 'var(--earth)' }}>
             🔍
@@ -168,7 +168,7 @@ export default function ExploreSearch({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                transition: '0.15s ease',
+                transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
                 whiteSpace: 'nowrap'
               }}
             >
@@ -218,7 +218,7 @@ export default function ExploreSearch({
                   textAlign: 'center',
                   flexShrink: 0,
                   backdropFilter: 'blur(12px)',
-                  transition: 'transform 0.2s ease, border-color 0.2s ease'
+                  transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                 }}
               >
                 <Link href={`/profile/${user.handle}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '10px' }}>
@@ -258,7 +258,7 @@ export default function ExploreSearch({
                     fontSize: '0.74rem',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    transition: '0.15s ease'
+                    transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                   }}
                 >
                   {user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'Following' : 'Connect ↗'}
@@ -319,7 +319,7 @@ export default function ExploreSearch({
                       background: '#040a14',
                       boxShadow: 'var(--shadow)',
                       cursor: 'pointer',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                      transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'scale(1.02)'

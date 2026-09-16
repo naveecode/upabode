@@ -269,14 +269,14 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
               }}>
                 {currentUserId === post.authorId && (
                   <>
-                    <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
-                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
-                    <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
+                    <button onClick={handleEdit} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>✏️ Edit Content</button>
+                    <button onClick={handleArchive} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>📦 {post.archived ? 'Unarchive' : 'Archive'}</button>
+                    <button onClick={handleDelete} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,107,122,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🗑️ Delete</button>
                   </>
                 )}
-                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
+                <button onClick={handleShare} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>🔗 Copy Link</button>
                 {post.mediaUrl && (
-                  <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.1s', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
+                  <button onClick={handleDownload} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background = 'none'}>⬇️ Download Media</button>
                 )}
               </div>
             )}
@@ -336,7 +336,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                   height: '100%',
                   objectFit: 'cover',
                   pointerEvents: 'none',
-                  transition: 'opacity 0.1s ease'
+                  transition: 'opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                 }}
               />
             )}
@@ -412,7 +412,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                         height: '6px',
                         borderRadius: '100px',
                         background: idx === currentSlide ? 'var(--earth)' : 'rgba(255,255,255,0.4)',
-                        transition: 'all 0.1s ease'
+                        transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                       }}
                     />
                   ))}
@@ -509,7 +509,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
                       background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
-                      cursor: 'pointer', textAlign: 'left', transition: '0.1s'
+                      cursor: 'pointer', textAlign: 'left', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
                     }}
                   >
                     <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>

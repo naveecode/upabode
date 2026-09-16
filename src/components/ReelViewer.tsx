@@ -634,7 +634,7 @@ export default function ReelViewer({
                       backdropFilter: 'blur(8px)',
                       boxShadow: isOpen ? '0 0 20px rgba(64, 201, 162, 0.6)' : '0 4px 12px rgba(0,0,0,0.4)',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease',
+                      transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
                       transform: isOpen ? 'scale(1.1)' : 'scale(1)',
                       maxWidth: '120px'
                     }}>
@@ -675,7 +675,7 @@ export default function ReelViewer({
                           boxShadow: '0 12px 35px rgba(0,0,0,0.8)',
                           color: 'var(--text)',
                           zIndex: 40,
-                          animation: 'fadeIn 0.2s ease'
+                          animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -753,7 +753,7 @@ export default function ReelViewer({
                     top: `${pendingPin.yPercent}%`,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 50,
-                    animation: 'fadeIn 0.2s ease',
+                    animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
                     pointerEvents: isAddingComment ? 'auto' : 'none'
                   }}
                 >
@@ -939,7 +939,7 @@ export default function ReelViewer({
           gap: '10px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
           zIndex: 100,
-          animation: 'fadeIn 0.15s ease-out'
+          animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease-out'
         }}>
           <span style={{ fontSize: '2.5rem' }}>{gestureFeedback.icon}</span>
           <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'white', textAlign: 'center' }}>
@@ -961,7 +961,7 @@ export default function ReelViewer({
           alignItems: 'center',
           justifyContent: 'center',
           padding: '20px',
-          animation: 'fadeIn 0.2s ease-out'
+          animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease-out'
         }}>
           <div style={{
             background: 'var(--panel)',
@@ -1012,7 +1012,7 @@ export default function ReelViewer({
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
                       background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
-                      cursor: 'pointer', textAlign: 'left', transition: '0.2s'
+                      cursor: 'pointer', textAlign: 'left', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
                     }}
                     onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
                     onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
