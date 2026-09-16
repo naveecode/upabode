@@ -386,6 +386,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             </div>
           </div>
         </form>
+        </div>
       )}
     </div>
   )
