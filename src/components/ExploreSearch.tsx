@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { searchContent, toggleLike, toggleFollow } from '../app/actions'
 
 interface ExploreProps {
@@ -15,12 +16,30 @@ export default function ExploreSearch({
   initialPosts,
   currentUserId,
 }: ExploreProps) {
+  const searchParams = useSearchParams()
+  const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'media' | 'people'>('all')
   const [isSearching, setIsSearching] = useState(false)
   const [searchedUsers, setSearchedUsers] = useState<any[]>([])
   const [searchedPosts, setSearchedPosts] = useState<any[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+
+  // Auto-focus search input if navigated with focus=true
+  useEffect(() => {
+    const q = searchParams?.get('query')
+    if (q) setQuery(q)
+
+    if (searchParams?.get('focus') === 'true') {
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          inputRef.current.select()
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   // Selected post for Instagram-style modal viewer
   const [selectedPost, setSelectedPost] = useState<any | null>(null)
@@ -76,7 +95,7 @@ export default function ExploreSearch({
     await toggleLike(selectedPost.id)
   }
 
-  const displayUsers = hasSearched ? searchedUsers : initialUsers
+  const displayUsers = (hasSearched ? searchedUsers : initialUsers).filter((u: any) => !currentUserId || u.id !== currentUserId)
   const displayPosts = hasSearched ? searchedPosts : initialPosts
 
   const getMediaClass = (mediaType?: string | null) => {
@@ -108,6 +127,7 @@ export default function ExploreSearch({
             🔍
           </span>
           <input
+            ref={inputRef}
             type="text"
             placeholder="Search space anomalies, signals, or users..."
             value={query}
@@ -245,30 +265,63 @@ export default function ExploreSearch({
                     </div>
                   )}
                 </Link>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (!currentUserId) return;
-                    setOptimisticFollows(prev => ({ ...prev, [user.id]: !isFollowing(user) }));
+                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!currentUserId) return;
+                      setOptimisticFollows(prev => ({ ...prev, [user.id]: !isFollowing(user) }));
                       await toggleFollow(user.id);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'block',
-                    padding: '6px 14px',
-                    borderRadius: '100px',
-                    background: isFollowing(user) ? 'rgba(255,255,255,0.08)' : 'rgba(64, 201, 162, 0.15)',
-                    border: '1px solid',
-                    borderColor: isFollowing(user) ? 'var(--line)' : 'var(--earth)',
-                    color: isFollowing(user) ? 'var(--text)' : 'var(--earth)',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
-                  }}
-                >
-                  {isFollowing(user) ? 'Unfollow' : 'Follow'}
-                </button>
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      borderRadius: '100px',
+                      background: isFollowing(user) ? 'rgba(255,255,255,0.08)' : 'rgba(64, 201, 162, 0.15)',
+                      border: '1px solid',
+                      borderColor: isFollowing(user) ? 'var(--line)' : 'var(--earth)',
+                      color: isFollowing(user) ? 'var(--text)' : 'var(--earth)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: '0.2s ease'
+                    }}
+                  >
+                    {isFollowing(user) ? 'Unfollow' : 'Follow'}
+                  </button>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!currentUserId) {
+                        window.location.href = '/auth/login';
+                        return;
+                      }
+                      const { startChat } = await import('../app/actions');
+                      const res = await startChat(user.id);
+                      if (res && res.chatId) {
+                        window.location.href = `/chat/${res.chatId}`;
+                      } else {
+                        window.location.href = '/chat';
+                      }
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: '100px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid var(--line)',
+                      color: 'var(--text)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Direct Signal"
+                  >
+                    ↗ Signal
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Post from './Post'
-import { updateProfile, updateAvatar, toggleFollow } from '../app/actions'
+import { updateProfile, updateAvatar, toggleFollow, startChat } from '../app/actions'
 import { UploadButton } from './UploadButton'
 
 interface ProfileViewProps {
@@ -16,11 +17,25 @@ interface ProfileViewProps {
 export default function ProfileView({ user, savedPosts, currentUserId, onLogout }: ProfileViewProps) {
   const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
   const [activePostForModal, setActivePostForModal] = useState<any>(null)
+  const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [showProfileOptions, setShowProfileOptions] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
   const [isEditing, setIsEditing] = useState(false)
+
+  const handleDirectChat = async () => {
+    try {
+      const res = await startChat(user.id)
+      if (res && res.chatId) {
+        router.push(`/chat/${res.chatId}`)
+      } else {
+        router.push('/chat')
+      }
+    } catch {
+      router.push('/chat')
+    }
+  }
   
   const initialUsername = (user?.username?.startsWith('http') || (user?.username && user.username.length > 35))
     ? (user?.handle || 'Cosmic Traveler')
@@ -130,8 +145,8 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               >
                 {isFollowingUser ? 'Unfollow' : 'Follow'}
               </button>
-              <Link
-                href={`/chat`}
+              <button
+                onClick={handleDirectChat}
                 style={{
                   padding: '8px 18px',
                   borderRadius: '100px',
@@ -140,7 +155,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   color: 'var(--text)',
                   fontSize: '0.82rem',
                   fontWeight: 700,
-                  textDecoration: 'none',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'
@@ -148,7 +163,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               >
                 <span>💬</span>
                 <span>Signal</span>
-              </Link>
+              </button>
             </>
           )}
 

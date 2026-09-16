@@ -106,57 +106,72 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleLeftTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
     const touch = e.touches[0];
-    const { clientX, clientY } = touch;
-    const isLeftEdge = clientX < 60;
-    const isRightEdge = clientX > window.innerWidth - 60;
-    if (!isLeftEdge && !isRightEdge) return;
-    const isLeft = isLeftEdge;
     touchState.current = {
-      startY: clientY,
-      startVal: isLeft ? brightness : (videoRef.current?.volume || 1),
-      type: isLeft ? 'brightness' : 'volume'
+      startY: touch.clientY,
+      startVal: brightness,
+      type: 'brightness'
     };
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchState.current.type) return;
+  const handleLeftTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (touchState.current.type !== 'brightness') return;
     const touch = e.touches[0];
     const diff = (touchState.current.startY - touch.clientY) * 0.01;
-    let newVal = touchState.current.startVal + diff;
-    newVal = Math.max(0, Math.min(newVal, 2));
-    
-    if (touchState.current.type === 'brightness') {
-      setBrightness(newVal);
-      setShowIndicator('brightness');
-    } else {
-      newVal = Math.min(newVal, 1);
-      if (videoRef.current) {
-        videoRef.current.volume = newVal;
-        if (newVal > 0) {
-          videoRef.current.muted = false;
-          setIsMuted(false);
-        }
-      }
-      if (audioRef.current) audioRef.current.volume = newVal;
-      setVolume(newVal);
-      setShowIndicator('volume');
-    }
+    const newVal = Math.max(0.2, Math.min(2.0, touchState.current.startVal + diff));
+    setBrightness(newVal);
+    setShowIndicator('brightness');
   };
 
-  const handleTouchEnd = () => {
+  const handleLeftTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
     touchState.current = { startY: 0, startVal: 0, type: '' };
-    setTimeout(() => setShowIndicator(null), 1000);
+    setTimeout(() => setShowIndicator(null), 1200);
+  };
+
+  const handleRightTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    touchState.current = {
+      startY: touch.clientY,
+      startVal: videoRef.current?.volume ?? 1,
+      type: 'volume'
+    };
+  };
+
+  const handleRightTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    if (touchState.current.type !== 'volume') return;
+    const touch = e.touches[0];
+    const diff = (touchState.current.startY - touch.clientY) * 0.01;
+    const newVal = Math.max(0, Math.min(1.0, touchState.current.startVal + diff));
+    if (videoRef.current) {
+      videoRef.current.volume = newVal;
+      if (newVal > 0) {
+        videoRef.current.muted = false;
+        setIsMuted(false);
+      } else {
+        videoRef.current.muted = true;
+        setIsMuted(true);
+      }
+    }
+    if (audioRef.current) audioRef.current.volume = newVal;
+    setVolume(newVal);
+    setShowIndicator('volume');
+  };
+
+  const handleRightTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    touchState.current = { startY: 0, startVal: 0, type: '' };
+    setTimeout(() => setShowIndicator(null), 1200);
   };
 
   return (
     <div 
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000' }} 
-      onClick={togglePlay}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000', overflow: 'hidden' }} 
     >
       <video
         ref={videoRef}
@@ -171,12 +186,58 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           });
         }}
         onPause={() => setIsPlaying(false)}
-        style={{ width: '100%', height: '100%', objectFit: 'contain', filter: `brightness(${brightness})` }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', filter: `brightness(${brightness})` }}
       />
 
       {musicTrack && (
         <audio ref={audioRef} src={musicTrack} loop />
       )}
+
+      {/* LEFT ZONE: Dedicated Brightness Control (touch-action: none prevents vertical scroll) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          width: '75px',
+          zIndex: 35,
+          touchAction: 'none'
+        }}
+        onTouchStart={handleLeftTouchStart}
+        onTouchMove={handleLeftTouchMove}
+        onTouchEnd={handleLeftTouchEnd}
+      />
+
+      {/* RIGHT ZONE: Dedicated Volume Control (touch-action: none prevents vertical scroll) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          right: 0,
+          width: '75px',
+          zIndex: 35,
+          touchAction: 'none'
+        }}
+        onTouchStart={handleRightTouchStart}
+        onTouchMove={handleRightTouchMove}
+        onTouchEnd={handleRightTouchEnd}
+      />
+
+      {/* CENTER ZONE: Broad scroll & tap area (touch-action: pan-y allows smooth reel scrolling) */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: '75px',
+          right: '75px',
+          zIndex: 25,
+          touchAction: 'pan-y'
+        }}
+        onClick={togglePlay}
+      />
 
       {/* Floating Audio Mute/Unmute Toggle */}
       <button
@@ -186,12 +247,12 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           position: 'absolute',
           top: '24px',
           right: '20px',
-          zIndex: 40,
+          zIndex: 45,
           width: '42px',
           height: '42px',
           borderRadius: '50%',
-          background: 'rgba(0, 0, 0, 0.55)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
+          backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.25)',
           color: '#fff',
           display: 'flex',
@@ -209,24 +270,58 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
       </button>
 
       {!isPlaying && (
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
-          backdropFilter: 'blur(4px)'
-        }}>
+        <div 
+          onClick={togglePlay}
+          style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(0,0,0,0.5)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+            backdropFilter: 'blur(4px)', zIndex: 30
+          }}
+        >
           <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
         </div>
       )}
       
+      {/* Sleek Vertical Indicator Bar Overlay */}
       {showIndicator && (
         <div style={{
-          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: '20px',
-          color: 'white', fontSize: '14px', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', gap: '8px', zIndex: 40
+          position: 'absolute',
+          top: '32%',
+          left: showIndicator === 'brightness' ? '24px' : 'auto',
+          right: showIndicator === 'volume' ? '24px' : 'auto',
+          transform: 'translateY(-50%)',
+          background: 'rgba(7, 17, 31, 0.85)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          padding: '12px 14px',
+          borderRadius: '20px',
+          color: 'white',
+          fontSize: '13px',
+          fontWeight: 700,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          zIndex: 50,
+          boxShadow: '0 12px 35px rgba(0,0,0,0.6)'
         }}>
-          {showIndicator === 'brightness' ? 'Brightness: ' + Math.round(brightness * 50) + '%' : 'Volume: ' + Math.round(volume * 100) + '%'}
+          <span style={{ fontSize: '18px' }}>{showIndicator === 'brightness' ? '☀️' : volume === 0 ? '🔇' : '🔊'}</span>
+          <div style={{ width: '6px', height: '90px', background: 'rgba(255,255,255,0.18)', borderRadius: '4px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: showIndicator === 'brightness' ? `${Math.min(100, Math.round((brightness / 2) * 100))}%` : `${Math.round(volume * 100)}%`,
+              background: 'var(--earth)',
+              borderRadius: '4px',
+              transition: 'height 0.05s linear'
+            }} />
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--earth)', fontWeight: 700 }}>
+            {showIndicator === 'brightness' ? `${Math.round(brightness * 50)}%` : `${Math.round(volume * 100)}%`}
+          </span>
         </div>
       )}
     </div>
@@ -602,41 +697,43 @@ export default function ReelViewer({
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: 'calc(100vh - 76px - 66px)',
-      padding: '12px 10px 80px',
-      position: 'relative',
-      userSelect: 'none'
+      position: 'fixed',
+      inset: 0,
+      width: '100vw',
+      height: '100dvh',
+      background: '#000',
+      zIndex: 45,
+      userSelect: 'none',
+      overflow: 'hidden'
     }}>
-      {/* Gesture Instruction Pill Banner */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '6px 16px',
-        borderRadius: '100px',
-        background: 'rgba(7, 17, 31, 0.75)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid var(--line)',
-        marginBottom: '10px',
-        fontSize: '0.74rem',
-        color: 'var(--muted)',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
-        <span><strong style={{ color: 'var(--earth)' }}>← Swipe Left</strong> Save</span>
-        <span>•</span>
-        <span><strong style={{ color: 'var(--earth)' }}>Swipe Right →</strong> Follow</span>
-        <span>•</span>
-        <span><strong style={{ color: 'var(--yellow)' }}>Double Tap</strong> Notes</span>
-        <span>•</span>
-        <span><strong style={{ color: 'var(--mars)' }}>Hold / Long Press</strong> Pin Note</span>
-      </div>
+      {/* Sleek Floating Home / Back Button */}
+      <a
+        href="/"
+        style={{
+          position: 'absolute',
+          top: '18px',
+          left: '18px',
+          zIndex: 60,
+          width: '42px',
+          height: '42px',
+          borderRadius: '50%',
+          background: 'rgba(0, 0, 0, 0.45)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+        }}
+        title="Return to Feed"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
 
-      {/* Centered Reel Phone Frame */}
+      {/* Edge-to-Edge Fullscreen Reel Container */}
       <div
         ref={containerRef}
         onScroll={(e) => {
@@ -646,17 +743,12 @@ export default function ReelViewer({
         }}
         style={{
           width: '100%',
-          maxWidth: '430px',
-          height: 'calc(100vh - 170px)',
-          minHeight: '560px',
-          borderRadius: '30px',
-          border: '1px solid var(--line)',
-          background: '#030812',
+          height: '100%',
+          background: '#000',
           overflowY: 'auto',
           scrollSnapType: 'y mandatory',
           scrollbarWidth: 'none',
-          position: 'relative',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(64, 201, 162, 0.12)'
+          position: 'relative'
         }}
       >
         {posts.map((post, idx) => {
@@ -699,7 +791,7 @@ export default function ReelViewer({
                         inset: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'contain'
+                        objectFit: 'cover'
                       }}
                     />
                   );
@@ -1063,7 +1155,7 @@ export default function ReelViewer({
               <div style={{
                 position: 'relative',
                 zIndex: 10,
-                padding: '24px 20px',
+                padding: '24px 20px calc(80px + env(safe-area-inset-bottom, 16px))',
                 pointerEvents: 'none'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>

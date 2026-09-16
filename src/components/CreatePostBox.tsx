@@ -5,6 +5,7 @@ import { createPost } from '../app/actions'
 import { UploadButton, useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
 import CameraCapture from './CameraCapture'
+import CreateRichPostModal from './CreateRichPostModal'
 
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
@@ -14,6 +15,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
+  const [showRichTextModal, setShowRichTextModal] = useState(false)
   const [musicTrack, setMusicTrack] = useState('')
   const [visualFilter, setVisualFilter] = useState('')
   const { startUpload, isUploading } = useUploadThing("mediaUploader")
@@ -169,13 +171,42 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
           </div>
           <h2 style={{ marginTop: '20px', color: 'var(--text)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }}>Capture & Broadcast</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '6px' }}>Share photos or videos across planetary horizons</p>
-          <button 
-            type="button"
-            onClick={() => setIsOpen(true)}
-            style={{ marginTop: '16px', background: 'transparent', border: '1px solid var(--line)', padding: '8px 20px', borderRadius: '100px', fontSize: '0.85rem', color: 'var(--text)', cursor: 'pointer' }}
-          >
-            Or write a text signal
-          </button>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button 
+              type="button"
+              onClick={() => setShowRichTextModal(true)}
+              style={{
+                background: 'rgba(64, 201, 162, 0.12)',
+                border: '1.5px solid var(--earth)',
+                padding: '8px 20px',
+                borderRadius: '100px',
+                fontSize: '0.85rem',
+                color: 'var(--earth)',
+                cursor: 'pointer',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>✍️</span> Compose Rich Text Signal
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsOpen(true)}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--line)',
+                padding: '8px 18px',
+                borderRadius: '100px',
+                fontSize: '0.85rem',
+                color: 'var(--muted)',
+                cursor: 'pointer'
+              }}
+            >
+              Quick Caption
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ textAlign: 'left' }}>
@@ -411,7 +442,23 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
               </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowRichTextModal(true)}
+                style={{
+                  background: 'none',
+                  border: '1px dashed var(--earth)',
+                  color: 'var(--earth)',
+                  padding: '6px 14px',
+                  borderRadius: '100px',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                ✍️ Rich Text
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -447,6 +494,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
         </form>
         </div>
       )}
+      {showRichTextModal && <CreateRichPostModal onClose={() => setShowRichTextModal(false)} />}
     </div>
   )
 }

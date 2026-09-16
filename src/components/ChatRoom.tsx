@@ -1,9 +1,8 @@
 'use client'
-
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Pusher from 'pusher-js'
 import Link from 'next/link'
-import Peer, { MediaConnection } from 'peerjs'
+import type { MediaConnection } from 'peerjs'
 import { UploadButton } from './UploadButton'
 import { sendMessage, getMessageById, getPostById } from '../app/actions'
 
@@ -226,30 +225,43 @@ export default function ChatRoom({
 
   // ───────── PeerJS WebRTC Setup ─────────
   useEffect(() => {
-    if (!currentUser?.id) return
+    if (!currentUser?.id || typeof window === 'undefined') return
 
-    // Clean peer ID
-    const peerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
-    const peer = new Peer(peerId, PEER_CONFIG)
-    peerRef.current = peer
+    let peerInstance: any = null
+    let isCancelled = false
 
-    peer.on('open', (id) => {
-      console.log('PeerJS online with ID:', id)
-    })
+    const initPeer = async () => {
+      try {
+        const PeerModule = (await import('peerjs')).default
+        if (isCancelled) return
 
-    peer.on('error', (err) => {
-      console.warn('PeerJS status:', err)
-    })
+        const peerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+        const peer = new PeerModule(peerId, PEER_CONFIG)
+        peerRef.current = peer
+        peerInstance = peer
 
-    // Listen for incoming calls
-    peer.on('call', (incomingMediaCall) => {
-      // Check if video track exists in metadata or default to video
-      const isVideo = incomingMediaCall.metadata?.callType !== 'audio'
-      setIncomingCall({ call: incomingMediaCall, isVideo })
-    })
+        peer.on('open', (id: string) => {
+          console.log('PeerJS online with ID:', id)
+        })
+
+        peer.on('error', (err: any) => {
+          console.warn('PeerJS status:', err)
+        })
+
+        peer.on('call', (incomingMediaCall: any) => {
+          const isVideo = incomingMediaCall.metadata?.callType !== 'audio'
+          setIncomingCall({ call: incomingMediaCall, isVideo })
+        })
+      } catch (e) {
+        console.error('Failed to initialize PeerJS:', e)
+      }
+    }
+
+    initPeer()
 
     return () => {
-      peer.destroy()
+      isCancelled = true
+      if (peerInstance) peerInstance.destroy()
     }
   }, [currentUser?.id])
 

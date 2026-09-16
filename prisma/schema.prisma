@@ -121,15 +121,18 @@ model Message {
 }
 
 model ReelComment {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   content   String
-  xPercent  Float
-  yPercent  Float
+  xPercent  Float         @default(50)
+  yPercent  Float         @default(50)
   postId    String
   userId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  parentId  String?
+  parent    ReelComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   ReelComment[] @relation("CommentReplies")
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
 }
 
 model SavedPost {

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
 import Link from "next/link";
+import ThreadCommentTree from "./ThreadCommentTree";
 
 function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -151,6 +152,39 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isDeleted, setIsDeleted] = useState(false);
   const [isArchived, setIsArchived] = useState(post.archived);
+
+  // Thread & Comments state
+  const isThreadPost = post.mediaType === 'thread' || (!post.mediaUrl && post.mediaType !== 'reel' && post.mediaType !== 'video');
+  const [comments, setComments] = useState<any[]>(post.reelComments || []);
+  const [showComments, setShowComments] = useState(isThreadPost);
+
+  // Parse rich styling if thread post
+  let textTheme = { bg: 'rgba(255,255,255,0.03)', color: 'var(--text)', border: 'var(--line)' };
+  let textFont = 'var(--font-body), sans-serif';
+  let textSize = '1.02rem';
+  let lineHeight = '1.65';
+
+  if (isThreadPost && post.visualFilter) {
+    try {
+      const parsed = JSON.parse(post.visualFilter);
+      if (parsed.font === 'serif') textFont = 'var(--font-heading), Georgia, serif';
+      else if (parsed.font === 'space') textFont = 'var(--font-space-grotesk), monospace';
+      else if (parsed.font === 'mono') textFont = 'monospace';
+
+      if (parsed.theme === 'gold') {
+        textTheme = { bg: 'linear-gradient(145deg, #1C1914, #2A241C)', color: '#F3F0E9', border: '#C5A059' };
+      } else if (parsed.theme === 'void') {
+        textTheme = { bg: 'linear-gradient(145deg, #07111F, #0D1C2E)', color: '#F3F7FB', border: 'rgba(64, 201, 162, 0.4)' };
+      } else if (parsed.theme === 'emerald') {
+        textTheme = { bg: 'linear-gradient(145deg, #0C211E, #14352F)', color: '#E2F3EE', border: '#40C9A2' };
+      } else if (parsed.theme === 'nebula') {
+        textTheme = { bg: 'linear-gradient(145deg, #1F1128, #2B1838)', color: '#F8EEFC', border: '#B85C5C' };
+      }
+
+      if (parsed.size === 'title') textSize = '1.35rem';
+      else if (parsed.size === 'large') textSize = '1.15rem';
+    } catch {}
+  }
 
   // Carousel slide index
   const mediaList = post.mediaUrl ? post.mediaUrl.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
@@ -337,133 +371,163 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         </div>
       </div>
 
-      {/* Swipe Zone / Media Area / Carousel */}
-      <div
-        ref={zoneRef}
+      {/* Swipe Zone / Media Area / Carousel or Native Stylized Text Post */}
+      {isThreadPost ? (
+        <div
+          style={{
+            padding: '24px 28px',
+            background: textTheme.bg,
+            color: textTheme.color,
+            border: `1.5px solid ${textTheme.border}`,
+            borderRadius: '20px',
+            margin: '12px 0 16px',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
+            position: 'relative',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <div
+            style={{
+              fontFamily: textFont,
+              fontSize: textSize,
+              lineHeight: lineHeight,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontWeight: textSize === '1.35rem' ? 600 : 400,
+              letterSpacing: textFont.includes('space') ? '0.02em' : 'normal'
+            }}
+          >
+            {post.content}
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={zoneRef}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-        className={`post-media ${mediaList.length === 0 ? getMediaClass(post.mediaType) : ''} ${post.visualFilter || ''}`}
-        data-swipe-zone
-        style={{ position: 'relative', overflow: 'hidden' }}
-      >
-        {post.musicTrack && (
-          <AudioPlayer src={post.musicTrack} />
-        )}
-        
-        {/* Render Carousel or Single Media Image */}
-        {mediaList.length > 0 ? (
-          <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[currentSlide].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-              <VideoPlayer src={mediaList[currentSlide]} />
-            ) : (
-              <img
-                src={mediaList[currentSlide]}
-                alt={`Transmission slide ${currentSlide + 1}`}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  pointerEvents: 'none',
-                  transition: 'opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
-                }}
-              />
-            )}
+          className={`post-media ${mediaList.length === 0 ? getMediaClass(post.mediaType) : ''} ${post.visualFilter || ''}`}
+          data-swipe-zone
+          style={{ position: 'relative', overflow: 'hidden' }}
+        >
+          {post.musicTrack && (
+            <AudioPlayer src={post.musicTrack} />
+          )}
+          
+          {/* Render Carousel or Single Media Image */}
+          {mediaList.length > 0 ? (
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+              {mediaList[currentSlide].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[currentSlide].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
+                <VideoPlayer src={mediaList[currentSlide]} />
+              ) : (
+                <img
+                  src={mediaList[currentSlide]}
+                  alt={`Transmission slide ${currentSlide + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    pointerEvents: 'none',
+                    transition: 'opacity 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+                  }}
+                />
+              )}
 
-            {/* Carousel navigation arrows if multiple slides */}
-            {mediaList.length > 1 && (
-              <>
-                {currentSlide > 0 && (
-                  <button
-                    onClick={prevSlide}
-                    className="carousel-nav-btn"
-                    style={{
-                      position: 'absolute',
-                      left: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: 'rgba(0,0,0,0.65)',
-                      color: 'white',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'grid',
-                      placeItems: 'center',
-                      zIndex: 10
-                    }}
-                  >
-                    ‹
-                  </button>
-                )}
-
-                {currentSlide < mediaList.length - 1 && (
-                  <button
-                    onClick={nextSlide}
-                    className="carousel-nav-btn"
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: 'rgba(0,0,0,0.65)',
-                      color: 'white',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'grid',
-                      placeItems: 'center',
-                      zIndex: 10
-                    }}
-                  >
-                    ›
-                  </button>
-                )}
-
-                {/* Dot indicators */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '12px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  display: 'flex',
-                  gap: '6px',
-                  zIndex: 10
-                }}>
-                  {mediaList.map((_: any, idx: number) => (
-                    <span
-                      key={idx}
+              {/* Carousel navigation arrows if multiple slides */}
+              {mediaList.length > 1 && (
+                <>
+                  {currentSlide > 0 && (
+                    <button
+                      onClick={prevSlide}
+                      className="carousel-nav-btn"
                       style={{
-                        width: idx === currentSlide ? '18px' : '6px',
-                        height: '6px',
-                        borderRadius: '100px',
-                        background: idx === currentSlide ? 'var(--earth)' : 'rgba(255,255,255,0.4)',
-                        transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+                        position: 'absolute',
+                        left: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.65)',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'grid',
+                        placeItems: 'center',
+                        zIndex: 10
                       }}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 600, textShadow: '0 2px 10px rgba(0,0,0,0.3)', fontFamily: 'var(--font-heading)' }}>
-              {post.content}
-            </h2>
-          </div>
-        )}
+                    >
+                      ‹
+                    </button>
+                  )}
 
-        <span className="media-label">
-          Transmission #{post.id.substring(post.id.length - 4)}
-        </span>
-        <div className={`gesture-feedback ${feedback ? "show" : ""}`}>
-          {feedback}
+                  {currentSlide < mediaList.length - 1 && (
+                    <button
+                      onClick={nextSlide}
+                      className="carousel-nav-btn"
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.65)',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'grid',
+                        placeItems: 'center',
+                        zIndex: 10
+                      }}
+                    >
+                      ›
+                    </button>
+                  )}
+
+                  {/* Dot indicators */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '12px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    gap: '6px',
+                    zIndex: 10
+                  }}>
+                    {mediaList.map((_: any, idx: number) => (
+                      <span
+                        key={idx}
+                        style={{
+                          width: idx === currentSlide ? '18px' : '6px',
+                          height: '6px',
+                          borderRadius: '100px',
+                          background: idx === currentSlide ? 'var(--earth)' : 'rgba(255,255,255,0.4)',
+                          transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px', textAlign: 'center' }}>
+              <h2 style={{ fontSize: '1.6rem', color: '#fff', fontWeight: 600, textShadow: '0 2px 10px rgba(0,0,0,0.3)', fontFamily: 'var(--font-heading)' }}>
+                {post.content}
+              </h2>
+            </div>
+          )}
+
+          <span className="media-label">
+            Transmission #{post.id.substring(post.id.length - 4)}
+          </span>
+          <div className={`gesture-feedback ${feedback ? "show" : ""}`}>
+            {feedback}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="post-actions">
         <button
@@ -484,14 +548,35 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           <span>{isFollowing ? "Following" : "Follow"}</span>
         </button>
 
-        <Link href="/reels" className="action-button" style={{ textDecoration: 'none', color: 'inherit' }}>
+        <button
+          className={`action-button ${showComments ? "active" : ""}`}
+          onClick={() => setShowComments(!showComments)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+        >
           <span>💬</span>
-          <span>{post.reelComments?.length || 0} Notes</span>
-        </Link>
+          <span>{comments.length} {comments.length === 1 ? 'Reply' : 'Replies'}</span>
+        </button>
 
-        <Link href={`/chat`} className="action-button" style={{ marginLeft: "auto", textDecoration: 'none', color: 'inherit' }}>
+        <button
+          onClick={async () => {
+            if (!currentUserId) {
+              window.location.href = '/auth/login';
+              return;
+            }
+            const { startChat } = await import('../app/actions');
+            const res = await startChat(post.authorId);
+            if (res && res.chatId) {
+              window.location.href = `/chat/${res.chatId}`;
+            } else {
+              window.location.href = '/chat';
+            }
+          }}
+          className="action-button"
+          style={{ marginLeft: "auto", background: 'none', border: 'none', cursor: 'pointer' }}
+          title={`Signal directly with @${post.author?.handle}`}
+        >
           <span>↗ Signal</span>
-        </Link>
+        </button>
       </div>
 
       <div className="post-content">
@@ -499,13 +584,29 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           <span className="likes-count">{likesCount.toLocaleString()}</span>{" "}
           likes
         </div>
-        <p className="caption">
-          <strong>@{post.author?.handle}</strong> {post.content}
-        </p>
+        {!isThreadPost && (
+          <p className="caption">
+            <strong>@{post.author?.handle}</strong> {post.content}
+          </p>
+        )}
         {mediaList.length === 1 && (mediaList[0].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[0].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video') && (
           <Link href="/reels" style={{ display: 'inline-block', marginTop: '8px', color: 'var(--earth)', fontSize: '0.78rem', textDecoration: 'none', fontWeight: 600 }}>
             Experience in Reels Mode &rarr;
           </Link>
+        )}
+
+        {/* Infinitely Expandable Nested Reddit/Threads Style Comments */}
+        {showComments && (
+          <div style={{ marginTop: '16px', padding: '0 4px' }}>
+            <ThreadCommentTree
+              comments={comments}
+              postId={post.id}
+              currentUserId={currentUserId}
+              onCommentAdded={(newComment) => {
+                setComments(prev => [...prev, newComment]);
+              }}
+            />
+          </div>
         )}
       </div>
       {/* Modern Share Modal */}

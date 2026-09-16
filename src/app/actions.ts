@@ -583,6 +583,84 @@ export async function getReelComments(postId: string) {
   }
 }
 
+export async function addThreadComment(
+  postId: string,
+  content: string,
+  parentId?: string
+) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  const trimmed = (content || '').trim();
+  if (!trimmed) return { error: 'Comment cannot be empty.' };
+
+  try {
+    const comment = await prisma.reelComment.create({
+      data: {
+        content: trimmed,
+        xPercent: 50,
+        yPercent: 50,
+        postId,
+        userId: currentUser.id,
+        parentId: parentId || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
+      },
+    });
+
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    if (post && post.authorId !== currentUser.id) {
+      await prisma.notification.create({
+        data: {
+          userId: post.authorId,
+          fromId: currentUser.id,
+          type: 'comment',
+          postId,
+          message: `@${currentUser.handle} replied to your thread: "${trimmed.slice(0, 35)}"`,
+        },
+      }).catch(() => {});
+    }
+
+    return { success: true, comment };
+  } catch (error: any) {
+    console.error('Add thread comment error:', error);
+    return { error: error?.message || 'Failed to post reply.' };
+  }
+}
+
+export async function getThreadComments(postId: string) {
+  try {
+    const comments = await prisma.reelComment.findMany({
+      where: { postId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+          },
+        },
+      },
+    });
+
+    return { success: true, comments };
+  } catch (error: any) {
+    return { error: error?.message || 'Failed to fetch thread comments.', comments: [] };
+  }
+}
+
 export async function searchContent(query: string) {
   const clean = query.trim();
   if (!clean) return { success: true, users: [], posts: [] };

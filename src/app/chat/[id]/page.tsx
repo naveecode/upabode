@@ -26,7 +26,7 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
       }
     })
   } catch (err: any) {
-    console.error('Failed to load chat room:', err);
+    console.error('Failed to load chat room:', err)
   }
 
   if (!chat) {

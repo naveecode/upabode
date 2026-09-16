@@ -21,7 +21,22 @@ export default async function Home() {
           },
         },
         likes: true,
-        reelComments: true,
+        reelComments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                handle: true,
+                avatarUrl: true,
+                color: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
