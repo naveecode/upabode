@@ -24,15 +24,11 @@ export default function HeaderActions({ user }: { user: any }) {
         <span className="text-xl">dY'</span>
       </Link>
       <Link href="/profile">
-        <img 
-          src={user.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.handle} 
-          alt="Profile" 
-          className="w-8 h-8 rounded-full border-2 border-transparent hover:border-[var(--earth)] transition-colors"
-          style={{ backgroundColor: user.color || 'var(--earth)' }}
-        />
+        {user.avatarUrl?.startsWith?.('http') ? <img src={user.avatarUrl} alt="Profile" className="w-8 h-8 rounded-full border-2 border-transparent hover:border-[var(--earth)] transition-colors" style={{ backgroundColor: user.color || 'var(--earth)' }} /> : <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white border-2 border-transparent hover:border-[var(--earth)] transition-colors" style={{ backgroundColor: user.color || 'var(--earth)' }}>{user.avatarUrl || user.username?.charAt(0)?.toUpperCase()}</div>}
       </Link>
       
       {showModal && <CreateSignalModal onClose={() => setShowModal(false)} />}
     </>
   )
 }
+

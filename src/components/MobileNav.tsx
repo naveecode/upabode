@@ -74,7 +74,7 @@ export default function MobileNav() {
         /* The liquid wave SVG background */
         .tab-wave-bg {
           position: absolute;
-          top: -24px;
+          top: 0;
           width: 120px;
           height: 24px;
           transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -130,8 +130,8 @@ export default function MobileNav() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${visualIndex * 20}vw + 10vw - 60px))` }}>
-          <path d="M0,24 C30,24 40,0 60,0 C80,0 90,24 120,24 Z" fill="var(--background)" />
+        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${visualIndex * (100 / tabs.length)}vw + ${50 / tabs.length}vw - 60px))` }}>
+          <path d="M0,0 C30,0 40,24 60,24 C80,24 90,0 120,0 Z" fill="var(--background)" />
         </svg>
 
         {tabs.map((tab, idx) => (
@@ -149,5 +149,8 @@ export default function MobileNav() {
     </>
   )
 }
+
+
+
 
 

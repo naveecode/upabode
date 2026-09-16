@@ -21,6 +21,8 @@ const cormorant = Cormorant_Garamond({
   variable: '--font-heading',
 })
 
+export const viewport = { width: 'device-width', initialScale: 1, maximumScale: 1, userScalable: false }
+
 export const metadata: Metadata = {
   title: 'Upabode - Premium Communication',
   description: 'Luxurious social connections with Upabode',
@@ -43,12 +45,12 @@ export default async function RootLayout({
       <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
         <SplashLoader />
         <header className="topbar">
-          <div className="topbar-right flex items-center gap-3 w-full justify-end">
+          <Link href="/" className="brand">
+            <span className="brand-mark"></span>
+            <span className="brand-name">Upabode</span>
+          </Link>
+          <div className="topbar-right flex items-center gap-3">
             <HeaderActions user={user} />
-            <Link href="/" className="brand ml-4">
-              <span className="brand-mark"></span>
-              <span className="brand-name">Upabode</span>
-            </Link>
           </div>
         </header>
 
@@ -63,4 +65,6 @@ export default async function RootLayout({
     </html>
   )
 }
+
+
 
