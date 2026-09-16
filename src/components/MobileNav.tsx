@@ -24,21 +24,61 @@ export default function MobileNav() {
   const safeIndex = activeIndex === -1 ? 0 : activeIndex
 
   const [visualIndex, setVisualIndex] = useState(safeIndex)
+  
+  // Reels specific hide / trigger states
+  const isReelsPage = pathname.startsWith('/reels')
+  const [reelsNavRevealed, setReelsNavRevealed] = useState(false)
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setVisualIndex(safeIndex)
-  }, [safeIndex])
+    if (!isReelsPage) {
+      setReelsNavRevealed(false)
+    }
+  }, [safeIndex, isReelsPage])
+
+  const triggerReelsNav = () => {
+    setReelsNavRevealed(true)
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+    hideTimeoutRef.current = setTimeout(() => {
+      setReelsNavRevealed(false)
+    }, 4500)
+  }
+
+  // Directional Swipe handling
+  const touchStartRef = useRef<{ x: number; y: number; startIndex: number } | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isReelsPage && reelsNavRevealed) {
+      triggerReelsNav()
+    }
+    const touch = e.touches[0]
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      startIndex: visualIndex
+    }
+  }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    const currentX = e.touches[0].clientX
-    const width = window.innerWidth
-    const tabWidth = width / tabs.length
-    let newIndex = Math.floor(currentX / tabWidth)
-    newIndex = Math.max(0, Math.min(newIndex, tabs.length - 1))
-    setVisualIndex(newIndex)
+    if (!touchStartRef.current) return
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+
+    // Directional swipe: Horizontal swipe moves with respect to direction regardless of position
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      const step = -Math.round(deltaX / 48)
+      const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
+      if (targetIndex !== visualIndex) {
+        setVisualIndex(targetIndex)
+      }
+    }
   }
 
   const handleTouchEnd = () => {
+    if (!touchStartRef.current) return
+    touchStartRef.current = null
     if (visualIndex !== safeIndex) {
       router.push(tabs[visualIndex].href)
     }
@@ -64,6 +104,7 @@ export default function MobileNav() {
           padding-bottom: env(safe-area-inset-bottom, 8px);
           overflow: hidden;
           box-sizing: border-box;
+          transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
@@ -138,9 +179,46 @@ export default function MobileNav() {
           opacity: 1;
         }
       `}</style>
+
+      {/* Floating Trigger Tab for Reels Mode */}
+      {isReelsPage && !reelsNavRevealed && (
+        <button
+          onClick={triggerReelsNav}
+          aria-label="Open Navigation Bar"
+          style={{
+            position: 'fixed',
+            bottom: '14px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(11, 23, 39, 0.85)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid var(--earth)',
+            borderRadius: '100px',
+            padding: '6px 16px',
+            color: 'var(--earth)',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            zIndex: 1001,
+            cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            animation: 'fadeIn 0.25s ease'
+          }}
+        >
+          <span>▲</span> Menu
+        </button>
+      )}
       
       <nav 
         className="mobile-tabs-wave"
+        style={{
+          transform: isReelsPage
+            ? (reelsNavRevealed ? 'translateY(0)' : 'translateY(100%)')
+            : 'translateY(0)'
+        }}
+        onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
@@ -164,7 +242,10 @@ export default function MobileNav() {
             key={tab.href}
             href={tab.href}
             className={`tab-item ${idx === visualIndex ? 'active' : ''}`}
-            onClick={() => setVisualIndex(idx)}
+            onClick={() => {
+              setVisualIndex(idx)
+              if (isReelsPage) triggerReelsNav()
+            }}
             draggable={false}
           >
             <div className="tab-icon">{tab.icon}</div>

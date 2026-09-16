@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Post from './Post'
 import { updateProfile, updateAvatar, toggleFollow, startChat } from '../app/actions'
-import { UploadButton } from './UploadButton'
+import { UploadButton, useUploadThing } from './UploadButton'
+import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
 interface ProfileViewProps {
   user: any
@@ -42,6 +43,44 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     : (user?.username || '')
 
   const [editForm, setEditForm] = useState({ username: initialUsername, handle: user?.handle || '' })
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+
+  const { startUpload } = useUploadThing('mediaUploader', {
+    onClientUploadComplete: async (res) => {
+      if (res && res[0]) {
+        await updateAvatar(res[0].url)
+        window.location.reload()
+      }
+      setIsUploadingAvatar(false)
+    },
+    onUploadError: (err) => {
+      alert(`Avatar upload error: ${err.message}`)
+      setIsUploadingAvatar(false)
+    }
+  })
+
+  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const validation = validateMediaType(file)
+    if (!validation.valid || validation.type !== 'image') {
+      alert(validation.error || 'Please select a valid image file.')
+      return
+    }
+    try {
+      setIsUploadingAvatar(true)
+      const croppedAndCompressed = await compressImage(file, {
+        cropSquare: true,
+        maxWidth: 600,
+        maxHeight: 600,
+        quality: 0.9
+      })
+      await startUpload([croppedAndCompressed])
+    } catch (err: any) {
+      alert('Failed to process image: ' + err.message)
+      setIsUploadingAvatar(false)
+    }
+  }
   const [editStatus, setEditStatus] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -484,21 +523,32 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--earth)', marginTop: '2px' }}>Upload Display Picture</div>
                 </div>
               </div>
-              <div style={{ minWidth: '120px' }}>
-                <UploadButton
-                  endpoint="mediaUploader"
-                  onClientUploadComplete={async (res: any) => {
-                    if (res && res[0]) {
-                      await updateAvatar(res[0].url)
-                      window.location.reload()
-                    }
-                  }}
-                  appearance={{
-                    button: { background: 'var(--earth)', color: '#07111f', fontSize: '0.82rem', fontWeight: 700, padding: '8px 16px', height: '40px', borderRadius: '100px' },
-                    allowedContent: { display: 'none' }
-                  }}
-                  content={{ button: 'Upload Photo' }}
-                />
+              <div style={{ minWidth: '130px' }}>
+                <label style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--earth)',
+                  color: '#07111f',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  padding: '10px 18px',
+                  borderRadius: '100px',
+                  cursor: isUploadingAvatar ? 'wait' : 'pointer',
+                  opacity: isUploadingAvatar ? 0.7 : 1,
+                  boxShadow: '0 2px 10px rgba(197, 160, 89, 0.3)',
+                  transition: '0.2s ease',
+                  userSelect: 'none'
+                }}>
+                  {isUploadingAvatar ? 'Cropping & Uploading...' : 'Upload Photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingAvatar}
+                    style={{ display: 'none' }}
+                    onChange={handleAvatarFileSelect}
+                  />
+                </label>
               </div>
             </div>
 

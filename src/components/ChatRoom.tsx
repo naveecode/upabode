@@ -3,8 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Pusher from 'pusher-js'
 import Link from 'next/link'
 import type { MediaConnection } from 'peerjs'
-import { UploadButton } from './UploadButton'
+import { UploadButton, useUploadThing } from './UploadButton'
 import { sendMessage, getMessageById, getPostById } from '../app/actions'
+import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
 interface Message {
   id: string
@@ -95,13 +96,22 @@ export default function ChatRoom({
   currentUser: any
   otherUser: ChatUser
 }) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const safeOtherUser: ChatUser = {
+    id: otherUser?.id || '',
+    username: otherUser?.username || otherUser?.handle || 'Astronaut',
+    handle: otherUser?.handle || otherUser?.username || 'astronaut',
+    avatarUrl: otherUser?.avatarUrl || null,
+    color: otherUser?.color || 'green'
+  }
+
+  const [messages, setMessages] = useState<Message[]>(initialMessages || [])
   const [inputText, setInputText] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-    const [showChatOptions, setShowChatOptions] = useState(false)
+  const [showChatOptions, setShowChatOptions] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   
   // Call States
   const [isInCall, setIsInCall] = useState(false)
@@ -126,8 +136,43 @@ export default function ChatRoom({
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
-  const peerRef = useRef<Peer | null>(null)
+  const peerRef = useRef<any>(null)
   const activeCallRef = useRef<MediaConnection | null>(null)
+
+  const { startUpload } = useUploadThing('mediaUploader', {
+    onClientUploadComplete: (res: any) => {
+      if (res && res[0]) {
+        const isVideo = res[0].name?.match(/\.(mp4|webm|ogg|mov)$/i) || res[0].type?.includes('video');
+        handleSendMedia(isVideo ? `${res[0].url}#video` : res[0].url);
+      }
+      setIsUploadingMedia(false)
+    },
+    onUploadError: (err: Error) => {
+      alert(`Upload error: ${err.message}`)
+      setIsUploadingMedia(false)
+    }
+  })
+
+  const handleMediaFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const validation = validateMediaType(file)
+    if (!validation.valid) {
+      alert(validation.error || 'Please select a valid media file.')
+      return
+    }
+    try {
+      setIsUploadingMedia(true)
+      let fileToUpload = file
+      if (validation.type === 'image') {
+        fileToUpload = await compressImage(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.88 })
+      }
+      await startUpload([fileToUpload])
+    } catch (err: any) {
+      alert('Media upload failed: ' + err.message)
+      setIsUploadingMedia(false)
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -232,11 +277,17 @@ export default function ChatRoom({
 
     const initPeer = async () => {
       try {
-        const PeerModule = (await import('peerjs')).default
+        const PeerModule: any = await import('peerjs')
         if (isCancelled) return
 
+        const PeerConstructor = PeerModule.Peer || PeerModule.default?.Peer || PeerModule.default || PeerModule
+        if (typeof PeerConstructor !== 'function') {
+          console.warn('PeerJS constructor could not be resolved')
+          return
+        }
+
         const peerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
-        const peer = new PeerModule(peerId, PEER_CONFIG)
+        const peer = new PeerConstructor(peerId, PEER_CONFIG)
         peerRef.current = peer
         peerInstance = peer
 
@@ -311,7 +362,7 @@ export default function ChatRoom({
 
   // Start Outgoing Call
   const startCall = async (type: 'audio' | 'video') => {
-    if (!peerRef.current || !otherUser?.id) return
+    if (!peerRef.current || !safeOtherUser?.id) return
 
     setIsInCall(true)
     setCallType(type)
@@ -324,7 +375,7 @@ export default function ChatRoom({
       })
       setLocalStream(stream)
 
-      const targetPeerId = `orbit-${otherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+      const targetPeerId = `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
       const call = peerRef.current.call(targetPeerId, stream, {
         metadata: { callType: type }
       })
@@ -602,9 +653,9 @@ export default function ChatRoom({
             width: '42px',
             height: '42px',
             borderRadius: '50%',
-            background: otherUser.color === 'orange'
+            background: safeOtherUser.color === 'orange'
               ? 'linear-gradient(135deg, var(--mars), #8a2be2)'
-              : otherUser.color === 'blue'
+              : safeOtherUser.color === 'blue'
               ? 'linear-gradient(135deg, #00c6ff, #0072ff)'
               : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
             display: 'grid',
@@ -614,14 +665,14 @@ export default function ChatRoom({
             color: 'white',
             border: '2px solid rgba(255,255,255,0.2)'
           }}>
-            {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase() || '✦')}
+            {safeOtherUser.avatarUrl?.startsWith?.('http') ? <img src={safeOtherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase() || '✦')}
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{otherUser.username}<span style={{ fontSize: '0.65rem', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--earth)', letterSpacing: '0.05em' }}>E2E ENCRYPTED</span></div>
+            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{safeOtherUser.username}<span style={{ fontSize: '0.65rem', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--earth)', letterSpacing: '0.05em' }}>E2E ENCRYPTED</span></div>
             <div style={{ color: 'var(--earth)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--earth)', display: 'inline-block' }}></span>
-              @{otherUser.handle} · Signal Active
+              @{safeOtherUser.handle} · Signal Active
             </div>
           </div>
         </div>
@@ -708,7 +759,7 @@ export default function ChatRoom({
               Incoming {incomingCall.isVideo ? 'Video' : 'Audio'} Transmission
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
-              From {otherUser.username} (@{otherUser.handle})
+              From {safeOtherUser.username} (@{safeOtherUser.handle})
             </div>
           </div>
 
@@ -784,11 +835,11 @@ export default function ChatRoom({
                 fontWeight: 700,
                 color: 'var(--background)'
               }}>
-                {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase())}
+                {safeOtherUser.avatarUrl?.startsWith?.('http') ? <img src={safeOtherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase())}
               </div>
               <div>
                 <div style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem' }}>
-                  {otherUser.username}
+                  {safeOtherUser.username}
                 </div>
                 <div style={{ color: 'var(--earth)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--earth)' }}></span>
@@ -1093,7 +1144,7 @@ export default function ChatRoom({
             padding: '30px'
           }}>
             <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '10px' }}>🛰️</span>
-            Quantum channel connected with <strong>{otherUser.username}</strong>.<br />
+            Quantum channel connected with <strong>{safeOtherUser.username}</strong>.<br />
             Transmit your first signal below.
           </div>
         ) : (
@@ -1116,7 +1167,7 @@ export default function ChatRoom({
                   marginBottom: '3px',
                   alignSelf: isMine ? 'flex-end' : 'flex-start'
                 }}>
-                  {isMine ? 'You' : otherUser.username}
+                  {isMine ? 'You' : (msg.sender?.username || safeOtherUser.username)}
                 </span>
 
                 <div style={{
@@ -1279,48 +1330,32 @@ export default function ChatRoom({
         </button>
 
         {/* Media Upload Button */}
-        <div style={{ flexShrink: 0, width: '40px', height: '40px', overflow: 'hidden', position: 'relative' }} title="Attach Image Transmission">
-          <UploadButton
-            endpoint="mediaUploader"
-            content={{
-              button() { return '📎' },
-              allowedContent() { return '' }
-            }}
-            appearance={{
-              container: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: 0,
-                padding: 0,
-                width: '40px',
-                height: '40px',
-              },
-              button: {
-                width: '100%',
-                height: '100%',
-                minWidth: '40px',
-                borderRadius: '50%',
-                padding: 0,
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: '1.15rem',
-                background: 'rgba(0,0,0,0.04)',
-                border: '1px solid var(--line)',
-                color: 'var(--muted)',
-                cursor: 'pointer'
-              },
-              allowedContent: { display: 'none' }
-            }}
-            onClientUploadComplete={(res: any) => {
-              if (res && res[0]) {
-                const isVideo = res[0].name?.match(/\.(mp4|webm|ogg|mov)$/i) || res[0].type?.includes('video');
-                handleSendMedia(isVideo ? `${res[0].url}#video` : res[0].url);
-              }
-            }}
-            onUploadError={(err: Error) => alert(`Upload Error: ${err.message}`)}
+        <label
+          style={{
+            flexShrink: 0,
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            background: isUploadingMedia ? 'rgba(197, 160, 89, 0.2)' : 'rgba(0,0,0,0.04)',
+            border: '1px solid var(--line)',
+            color: isUploadingMedia ? 'var(--earth)' : 'var(--muted)',
+            fontSize: '1.15rem',
+            cursor: isUploadingMedia ? 'wait' : 'pointer',
+            transition: '0.2s ease'
+          }}
+          title={isUploadingMedia ? 'Optimizing & uploading media...' : 'Attach Image or Video Transmission'}
+        >
+          {isUploadingMedia ? '⏳' : '📎'}
+          <input
+            type="file"
+            accept="image/*,video/*"
+            disabled={isUploadingMedia}
+            style={{ display: 'none' }}
+            onChange={handleMediaFilePick}
           />
-        </div>
+        </label>
 
         {/* Message Input or Voice Recording Indicator */}
         {isRecording ? (

@@ -40,9 +40,23 @@ function ThreadCommentItem({
   const [isReplying, setIsReplying] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  
+  // Foldable: nested branches (depth >= 1) start collapsed to keep threads neat
+  const [isCollapsed, setIsCollapsed] = useState(depth >= 1)
+  const [showAllReplies, setShowAllReplies] = useState(depth > 0)
 
-  const replies = childrenMap.get(comment.id) || []
+  // Get replies and sort by most active (most replies in sub-branch)
+  const rawReplies = childrenMap.get(comment.id) || []
+  const sortedReplies = [...rawReplies].sort((a, b) => {
+    const aCount = childrenMap.get(a.id)?.length || 0
+    const bCount = childrenMap.get(b.id)?.length || 0
+    return bCount - aCount
+  })
+
+  // At root depth, initially show only top 2 replies if extensive
+  const visibleReplies = (depth === 0 && !showAllReplies && sortedReplies.length > 2)
+    ? sortedReplies.slice(0, 2)
+    : sortedReplies
 
   const handlePostReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,12 +73,14 @@ function ThreadCommentItem({
       if (res.success && res.comment) {
         setReplyText('')
         setIsReplying(false)
+        setIsCollapsed(false) // expand branch to see new reply
+        setShowAllReplies(true)
         onCommentAdded(res.comment)
         showToast('Reply published')
       } else {
         showToast(res.error || 'Failed to reply')
       }
-    } catch (err: any) {
+    } catch {
       showToast('Error publishing reply')
     } finally {
       setIsSubmitting(false)
@@ -84,8 +100,20 @@ function ThreadCommentItem({
     }
   }
 
+  // Clamped indentation prevents horizontal overflow on mobile screens
+  const indentMarginLeft = depth === 0 ? '0px' : depth === 1 ? '12px' : '18px'
+  const isDeepNested = depth >= 3
+
   return (
-    <div className="thread-comment-node" style={{ position: 'relative', marginTop: depth === 0 ? '16px' : '10px' }}>
+    <div 
+      className="thread-comment-node" 
+      style={{ 
+        position: 'relative', 
+        marginTop: depth === 0 ? '14px' : '8px',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Connecting Vertical Guide Line for Replies */}
       {depth > 0 && (
         <div 
@@ -93,7 +121,7 @@ function ThreadCommentItem({
           title="Click to collapse branch"
           style={{
             position: 'absolute',
-            left: '-16px',
+            left: '-10px',
             top: '0px',
             bottom: '0px',
             width: '2px',
@@ -107,16 +135,33 @@ function ThreadCommentItem({
         />
       )}
 
-      {/* Comment Card */}
+      {/* Comment Card Container */}
       <div style={{
         background: depth === 0 ? 'rgba(28, 25, 20, 0.03)' : 'transparent',
         borderRadius: '12px',
         padding: depth === 0 ? '10px 12px' : '4px 0',
-        transition: '0.2s'
+        transition: '0.2s',
+        width: '100%',
+        boxSizing: 'border-box'
       }}>
+        {/* Deep Nesting Indicator */}
+        {isDeepNested && (
+          <div style={{
+            fontSize: '0.68rem',
+            color: 'var(--earth)',
+            marginBottom: '4px',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <span>↳</span> Replying to @{comment.user.handle}
+          </div>
+        )}
+
         {/* Comment Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <Link href={`/profile/${comment.user.handle}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'nowrap' }}>
+          <Link href={`/profile/${comment.user.handle}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
             <div 
               className={`user-avatar ${comment.user.color || 'green'}`} 
               style={{ width: '26px', height: '26px', fontSize: '0.72rem', flexShrink: 0 }}
@@ -127,38 +172,40 @@ function ThreadCommentItem({
                 comment.user.avatarUrl || comment.user.username?.charAt(0).toUpperCase() || '✦'
               )}
             </div>
-            <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text)' }}>
+            <span style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {comment.user.username}
             </span>
-            <span style={{ color: 'var(--earth)', fontSize: '0.74rem' }}>
+            <span style={{ color: 'var(--earth)', fontSize: '0.74rem', whiteSpace: 'nowrap' }}>
               @{comment.user.handle}
             </span>
           </Link>
           
-          <span style={{ fontSize: '0.7rem', color: 'var(--muted)', marginLeft: 'auto' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--muted)', marginLeft: 'auto', flexShrink: 0 }}>
             {timeAgo(comment.createdAt)}
           </span>
 
-          {replies.length > 0 && (
+          {sortedReplies.length > 0 && (
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--muted)',
-                fontSize: '0.7rem',
+                color: isCollapsed ? 'var(--earth)' : 'var(--muted)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
                 cursor: 'pointer',
                 padding: '2px 6px',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                flexShrink: 0
               }}
               title={isCollapsed ? 'Expand thread' : 'Collapse thread'}
             >
-              {isCollapsed ? `[+${replies.length}]` : '[-]'}
+              {isCollapsed ? `[+${sortedReplies.length}]` : '[-]'}
             </button>
           )}
         </div>
 
-        {/* Comment Text Content */}
+        {/* Comment Content (if not collapsed) */}
         {!isCollapsed && (
           <>
             <div style={{
@@ -172,7 +219,7 @@ function ThreadCommentItem({
               {comment.content}
             </div>
 
-            {/* Comment Actions: Reply button */}
+            {/* Comment Actions: Reply toggle */}
             <div style={{ paddingLeft: '34px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.74rem' }}>
               <button
                 onClick={() => setIsReplying(!isReplying)}
@@ -195,10 +242,24 @@ function ThreadCommentItem({
               </button>
             </div>
 
-            {/* Inline Reply Form */}
+            {/* Inline Reply Form - Form and input are guaranteed not to overflow */}
             {isReplying && (
-              <form onSubmit={handlePostReply} style={{ paddingLeft: '34px', marginTop: '8px' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <form 
+                onSubmit={handlePostReply} 
+                style={{ 
+                  marginTop: '8px', 
+                  width: '100%', 
+                  boxSizing: 'border-box' 
+                }}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '8px', 
+                  alignItems: 'center', 
+                  width: '100%', 
+                  minWidth: 0,
+                  boxSizing: 'border-box'
+                }}>
                   <input
                     type="text"
                     value={replyText}
@@ -206,12 +267,15 @@ function ThreadCommentItem({
                     placeholder={`Reply to @${comment.user.handle}...`}
                     style={{
                       flex: 1,
-                      padding: '8px 12px',
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '8px 14px',
                       borderRadius: '100px',
                       background: 'var(--panel-solid)',
                       border: '1px solid var(--earth)',
                       color: 'var(--text)',
-                      fontSize: '16px', // Prevents mobile zoom
+                      fontSize: '16px', // Prevents iOS zoom
                       outline: 'none'
                     }}
                     autoFocus
@@ -220,13 +284,14 @@ function ThreadCommentItem({
                     type="submit"
                     disabled={isSubmitting || !replyText.trim()}
                     style={{
+                      flexShrink: 0,
                       padding: '8px 16px',
                       borderRadius: '100px',
                       background: 'var(--earth)',
                       color: '#07111f',
                       border: 'none',
                       fontWeight: 700,
-                      fontSize: '0.78rem',
+                      fontSize: '0.8rem',
                       cursor: isSubmitting ? 'wait' : 'pointer'
                     }}
                   >
@@ -236,10 +301,42 @@ function ThreadCommentItem({
               </form>
             )}
 
-            {/* Recursive Nested Replies with branch guidelines */}
-            {replies.length > 0 && (
-              <div style={{ marginLeft: '18px', paddingLeft: '12px', borderLeft: '1.5px solid rgba(197, 160, 89, 0.2)' }}>
-                {replies.map(child => (
+            {/* Collapsed Branches Trigger Pill */}
+            {sortedReplies.length > 0 && isCollapsed && (
+              <div style={{ paddingLeft: '34px', marginTop: '6px' }}>
+                <button
+                  onClick={() => setIsCollapsed(false)}
+                  style={{
+                    background: 'rgba(197, 160, 89, 0.1)',
+                    border: '1px solid rgba(197, 160, 89, 0.3)',
+                    color: 'var(--earth)',
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  💬 Show {sortedReplies.length} {sortedReplies.length === 1 ? 'reply' : 'replies'}
+                </button>
+              </div>
+            )}
+
+            {/* Render Nested Replies with clamped indentation */}
+            {sortedReplies.length > 0 && !isCollapsed && (
+              <div 
+                style={{ 
+                  marginLeft: indentMarginLeft, 
+                  paddingLeft: '10px', 
+                  borderLeft: '1.5px solid rgba(197, 160, 89, 0.2)',
+                  width: 'calc(100% - ' + indentMarginLeft + ')',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {visibleReplies.map(child => (
                   <ThreadCommentItem
                     key={child.id}
                     comment={child}
@@ -250,9 +347,53 @@ function ThreadCommentItem({
                     onCommentAdded={onCommentAdded}
                   />
                 ))}
+
+                {/* Show more replies toggle if root comment has extensive branches */}
+                {depth === 0 && !showAllReplies && sortedReplies.length > 2 && (
+                  <div style={{ marginTop: '8px' }}>
+                    <button
+                      onClick={() => setShowAllReplies(true)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--earth)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: '4px 8px'
+                      }}
+                    >
+                      ↳ Show {sortedReplies.length - 2} more replies...
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
+        )}
+
+        {/* When branch is collapsed, show simple expand preview pill */}
+        {isCollapsed && sortedReplies.length > 0 && (
+          <div style={{ paddingLeft: '34px', marginTop: '4px' }}>
+            <button
+              onClick={() => setIsCollapsed(false)}
+              style={{
+                background: 'rgba(197, 160, 89, 0.08)',
+                border: '1px solid rgba(197, 160, 89, 0.25)',
+                color: 'var(--earth)',
+                padding: '4px 12px',
+                borderRadius: '100px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              💬 Show {sortedReplies.length} {sortedReplies.length === 1 ? 'reply' : 'replies'}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -287,6 +428,13 @@ export default function ThreadCommentTree({
     }
   })
 
+  // Sort root comments by activity (most replies first)
+  rootComments.sort((a, b) => {
+    const aCount = childrenMap.get(a.id)?.length || 0
+    const bCount = childrenMap.get(b.id)?.length || 0
+    return bCount - aCount
+  })
+
   const handlePostRootComment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUserId) {
@@ -306,7 +454,7 @@ export default function ThreadCommentTree({
       } else {
         showToast(res.error || 'Failed to post comment')
       }
-    } catch (err) {
+    } catch {
       showToast('Error publishing comment')
     } finally {
       setIsSubmitting(false)
@@ -314,9 +462,28 @@ export default function ThreadCommentTree({
   }
 
   return (
-    <div className="thread-comment-tree" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--line)' }}>
+    <div 
+      className="thread-comment-tree" 
+      style={{ 
+        marginTop: '12px', 
+        paddingTop: '12px', 
+        borderTop: '1px solid var(--line)',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Root Comment Form */}
-      <form onSubmit={handlePostRootComment} style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+      <form 
+        onSubmit={handlePostRootComment} 
+        style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          marginBottom: '14px',
+          width: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box'
+        }}
+      >
         <input
           type="text"
           value={rootCommentText}
@@ -324,6 +491,9 @@ export default function ThreadCommentTree({
           placeholder="Contribute to this discussion branch..."
           style={{
             flex: 1,
+            minWidth: 0,
+            width: '100%',
+            boxSizing: 'border-box',
             padding: '10px 14px',
             borderRadius: '100px',
             background: 'var(--panel-solid)',
@@ -340,6 +510,7 @@ export default function ThreadCommentTree({
           type="submit"
           disabled={isSubmitting || !rootCommentText.trim()}
           style={{
+            flexShrink: 0,
             padding: '10px 20px',
             borderRadius: '100px',
             background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
@@ -361,7 +532,7 @@ export default function ThreadCommentTree({
           No replies yet. Start the thread!
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           {rootComments.map(rootComment => (
             <ThreadCommentItem
               key={rootComment.id}

@@ -6,6 +6,7 @@ import { UploadButton, useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
 import CameraCapture from './CameraCapture'
 import CreateRichPostModal from './CreateRichPostModal'
+import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
@@ -77,9 +78,11 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
 
   const handleCapture = async (file: File) => {
     setShowCamera(false);
-    showToast("Uploading capture...");
+    showToast("Optimizing capture...");
     try {
-      const res = await startUpload([file]);
+      const optimized = await compressImage(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.88 });
+      showToast("Uploading capture...");
+      const res = await startUpload([optimized]);
       if (res && res.length > 0) {
         setMediaUrls(prev => [...prev, res[0].url]);
         setIsOpen(true);
@@ -87,6 +90,44 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       }
     } catch (e: any) {
       showToast(`Upload failed: ${e.message}`);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    showToast(`Optimizing ${files.length} ${files.length === 1 ? 'file' : 'files'}...`);
+    try {
+      const validFiles: File[] = [];
+      for (const f of files) {
+        const validation = validateMediaType(f);
+        if (!validation.valid) {
+          showToast(validation.error || 'Skipping unsupported file.');
+          continue;
+        }
+        if (validation.type === 'image') {
+          const compressed = await compressImage(f, { maxWidth: 1920, maxHeight: 1920, quality: 0.88 });
+          validFiles.push(compressed);
+        } else {
+          validFiles.push(f);
+        }
+      }
+
+      if (validFiles.length === 0) return;
+      showToast("Uploading media...");
+      const res = await startUpload(validFiles);
+      if (res && res.length > 0) {
+        const newUrls = res.map((r: any) => {
+          const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video');
+          return isVideo ? `${r.url}#video` : r.url;
+        });
+        setMediaUrls(prev => [...prev, ...newUrls]);
+        setIsOpen(true);
+        showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media attached!');
+      }
+    } catch (err: any) {
+      showToast(`Upload error: ${err.message}`);
     }
   };
 
@@ -421,24 +462,33 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div title="Attach Photo or Reel Media (multi-upload supported for Carousel)">
-                <UploadButton
-                  endpoint="mediaUploader"
-                  onClientUploadComplete={(res: any) => {
-                    if (res && res.length > 0) {
-                      const newUrls = res.map((r: any) => {
-                        const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video');
-                        return isVideo ? `${r.url}#video` : r.url;
-                      });
-                      setMediaUrls(prev => [...prev, ...newUrls]);
-                      showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media frame attached!');
-                    }
-                  }}
-                  onUploadError={(err: Error) => showToast(`Upload error: ${err.message}`)}
+              <label title="Attach Photo or Reel Media (multi-upload supported for Carousel)" style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                borderRadius: '100px',
+                background: 'rgba(197, 160, 89, 0.15)',
+                border: '1px solid var(--earth)',
+                color: 'var(--earth)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: isUploading ? 'wait' : 'pointer',
+                opacity: isUploading ? 0.7 : 1,
+                transition: '0.2s ease'
+              }}>
+                <span>{isUploading ? '⏳ Optimizing & Uploading...' : '📷 Attach Media'}</span>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  disabled={isUploading}
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
                 />
-              </div>
+              </label>
               <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>
-                {mediaUrls.length === 0 ? 'Attach media' : '+ Add more frames'}
+                {mediaUrls.length === 0 ? 'Photos or Reels' : `+ ${mediaUrls.length} attached`}
               </span>
             </div>
 

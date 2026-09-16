@@ -3,6 +3,8 @@ import { prisma } from '../../../lib/prisma'
 import { redirect } from 'next/navigation'
 import ChatRoom from '../../../components/ChatRoom'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser()
   if (!user) {

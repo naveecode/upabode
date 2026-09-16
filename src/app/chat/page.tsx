@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import NewChatSearch from '../../components/NewChatSearch'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ChatInbox() {
   const user = await getCurrentUser()
   if (!user) {
@@ -20,7 +22,6 @@ export default async function ChatInbox() {
       },
       include: {
         users: {
-          where: { id: { not: user.id } },
           select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
         },
         messages: {
@@ -95,7 +96,7 @@ export default async function ChatInbox() {
               </div>
             ) : (
               chats.map(chat => {
-                const otherUser = chat.users[0]
+                const otherUser = chat.users.find((u: any) => u.id !== user.id) || chat.users[0] || { username: 'Astronaut', handle: 'cosmic', color: 'green', avatarUrl: null }
                 const lastMessage = chat.messages[0]
                 
                 return (

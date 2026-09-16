@@ -30,6 +30,15 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Upabode - Premium Communication',
   description: 'Luxurious social connections with Upabode',
+  icons: {
+    icon: [
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
+  manifest: '/manifest.json',
 }
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +57,11 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/icon.png" sizes="512x512" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
         <SplashLoader />
         <header className="topbar">

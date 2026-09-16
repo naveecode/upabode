@@ -173,6 +173,26 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     <div 
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000', overflow: 'hidden' }} 
     >
+      {/* Ambient backdrop to fill letterbox areas naturally without zoom-cropping */}
+      <video
+        src={src}
+        loop
+        muted
+        playsInline
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          filter: 'blur(40px) brightness(0.35)',
+          transform: 'scale(1.15)',
+          pointerEvents: 'none',
+          zIndex: 1
+        }}
+      />
+
+      {/* Main Video: 100% full media visible without crop */}
       <video
         ref={videoRef}
         src={src}
@@ -186,7 +206,14 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           });
         }}
         onPause={() => setIsPlaying(false)}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', filter: `brightness(${brightness})` }}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          filter: `brightness(${brightness})`,
+          zIndex: 5
+        }}
       />
 
       {musicTrack && (
