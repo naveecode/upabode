@@ -7,6 +7,7 @@ import { getCurrentUser } from './actions'
 import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
+import HeaderActions from '../components/HeaderActions'
 
 
 const montserrat = Montserrat({
@@ -43,26 +44,7 @@ export default async function RootLayout({
         <SplashLoader />
         <header className="topbar">
           <div className="topbar-right flex items-center gap-3 w-full justify-end">
-            {user ? (
-              <>
-                <Link href="/auth/register" className="bg-[var(--earth)] text-[var(--panel-solid)] px-4 py-1.5 rounded-full font-bold text-sm hover:bg-[var(--earth-dark)] transition-colors">
-                  + Signal
-                </Link>
-                <Link href="/chat" className="relative p-2 text-white hover:text-[var(--earth)] transition-colors">
-                  <span className="text-xl">💬</span>
-                  {user.notifications?.some((n: any) => !n.read) && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[var(--danger)] rounded-full animate-pulse" style={{
-                      boxShadow: '0 0 10px var(--danger)'
-                    }} />
-                  )}
-                </Link>
-                <Link href="/profile" className="avatar bg-[var(--panel-solid)] text-[var(--text)] w-9 h-9 rounded-full flex items-center justify-center font-bold border-2 border-[var(--earth)] hover:scale-105 transition-transform" title="Profile & Settings">
-                  {user.username?.charAt(0).toUpperCase() || 'U'}
-                </Link>
-              </>
-            ) : (
-              <Link href="/auth/login" className="bg-[var(--earth)] text-[#07111f] px-4 py-2 rounded-full font-bold text-sm hover:bg-[var(--earth-dark)] transition-colors">Sign in</Link>
-            )}
+            <HeaderActions user={user} />
             <Link href="/" className="brand ml-4">
               <span className="brand-mark"></span>
               <span className="brand-name">Upabode</span>
@@ -81,3 +63,4 @@ export default async function RootLayout({
     </html>
   )
 }
+

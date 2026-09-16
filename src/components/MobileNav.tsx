@@ -24,27 +24,36 @@ export default function MobileNav() {
   const safeIndex = activeIndex === -1 ? 0 : activeIndex
 
   const [touchX, setTouchX] = useState<number | null>(null)
+  const [visualIndex, setVisualIndex] = useState(safeIndex)
   const navRef = useRef<HTMLElement>(null)
+
+  // Sync visual index with actual route
+  useEffect(() => {
+    setVisualIndex(safeIndex)
+  }, [safeIndex])
 
   const handleTouchStart = (e: React.TouchEvent) => setTouchX(e.touches[0].clientX)
   
   const handleTouchMove = (e: React.TouchEvent) => {
-    // We let the user drag the indicator across the tabs for a fluid feel
     const currentX = e.touches[0].clientX;
     const width = window.innerWidth;
     const tabWidth = width / tabs.length;
     let newIndex = Math.floor(currentX / tabWidth);
     newIndex = Math.max(0, Math.min(newIndex, tabs.length - 1));
-    if (newIndex !== safeIndex) {
-       router.push(tabs[newIndex].href);
-    }
+    setVisualIndex(newIndex);
   }
 
-  const handleTouchEnd = () => setTouchX(null)
+  const handleTouchEnd = () => {
+    if (visualIndex !== safeIndex) {
+       router.push(tabs[visualIndex].href);
+    }
+    setTouchX(null)
+  }
 
   return (
     <>
-      <style>{`        .mobile-tabs-wave {
+      <style>{`
+        .mobile-tabs-wave {
           position: fixed;
           bottom: 0;
           left: 0;
@@ -62,19 +71,7 @@ export default function MobileNav() {
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
-        .tab-indicator {
-          position: absolute;
-          top: -20px;
-          width: 56px;
-          height: 56px;
-          background: var(--earth);
-          border-radius: 50%;
-          border: 6px solid var(--background);
-          transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          z-index: 1;
-        }
-        
-        /* The liquid wave SVG background behind the indicator */
+        /* The liquid wave SVG background */
         .tab-wave-bg {
           position: absolute;
           top: -24px;
@@ -133,11 +130,9 @@ export default function MobileNav() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${safeIndex * 100}vw / ${tabs.length} - 60px + (100vw / ${tabs.length} / 2)))` }}>
+        <svg className="tab-wave-bg" viewBox="0 0 120 24" style={{ transform: `translateX(calc(${visualIndex * 20}vw + 10vw - 60px))` }}>
           <path d="M0,24 C30,24 40,0 60,0 C80,0 90,24 120,24 Z" fill="var(--background)" />
         </svg>
-        
-        <div className="tab-indicator" style={{ transform: `translateX(calc(${safeIndex * 100}vw / ${tabs.length} - 28px + (100vw / ${tabs.length} / 2)))` }} />
 
         {tabs.map((tab, idx) => (
           <Link
@@ -154,4 +149,5 @@ export default function MobileNav() {
     </>
   )
 }
+
 

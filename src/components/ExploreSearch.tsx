@@ -26,6 +26,12 @@ export default function ExploreSearch({
   const [selectedPost, setSelectedPost] = useState<any | null>(null)
   const [selectedPostLiked, setSelectedPostLiked] = useState(false)
   const [selectedPostLikesCount, setSelectedPostLikesCount] = useState(0)
+  const [optimisticFollows, setOptimisticFollows] = useState<Record<string, boolean>>({})
+
+  const isFollowing = (user: any) => {
+    if (optimisticFollows[user.id] !== undefined) return optimisticFollows[user.id];
+    return user.followers?.some((f: any) => f.followerId === currentUserId);
+  }
 
   // Real-time search debounced 300ms
   useEffect(() => {
@@ -102,7 +108,6 @@ export default function ExploreSearch({
             🔍
           </span>
           <input
-            autoFocus
             type="text"
             placeholder="Search space anomalies, signals, or users..."
             value={query}
@@ -244,24 +249,25 @@ export default function ExploreSearch({
                   onClick={async (e) => {
                     e.stopPropagation();
                     if (!currentUserId) return;
-                    await toggleFollow(user.id);
+                    setOptimisticFollows(prev => ({ ...prev, [user.id]: !isFollowing(user) }));
+                      await toggleFollow(user.id);
                   }}
                   style={{
                     width: '100%',
                     display: 'block',
                     padding: '6px 14px',
                     borderRadius: '100px',
-                    background: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'rgba(255,255,255,0.08)' : 'rgba(64, 201, 162, 0.15)',
+                    background: isFollowing(user) ? 'rgba(255,255,255,0.08)' : 'rgba(64, 201, 162, 0.15)',
                     border: '1px solid',
-                    borderColor: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'var(--line)' : 'var(--earth)',
-                    color: user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'var(--text)' : 'var(--earth)',
+                    borderColor: isFollowing(user) ? 'var(--line)' : 'var(--earth)',
+                    color: isFollowing(user) ? 'var(--text)' : 'var(--earth)',
                     fontSize: '0.74rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                   }}
                 >
-                  {user.followers?.some((f:any)=>f.followerId===currentUserId) ? 'Unfollow' : 'Follow'}
+                  {isFollowing(user) ? 'Unfollow' : 'Follow'}
                 </button>
               </div>
             ))}
@@ -576,5 +582,10 @@ export default function ExploreSearch({
     </div>
   )
 }
+
+
+
+
+
 
 

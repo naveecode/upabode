@@ -7,10 +7,27 @@ import Link from "next/link";
 
 function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!audioRef.current) return;
+        if (entry.intersectionRatio > 0.6) {
+          audioRef.current.play().catch(() => {});
+        } else {
+          audioRef.current.pause();
+        }
+      });
+    }, { threshold: [0.6] });
+
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const toggleAudio = (e: React.MouseEvent) => {
-    if(e && e.stopPropagation) e.stopPropagation(); // prevent opening modal or triggering other clicks
+    if(e && e.stopPropagation) e.stopPropagation();
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
       audioRef.current.play();
@@ -20,12 +37,11 @@ function AudioPlayer({ src }: { src: string }) {
   };
 
   return (
-    <div style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20 }}>
+    <div ref={containerRef} style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20 }}>
       <audio
         ref={audioRef}
         src={src}
         loop
-        autoPlay
         onPlay={(e) => {
           setIsPlaying(true);
           const target = e.target as HTMLAudioElement;
@@ -40,12 +56,10 @@ function AudioPlayer({ src }: { src: string }) {
         style={{
           width: '40px', height: '40px', borderRadius: '50%', background: isPlaying ? 'var(--earth)' : 'rgba(0,0,0,0.6)',
           border: '1px solid var(--earth)', color: isPlaying ? '#000' : 'var(--earth)', fontSize: '1.2rem',
-          display: 'grid', placeItems: 'center', cursor: 'pointer', backdropFilter: 'blur(4px)',
-          animation: isPlaying ? 'pulse 2s infinite' : 'none', transition: '0.3s ease'
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
         }}
-        title="Toggle Music"
       >
-        🎵
+        {isPlaying ? 'dY%?' : 'dY%?'}
       </button>
     </div>
   );

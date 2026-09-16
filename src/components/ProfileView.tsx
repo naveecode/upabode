@@ -172,7 +172,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           { label: 'Followers', value: user.followers?.length || 0, tab: 'followers' },
           { label: 'Following', value: user.following?.length || 0, tab: 'following' },
           { label: 'Saved', value: savedPosts?.length || 0, tab: 'saved' },
-        ].filter(stat => stat.tab !== 'saved' || isCurrentUser).map((stat, i) => (
+        ].map((stat, i) => (
           <div
             key={i}
             onClick={() => stat.tab && setActiveTab(stat.tab as any)}
@@ -252,7 +252,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
             </div>
           )}
 
-          {(activeTab === 'transmissions' ? user.posts : savedPosts?.map((s: any) => s.post).filter(Boolean))?.map((post: any) => (
+          {(activeTab === 'transmissions' ? user.posts : (isCurrentUser ? savedPosts : savedPosts?.filter(s => s.isPublic))?.map((s: any) => s.post).filter(Boolean))?.map((post: any) => (
             <div 
               key={post.id} 
               onClick={() => setActivePostForModal({...post, author: activeTab === 'transmissions' ? user : post.author})}
@@ -426,10 +426,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Username</div>
                   {isEditing ? (
                     <input 
-                      value={editForm.username} 
+                      maxLength={30} style={{ position: 'relative', zIndex: 10, background: 'rgba(0,0,0,0.5)', border: '1px solid var(--line)', color: '#fff', padding: '4px 8px', borderRadius: '6px', width: '100%', marginTop: '4px' }} value={editForm.username} 
                       onChange={e => setEditForm({...editForm, username: e.target.value})} 
-                      style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--line)', color: '#fff', padding: '4px 8px', borderRadius: '6px', width: '100%', marginTop: '4px' }} 
-                    />
+                      />
                   ) : (
                     <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>{user.username}</div>
                   )}
@@ -444,8 +443,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                     <input 
                       value={editForm.handle} 
                       onChange={e => setEditForm({...editForm, handle: e.target.value.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()})} 
-                      style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid var(--line)', color: '#fff', padding: '4px 8px', borderRadius: '6px', width: '100%', marginTop: '4px' }} 
-                    />
+                      />
                   ) : (
                     <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>@{user.handle}</div>
                   )}
@@ -458,6 +456,11 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     </div>
   )
 }
+
+
+
+
+
 
 
 
