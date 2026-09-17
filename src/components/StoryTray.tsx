@@ -126,10 +126,13 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
           <div style={{
             width: '64px', height: '64px', borderRadius: '50%',
             background: 'rgba(255,255,255,0.05)', border: '2px dashed var(--earth)',
-            display: 'grid', placeItems: 'center', fontSize: '1.5rem', color: 'var(--earth)',
+            display: 'grid', placeItems: 'center', color: 'var(--earth)',
             transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
           }}>
-            +
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text)', fontWeight: 600 }}>
             Add Status

@@ -25,51 +25,51 @@ export default function HeaderActions({ user }: { user: any }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            background: 'var(--panel-solid)',
+            gap: '6px',
+            background: 'rgba(255, 255, 255, 0.06)',
             border: '1px solid var(--line)',
             borderRadius: '100px',
-            padding: '6px 14px',
+            padding: '4px 10px',
             cursor: 'pointer',
             color: 'var(--muted)',
-            fontSize: '0.8rem'
+            fontSize: '0.74rem'
           }}
         >
-          <span>🔍</span>
-          <span style={{ fontSize: '0.8rem' }}>Search</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span style={{ fontSize: '0.74rem' }}>Search</span>
         </div>
-        <Link href="/auth/register" className="bg-[var(--earth)] text-[var(--panel-solid)] px-4 py-1.5 rounded-full font-bold text-sm hover:bg-[var(--earth-dark)] transition-colors">
-          Login / Register
+        <Link href="/auth/register" className="bg-[var(--earth)] text-[var(--panel-solid)] px-3.5 py-1 rounded-full font-bold text-xs hover:bg-[var(--earth-dark)] transition-colors">
+          Sign In
         </Link>
       </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      {/* Top Search Bar */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Top Search Bar (Compact & Sleek) */}
       <form onSubmit={handleSearchSubmit} style={{ margin: 0 }}>
         <div
           onClick={() => router.push('/explore?focus=true')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            background: 'var(--panel-solid)',
+            gap: '6px',
+            background: 'rgba(255, 255, 255, 0.06)',
             border: '1px solid var(--line)',
             borderRadius: '100px',
-            padding: '6px 14px',
+            padding: '4px 11px',
             cursor: 'pointer',
             color: 'var(--muted)',
-            fontSize: '0.82rem',
-            transition: 'border-color 0.2s',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            fontSize: '0.76rem',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
           }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--earth)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--line)')}
         >
-          <span style={{ color: 'var(--earth)', fontSize: '0.9rem' }}>🔍</span>
-          <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
             Search signals...
           </span>
         </div>

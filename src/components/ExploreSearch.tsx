@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { searchContent, toggleLike, toggleFollow } from '../app/actions'
+import { searchContent, toggleLike, toggleFollow, updatePostFolder } from '../app/actions'
 
 interface ExploreProps {
   initialUsers: any[]
@@ -19,11 +19,19 @@ export default function ExploreSearch({
   const searchParams = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState<'all' | 'media' | 'people'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'media' | 'threads' | 'people'>('all')
+  const [activeFolder, setActiveFolder] = useState<string>('All')
+  const [postsList, setPostsList] = useState<any[]>(initialPosts)
+  const [movingPostId, setMovingPostId] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [searchedUsers, setSearchedUsers] = useState<any[]>([])
   const [searchedPosts, setSearchedPosts] = useState<any[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+
+  // Sync postsList when initialPosts change
+  useEffect(() => {
+    setPostsList(initialPosts)
+  }, [initialPosts])
 
   // Auto-focus search input if navigated with focus=true
   useEffect(() => {
@@ -95,8 +103,100 @@ export default function ExploreSearch({
     await toggleLike(selectedPost.id)
   }
 
+  const getPostFolder = (post: any) => {
+    if (!post?.visualFilter) return 'General';
+    try {
+      const parsed = JSON.parse(post.visualFilter);
+      return parsed.folder || 'General';
+    } catch {
+      return 'General';
+    }
+  };
+
+  const getPostVisual = (post: any) => {
+    if (!post?.visualFilter) return { theme: 'minimal', font: 'sans', size: 'normal', folder: 'General' };
+    try {
+      return JSON.parse(post.visualFilter);
+    } catch {
+      return { theme: 'minimal', font: 'sans', size: 'normal', folder: 'General' };
+    }
+  };
+
+  const handleMoveFolder = async (postId: string, newFolder: string) => {
+    try {
+      await updatePostFolder(postId, newFolder);
+      setPostsList(prev => prev.map(p => {
+        if (p.id !== postId) return p;
+        let vf: any = {};
+        try { vf = JSON.parse(p.visualFilter || '{}'); } catch {}
+        vf.folder = newFolder;
+        return { ...p, visualFilter: JSON.stringify(vf) };
+      }));
+      setMovingPostId(null);
+    } catch (err) {
+      console.error('Failed to move folder:', err);
+    }
+  };
+
+  const handleDownloadFolderTxt = () => {
+    const raw = hasSearched ? searchedPosts : postsList;
+    const targetPosts = raw.filter((p: any) => {
+      if (p.mediaType !== 'thread') return false;
+      if (activeFolder === 'All') return true;
+      return getPostFolder(p).toLowerCase() === activeFolder.toLowerCase();
+    });
+
+    if (targetPosts.length === 0) {
+      alert('No dossiers in this folder to download.');
+      return;
+    }
+
+    let text = `====================================================\n`;
+    text += `UPABODE QUANTUM DOSSIER - FOLDER: ${activeFolder.toUpperCase()}\n`;
+    text += `Exported: ${new Date().toLocaleString()}\n`;
+    text += `Total Transmissions: ${targetPosts.length}\n`;
+    text += `====================================================\n\n`;
+
+    targetPosts.forEach((p: any, idx: number) => {
+      const f = getPostFolder(p);
+      text += `[ENTRY #${idx + 1}]  --  DOSSIER FOLDER: [${f}]\n`;
+      text += `Author: @${p.author?.handle || 'astronaut'} (${p.author?.username || 'Cosmic Traveler'})\n`;
+      text += `Date: ${new Date(p.createdAt).toLocaleString()}\n`;
+      text += `Channel: ${p.channel || 'earth'}\n`;
+      text += `Likes: ${p.likes?.length || 0}  |  Notes: ${p.reelComments?.length || 0}\n`;
+      text += `----------------------------------------------------\n`;
+      text += `${p.content}\n`;
+      text += `====================================================\n\n`;
+    });
+
+    text += `End of dossier export.\n`;
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `upabode_${activeFolder.toLowerCase()}_dossier.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const rawPosts = hasSearched ? searchedPosts : postsList;
+  const displayPosts = rawPosts.filter((p: any) => {
+    if (activeFilter === 'media') return p.mediaType !== 'thread';
+    if (activeFilter === 'threads') {
+      if (p.mediaType !== 'thread') return false;
+      if (activeFolder === 'All') return true;
+      return getPostFolder(p).toLowerCase() === activeFolder.toLowerCase();
+    }
+    return true;
+  });
+
   const displayUsers = (hasSearched ? searchedUsers : initialUsers).filter((u: any) => !currentUserId || u.id !== currentUserId)
-  const displayPosts = hasSearched ? searchedPosts : initialPosts
+
+  // Extract all unique folders from thread posts
+  const dynamicFolders = ['All', 'General', 'Research', 'Logs', 'Ideas', 'Personal', ...Array.from(new Set(rawPosts.filter(p => p.mediaType === 'thread').map(getPostFolder)))].filter((val, id, self) => self.indexOf(val) === id);
 
   const getMediaClass = (mediaType?: string | null) => {
     switch (mediaType) {
@@ -123,8 +223,8 @@ export default function ExploreSearch({
           backdropFilter: 'blur(16px)',
           transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
         }}>
-          <span style={{ fontSize: '1.2rem', marginRight: '12px', color: 'var(--earth)' }}>
-            🔍
+          <span style={{ display: 'grid', placeItems: 'center', marginRight: '12px', color: 'var(--earth)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
           <input
             ref={inputRef}
@@ -173,9 +273,34 @@ export default function ExploreSearch({
           paddingBottom: '4px'
         }}>
           {[
-            { id: 'all', label: 'All Transmissions', icon: '🪐' },
-            { id: 'media', label: 'Visual Media & Reels', icon: '📷' },
-            { id: 'people', label: 'Astronauts & Explorers', icon: '👨‍🚀' },
+            {
+              id: 'all',
+              label: 'All Transmissions',
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+              )
+            },
+            {
+              id: 'media',
+              label: 'Visual Media & Reels',
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              )
+            },
+            {
+              id: 'threads',
+              label: 'Rich Text & Dossiers',
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              )
+            },
+            {
+              id: 'people',
+              label: 'Astronauts & Explorers',
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              )
+            },
           ].map(filter => (
             <button
               key={filter.id}
@@ -190,18 +315,81 @@ export default function ExploreSearch({
                 fontSize: '0.8rem',
                 fontWeight: activeFilter === filter.id ? 700 : 500,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
                 whiteSpace: 'nowrap'
               }}
             >
-              <span>{filter.icon}</span>
+              <span style={{ display: 'grid', placeItems: 'center' }}>{filter.icon}</span>
               <span>{filter.label}</span>
             </button>
           ))}
         </div>
+
+        {/* Dossier Folders & .txt Download Bar when 'threads' is active */}
+        {activeFilter === 'threads' && (
+          <div style={{
+            marginTop: '12px',
+            padding: '12px 16px',
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            borderRadius: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
+                Folder:
+              </span>
+              {dynamicFolders.map(folderName => (
+                <button
+                  key={folderName}
+                  onClick={() => setActiveFolder(folderName)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '100px',
+                    border: activeFolder === folderName ? '1px solid var(--earth)' : '1px solid var(--line)',
+                    background: activeFolder === folderName ? 'rgba(64, 201, 162, 0.2)' : 'rgba(0,0,0,0.15)',
+                    color: activeFolder === folderName ? 'var(--earth)' : 'var(--text)',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  📁 {folderName}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleDownloadFolderTxt}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '100px',
+                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                color: '#07111f',
+                border: 'none',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(64, 201, 162, 0.25)'
+              }}
+              title="Download all entries in this folder as a single text file"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download {activeFolder} as .txt
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Loading state indicator */}
@@ -328,15 +516,15 @@ export default function ExploreSearch({
         </div>
       )}
 
-      {/* ───────── Instagram-Style Visual Discovery Grid ───────── */}
-      {(activeFilter === 'all' || activeFilter === 'media') && (
+      {/* ───────── Visual & Dossier Discovery Grid ───────── */}
+      {(activeFilter === 'all' || activeFilter === 'media' || activeFilter === 'threads') && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
-              {hasSearched ? `Transmissions Matching "${query}"` : 'Transmissions Mosaic'}
+              {activeFilter === 'threads' ? `Dossiers (${activeFolder})` : hasSearched ? `Transmissions Matching "${query}"` : 'Transmissions Mosaic'}
             </h2>
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-              {displayPosts.length} media units
+              {displayPosts.length} units
             </span>
           </div>
 
@@ -349,8 +537,10 @@ export default function ExploreSearch({
               border: '1px dashed var(--line)',
               color: 'var(--muted)'
             }}>
-              <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '10px' }}>🛰️</span>
-              No transmissions found for &quot;{query}&quot;. Try exploring other keywords.
+              <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', marginBottom: '12px' }}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+              </div>
+              No transmissions found{activeFilter === 'threads' ? ` in folder "${activeFolder}"` : query ? ` for "${query}"` : ''}. Try exploring other filters.
             </div>
           ) : (
             <div style={{
@@ -371,7 +561,7 @@ export default function ExploreSearch({
                       position: 'relative',
                       borderRadius: '20px',
                       overflow: 'hidden',
-                      aspectRatio: isFeatured ? '1' : '1',
+                      aspectRatio: '1',
                       gridColumn: isFeatured ? 'span 2' : 'span 1',
                       gridRow: isFeatured ? 'span 2' : 'span 1',
                       border: '1px solid var(--line)',
@@ -389,76 +579,191 @@ export default function ExploreSearch({
                       e.currentTarget.style.zIndex = '1'
                     }}
                   >
-                    {/* Media Image / Shader */}
-                    {post.mediaUrl ? (
-                      <img
-                        src={post.mediaUrl}
-                        alt="Transmission Media"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div
-                        className={`post-media ${getMediaClass(post.mediaType)}`}
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    )}
-
-                    {/* Sector Badge Top Left */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '12px',
-                      left: '12px',
-                      padding: '3px 10px',
-                      borderRadius: '100px',
-                      background: 'rgba(7, 17, 31, 0.7)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid var(--line)',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      color: 'var(--earth)',
-                      textTransform: 'uppercase'
-                    }}>
-                      {post.channel || 'earth'}
-                    </div>
-
-                    {/* Instagram-style Hover/Permanent Overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'linear-gradient(180deg, transparent 40%, rgba(4, 10, 20, 0.95) 90%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      padding: '16px',
-                      pointerEvents: 'none'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '26px', height: '26px', fontSize: '0.72rem' }}>
-                          {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
-                        </div>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'white' }}>
-                          @{post.author?.handle}
-                        </span>
-                      </div>
-
-                      <p style={{
-                        fontSize: '0.8rem',
-                        color: 'rgba(255, 255, 255, 0.9)',
-                        lineHeight: 1.35,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        margin: '0 0 6px 0'
+                    {post.mediaType === 'thread' ? (
+                      /* Rich Text Dossier Post Card */
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        padding: '18px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        background: 'linear-gradient(145deg, #0e2036, #060c15)',
+                        border: '1px solid rgba(64, 201, 162, 0.25)',
+                        boxSizing: 'border-box'
                       }}>
-                        {post.content}
-                      </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '100px',
+                            background: 'rgba(64, 201, 162, 0.15)',
+                            border: '1px solid rgba(64, 201, 162, 0.4)',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            color: 'var(--earth)'
+                          }}>
+                            📁 {getPostFolder(post)}
+                          </span>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)' }}>
-                        <span>♥ {post.likes?.length || 0}</span>
-                        <span>💬 {post.reelComments?.length || 0} notes</span>
+                          {currentUserId === post.authorId && (
+                            <div onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+                              <button
+                                onClick={() => setMovingPostId(movingPostId === post.id ? null : post.id)}
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: '100px',
+                                  background: 'rgba(255,255,255,0.1)',
+                                  border: '1px solid var(--line)',
+                                  color: 'var(--text)',
+                                  fontSize: '0.68rem',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Move ▾
+                              </button>
+                              {movingPostId === post.id && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '110%',
+                                  right: 0,
+                                  background: '#0c1829',
+                                  border: '1px solid var(--earth)',
+                                  borderRadius: '10px',
+                                  padding: '6px',
+                                  zIndex: 50,
+                                  boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '4px',
+                                  minWidth: '120px'
+                                }}>
+                                  {['General', 'Research', 'Logs', 'Ideas', 'Personal'].map(fn => (
+                                    <button
+                                      key={fn}
+                                      onClick={() => handleMoveFolder(post.id, fn)}
+                                      style={{
+                                        textAlign: 'left',
+                                        padding: '5px 8px',
+                                        borderRadius: '6px',
+                                        background: getPostFolder(post) === fn ? 'rgba(64, 201, 162, 0.2)' : 'transparent',
+                                        border: 'none',
+                                        color: getPostFolder(post) === fn ? 'var(--earth)' : 'var(--text)',
+                                        fontSize: '0.74rem',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      📁 {fn}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <p style={{
+                          fontSize: '0.9rem',
+                          color: '#f3f7fb',
+                          lineHeight: 1.55,
+                          margin: '12px 0',
+                          display: '-webkit-box',
+                          WebkitLineClamp: isFeatured ? 8 : 4,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}>
+                          {post.content}
+                        </p>
+
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}>
+                              {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
+                            </div>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--muted)' }}>
+                              @{post.author?.handle}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                            <span>♥ {post.likes?.length || 0}</span>
+                            <span>💬 {post.reelComments?.length || 0} notes</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        {/* Media Image / Shader */}
+                        {post.mediaUrl ? (
+                          <img
+                            src={post.mediaUrl}
+                            alt="Transmission Media"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div
+                            className={`post-media ${getMediaClass(post.mediaType)}`}
+                            style={{ width: '100%', height: '100%' }}
+                          />
+                        )}
+
+                        {/* Sector Badge Top Left */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '12px',
+                          left: '12px',
+                          padding: '3px 10px',
+                          borderRadius: '100px',
+                          background: 'rgba(7, 17, 31, 0.7)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid var(--line)',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          color: 'var(--earth)',
+                          textTransform: 'uppercase'
+                        }}>
+                          {post.channel || 'earth'}
+                        </div>
+
+                        {/* Instagram-style Hover/Permanent Overlay */}
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, transparent 40%, rgba(4, 10, 20, 0.95) 90%)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'flex-end',
+                          padding: '16px',
+                          pointerEvents: 'none'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '26px', height: '26px', fontSize: '0.72rem' }}>
+                              {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
+                            </div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'white' }}>
+                              @{post.author?.handle}
+                            </span>
+                          </div>
+
+                          <p style={{
+                            fontSize: '0.8rem',
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            lineHeight: 1.35,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            margin: '0 0 6px 0'
+                          }}>
+                            {post.content}
+                          </p>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)' }}>
+                            <span>♥ {post.likes?.length || 0}</span>
+                            <span>💬 {post.reelComments?.length || 0} notes</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}

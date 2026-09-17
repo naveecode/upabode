@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Post from './Post'
@@ -24,6 +24,25 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [uiScale, setUiScale] = useState<'compact' | 'standard'>('compact')
+
+  useEffect(() => {
+    try {
+      const saved = (localStorage.getItem('orbit_ui_scale') as 'compact' | 'standard') || 'compact'
+      setUiScale(saved)
+      document.documentElement.setAttribute('data-ui-scale', saved)
+      document.body.classList.toggle('compact-mode', saved === 'compact')
+    } catch {}
+  }, [])
+
+  const handleUiScaleChange = (scale: 'compact' | 'standard') => {
+    setUiScale(scale)
+    try {
+      localStorage.setItem('orbit_ui_scale', scale)
+      document.documentElement.setAttribute('data-ui-scale', scale)
+      document.body.classList.toggle('compact-mode', scale === 'compact')
+    } catch {}
+  }
 
   const isCurrentUser = currentUserId === user.id
   const [isEditing, setIsEditing] = useState(false)
@@ -622,6 +641,59 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
                 Unique handle used for mentions, search, and direct links.
+              </div>
+            </div>
+
+            {/* UI Scaling Selector */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px', fontWeight: 700 }}>
+                App Display Scaling
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleUiScaleChange('compact')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: uiScale === 'compact' ? '2px solid var(--earth)' : '1px solid var(--line)',
+                    background: uiScale === 'compact' ? 'rgba(64, 201, 162, 0.12)' : 'rgba(0,0,0,0.2)',
+                    color: uiScale === 'compact' ? 'var(--earth)' : 'var(--text)',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    textAlign: 'center'
+                  }}
+                >
+                  <span>Compact Native</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontWeight: 400 }}>Sleek, 15% compact scale</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUiScaleChange('standard')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: uiScale === 'standard' ? '2px solid var(--earth)' : '1px solid var(--line)',
+                    background: uiScale === 'standard' ? 'rgba(64, 201, 162, 0.12)' : 'rgba(0,0,0,0.2)',
+                    color: uiScale === 'standard' ? 'var(--earth)' : 'var(--text)',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    textAlign: 'center'
+                  }}
+                >
+                  <span>Standard</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontWeight: 400 }}>Full standard font size</span>
+                </button>
               </div>
             </div>
 

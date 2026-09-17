@@ -86,8 +86,41 @@ export async function GET(request: Request) {
 
     // Set JWT Session
     await setSession(user.id);
+    const { encrypt } = await import('../../../../../lib/session');
+    const token = await encrypt({ userId: user.id });
 
-    return NextResponse.redirect(`${baseUrl}/`);
+    // Return HTML bridge that hands off authentication to the native app if opened via Android CustomTabs
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authenticating Upabode Orbit...</title>
+  <style>
+    body { background: #07111F; color: #40C9A2; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .spinner { width: 44px; height: 44px; border: 3px solid rgba(64,201,162,0.2); border-top-color: #40C9A2; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <p>Connecting to Upabode Orbit...</p>
+  <script>
+    try {
+      window.location.href = "orbit://auth-callback?session_token=" + encodeURIComponent("${token}");
+    } catch(e) {}
+    setTimeout(function() {
+      window.location.href = "${baseUrl}/";
+    }, 600);
+  </script>
+</body>
+</html>`;
+
+    return new NextResponse(html, {
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+      },
+    });
   } catch (err) {
     console.error('Google OAuth Error:', err);
     return NextResponse.redirect(`${baseUrl}/auth/login?error=OAuthException`);

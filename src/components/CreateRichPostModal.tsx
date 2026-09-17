@@ -19,11 +19,15 @@ const ATMOSPHERE_THEMES = [
   { id: 'nebula', name: 'Nebula Purple', bg: 'linear-gradient(145deg, #1F1128, #2B1838)', color: '#F8EEFC', border: '#B85C5C' },
 ]
 
+const FOLDER_PRESETS = ['General', 'Research', 'Logs', 'Ideas', 'Personal']
+
 export default function CreateRichPostModal({ onClose }: { onClose: () => void }) {
   const [content, setContent] = useState('')
   const [selectedFont, setSelectedFont] = useState(FONT_PRESETS[0])
   const [selectedTheme, setSelectedTheme] = useState(ATMOSPHERE_THEMES[0])
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'title'>('normal')
+  const [folder, setFolder] = useState('General')
+  const [customFolder, setCustomFolder] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handlePublish = async () => {
@@ -33,16 +37,19 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
       return
     }
 
+    const assignedFolder = (customFolder.trim() || folder.trim() || 'General')
+
     setIsSubmitting(true)
     try {
       const fd = new FormData()
       fd.append('content', trimmed)
-      // Store font & theme styling in visualFilter & mediaType
+      // Store font, theme styling & folder organization in visualFilter & mediaType
       fd.append('mediaType', 'thread')
       fd.append('visualFilter', JSON.stringify({
         font: selectedFont.id,
         theme: selectedTheme.id,
-        size: fontSize
+        size: fontSize,
+        folder: assignedFolder
       }))
       
       const res = await createPost(fd)
@@ -238,6 +245,50 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
                 {size}
               </button>
             ))}
+          </div>
+
+          {/* Folder Organization */}
+          <div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 700 }}>
+              Dossier Folder
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {FOLDER_PRESETS.map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => { setFolder(f); setCustomFolder('') }}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '100px',
+                    background: folder === f && !customFolder ? 'rgba(64, 201, 162, 0.2)' : 'var(--panel-solid)',
+                    color: folder === f && !customFolder ? 'var(--earth)' : 'var(--muted)',
+                    border: folder === f && !customFolder ? '1px solid var(--earth)' : '1px solid var(--line)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  📁 {f}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Or custom folder name (e.g. Science, Philosophy)..."
+              value={customFolder}
+              onChange={e => setCustomFolder(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid var(--line)',
+                color: 'var(--text)',
+                fontSize: '0.8rem',
+                outline: 'none'
+              }}
+            />
           </div>
         </div>
 

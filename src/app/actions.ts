@@ -6,6 +6,7 @@ import { pusherServer } from '../lib/pusher';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { validateEmail } from '../lib/emailValidator';
 import { checkRateLimit } from '../lib/rateLimiter';
+import { generateAndStoreOtp, verifyOtp, clearOtp } from '../lib/otpManager';
 
 export async function updateProfile(formData: FormData) {
   const user = await getCurrentUser();
@@ -39,6 +40,39 @@ export async function updateAvatar(url: string) {
   return { success: true };
 }
 
+export async function sendRegistrationOtp(email: string) {
+  const normalizedEmail = (email || '').trim().toLowerCase();
+  const emailValidation = validateEmail(normalizedEmail);
+  if (!emailValidation.valid) {
+    return { error: emailValidation.error || 'Invalid email address.' };
+  }
+
+  // Rate limiting to prevent OTP spam
+  const limit = checkRateLimit(`otp-${normalizedEmail}`, 3, 300000);
+  if (!limit.allowed) {
+    return { error: `Too many code requests. Please wait ${limit.retryAfterSeconds} seconds before requesting again.` };
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    });
+    if (existing) {
+      return { error: 'An account with this email address already exists.' };
+    }
+
+    generateAndStoreOtp(normalizedEmail);
+    return { success: true, message: `6-digit security transmission dispatched to ${normalizedEmail}` };
+  } catch (err: any) {
+    console.error('Send OTP error:', err);
+    return { error: 'Failed to dispatch verification code.' };
+  }
+}
+
+export async function verifyRegistrationOtp(email: string, code: string) {
+  return verifyOtp(email, code);
+}
+
 export async function registerUser(formData: FormData) {
   const username = (formData.get('username') as string || '').trim();
   let handle = (formData.get('handle') as string || '').trim().toLowerCase();
@@ -46,6 +80,7 @@ export async function registerUser(formData: FormData) {
 
   const email = (formData.get('email') as string || '').trim().toLowerCase();
   const password = formData.get('password') as string || '';
+  const otp = (formData.get('otp') as string || '').trim();
   const location = (formData.get('location') as string || '').trim();
   // Support both 'avatarColor' and 'color'
   const color = (formData.get('avatarColor') as string) || (formData.get('color') as string) || 'green';
@@ -60,6 +95,15 @@ export async function registerUser(formData: FormData) {
   const emailValidation = validateEmail(email);
   if (!emailValidation.valid) {
     return { error: emailValidation.error || 'Invalid email address.' };
+  }
+
+  // Verify 6-digit OTP code
+  if (!otp) {
+    return { error: 'Please enter the 6-digit verification code sent to your email.' };
+  }
+  const otpCheck = verifyOtp(email, otp);
+  if (!otpCheck.valid) {
+    return { error: otpCheck.error || 'Invalid or expired verification code.' };
   }
 
   // Rate limiting to prevent bot flood
@@ -108,6 +152,7 @@ export async function registerUser(formData: FormData) {
       },
     });
 
+    clearOtp(email);
     await setSession(user.id);
     return { success: true, userId: user.id };
   } catch (error: any) {
@@ -1128,3 +1173,97 @@ export async function deleteAccount() {
     return { error: 'Failed to delete account. Please try again.' };
   }
 }
+
+export async function updatePostFolder(postId: string, folderName: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  const trimmedFolder = folderName.trim() || 'General';
+
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id: postId }
+    });
+
+    if (!post) return { error: 'Post not found.' };
+    if (post.authorId !== currentUser.id) return { error: 'Unauthorized to update this dossier.' };
+
+    let filterObj: any = {};
+    if (post.visualFilter) {
+      try {
+        filterObj = JSON.parse(post.visualFilter);
+      } catch {
+        filterObj = {};
+      }
+    }
+
+    filterObj.folder = trimmedFolder;
+
+    await prisma.post.update({
+      where: { id: postId },
+      data: { visualFilter: JSON.stringify(filterObj) }
+    });
+
+    return { success: true, folder: trimmedFolder };
+  } catch (err: any) {
+    console.error('Update post folder error:', err);
+    return { error: 'Failed to update folder.' };
+  }
+}
+
+export async function getRichTextPosts(folder?: string) {
+  try {
+    const posts = await prisma.post.findMany({
+      where: {
+        mediaType: 'thread',
+        archived: false
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true
+          }
+        },
+        likes: true,
+        reelComments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                handle: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+
+    if (!folder || folder.toLowerCase() === 'all') {
+      return { success: true, posts };
+    }
+
+    const filtered = posts.filter(p => {
+      if (!p.visualFilter) return folder.toLowerCase() === 'general';
+      try {
+        const parsed = JSON.parse(p.visualFilter);
+        return (parsed.folder || 'General').toLowerCase() === folder.toLowerCase();
+      } catch {
+        return folder.toLowerCase() === 'general';
+      }
+    });
+
+    return { success: true, posts: filtered };
+  } catch (err: any) {
+    console.error('Get rich text posts error:', err);
+    return { error: 'Failed to retrieve rich text transmissions.', posts: [] };
+  }
+}
+

@@ -15,6 +15,51 @@
   --yellow: #D1A741;
   --danger: #B85C5C;
   --shadow: 0 12px 30px rgba(45, 38, 28, 0.06);
+  --ui-scale: 1;
+}
+
+[data-ui-scale="compact"],
+body.compact-mode {
+  --ui-scale: 0.88;
+  font-size: 14.2px;
+}
+
+body:has([data-hide-chrome="true"]) .topbar,
+body:has([data-hide-chrome="true"]) .mobile-tabs-wave,
+body.chat-room-active .topbar,
+body.chat-room-active .mobile-tabs-wave {
+  display: none !important;
+}
+
+body.chat-room-active,
+body:has([data-hide-chrome="true"]) {
+  overflow: hidden !important;
+}
+
+body.chat-room-active .page-content,
+body:has([data-hide-chrome="true"]) .page-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+@keyframes chatShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.chat-media-shimmer {
+  background: linear-gradient(90deg, rgba(28, 25, 20, 0.05) 25%, rgba(197, 160, 89, 0.15) 50%, rgba(28, 25, 20, 0.05) 75%);
+  background-size: 200% 100%;
+  animation: chatShimmer 1.8s infinite ease-in-out;
 }
 
 * {
@@ -36,6 +81,7 @@ body {
   background: var(--background);
   overflow-x: hidden;
   font-family: var(--font-body), sans-serif;
+  font-size: 15px;
 }
 
 body::before {
@@ -71,11 +117,18 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 76px;
-  padding: 0 36px;
+  height: 58px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(7, 17, 31, 0.82);
+  background: rgba(7, 17, 31, 0.88);
   backdrop-filter: blur(24px);
+}
+
+@media (min-width: 769px) {
+  .topbar {
+    height: 66px;
+    padding: 0 32px;
+  }
 }
 
 .brand {

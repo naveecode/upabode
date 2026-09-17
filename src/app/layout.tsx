@@ -8,6 +8,7 @@ import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
 import HeaderActions from '../components/HeaderActions'
+import SwipeWrapper from '../components/SwipeWrapper'
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -61,6 +62,18 @@ export default async function RootLayout({
         <link rel="icon" href="/icon.png" sizes="512x512" type="image/png" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <link rel="manifest" href="/manifest.json" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var s = localStorage.getItem('orbit_ui_scale');
+                if (s === 'compact' || !s) {
+                  document.documentElement.setAttribute('data-ui-scale', 'compact');
+                }
+              } catch(e){}
+            `,
+          }}
+        />
       </head>
       <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
         <SplashLoader />
@@ -76,9 +89,11 @@ export default async function RootLayout({
           </div>
         </header>
 
-        <div className="page-content">
-          {children}
-        </div>
+        <SwipeWrapper>
+          <div className="page-content">
+            {children}
+          </div>
+        </SwipeWrapper>
 
         <MobileNav />
       </body>

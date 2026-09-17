@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Pusher from 'pusher-js'
 import Link from 'next/link'
 import type { MediaConnection } from 'peerjs'
@@ -88,6 +89,173 @@ const PEER_CONFIG = {
   }
 }
 
+// Smooth Media Component with Shimmer Loading Placeholder & Smooth Fade-in
+function SmoothChatMedia({
+  src,
+  onFullscreen
+}: {
+  src: string
+  onFullscreen: () => void
+}) {
+  const [loaded, setLoaded] = useState(false)
+  const isVideo = src.endsWith('.mp4') || src.includes('video') || src.includes('#video')
+
+  return (
+    <div
+      onClick={onFullscreen}
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '160px',
+        maxHeight: '300px',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        background: 'rgba(0,0,0,0.2)',
+        cursor: 'pointer'
+      }}
+    >
+      {!loaded && (
+        <div
+          className="chat-media-shimmer"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2
+          }}
+        >
+          <div style={{ color: 'var(--earth)', opacity: 0.7 }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+        </div>
+      )}
+
+      {isVideo ? (
+        <video
+          src={src}
+          controls
+          playsInline
+          onLoadedData={() => setLoaded(true)}
+          style={{
+            width: '100%',
+            maxHeight: '300px',
+            objectFit: 'cover',
+            borderRadius: '12px',
+            display: 'block',
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.35s ease-in-out'
+          }}
+        />
+      ) : (
+        <img
+          src={src}
+          alt="Attached transmission"
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          style={{
+            width: '100%',
+            maxHeight: '300px',
+            objectFit: 'cover',
+            borderRadius: '12px',
+            display: 'block',
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.35s ease-in-out'
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Synthesizes a WhatsApp/Phone harmonic ringtone using Web Audio API
+class CallRingtoneManager {
+  private audioCtx: AudioContext | null = null
+  private isRinging = false
+  private ringInterval: any = null
+
+  start() {
+    if (this.isRinging) return
+    this.isRinging = true
+
+    const playToneBurst = () => {
+      if (!this.isRinging) return
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+        if (!AudioContextClass) return
+        if (!this.audioCtx || this.audioCtx.state === 'closed') {
+          this.audioCtx = new AudioContextClass()
+        }
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume()
+        }
+
+        const now = this.audioCtx.currentTime
+        // Dual-tone harmonic chord: 440Hz + 480Hz WhatsApp cadence
+        const osc1 = this.audioCtx.createOscillator()
+        const osc2 = this.audioCtx.createOscillator()
+        const gainNode = this.audioCtx.createGain()
+
+        osc1.type = 'sine'
+        osc2.type = 'sine'
+        osc1.frequency.setValueAtTime(440, now)
+        osc2.frequency.setValueAtTime(480, now)
+
+        gainNode.gain.setValueAtTime(0, now)
+        // Pulse 1: 0 to 0.4s
+        gainNode.gain.linearRampToValueAtTime(0.18, now + 0.05)
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.4)
+        // Pulse 2: 0.5s to 1.1s
+        gainNode.gain.linearRampToValueAtTime(0.18, now + 0.55)
+        gainNode.gain.linearRampToValueAtTime(0, now + 1.1)
+
+        osc1.connect(gainNode)
+        osc2.connect(gainNode)
+        gainNode.connect(this.audioCtx.destination)
+
+        osc1.start(now)
+        osc2.start(now)
+        osc1.stop(now + 1.15)
+        osc2.stop(now + 1.15)
+      } catch (err) {
+        console.warn('Ringtone notice:', err)
+      }
+
+      // Device vibration pattern (WhatsApp cadence)
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([400, 200, 600, 1800])
+        } catch (e) {}
+      }
+    }
+
+    playToneBurst()
+    this.ringInterval = setInterval(playToneBurst, 3000)
+  }
+
+  stop() {
+    this.isRinging = false
+    if (this.ringInterval) {
+      clearInterval(this.ringInterval)
+      this.ringInterval = null
+    }
+    if (this.audioCtx) {
+      try {
+        this.audioCtx.close()
+      } catch (e) {}
+      this.audioCtx = null
+    }
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(0)
+      } catch (e) {}
+    }
+  }
+}
+
+const callRingtone = new CallRingtoneManager()
+
 export default function ChatRoom({ 
   chatId, 
   initialMessages, 
@@ -107,6 +275,7 @@ export default function ChatRoom({
     color: otherUser?.color || 'green'
   }
 
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(initialMessages || [])
   const [inputText, setInputText] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -185,7 +354,20 @@ export default function ChatRoom({
 
   useEffect(() => {
     setMounted(true)
+    document.body.classList.add('chat-room-active')
+    return () => {
+      document.body.classList.remove('chat-room-active')
+      callRingtone.stop()
+    }
   }, [])
+
+  useEffect(() => {
+    if (incomingCall || incomingCallSignal) {
+      callRingtone.start()
+    } else {
+      callRingtone.stop()
+    }
+  }, [incomingCall, incomingCallSignal])
 
   // Auto-scroll messages to bottom
   const scrollToBottom = useCallback((smooth = true) => {
@@ -346,6 +528,7 @@ export default function ChatRoom({
 
   // Answer Incoming Call
   const handleAnswerCall = async () => {
+    callRingtone.stop()
     const isVideo = incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video'
     const targetPeerId = incomingCallSignal?.peerId || `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
 
@@ -399,6 +582,7 @@ export default function ChatRoom({
 
   // Reject Incoming Call
   const handleRejectCall = async () => {
+    callRingtone.stop()
     if (incomingCall) {
       incomingCall.call.close()
       setIncomingCall(null)
@@ -456,6 +640,7 @@ export default function ChatRoom({
 
   // Terminate Call & Clean Up Hardware Tracks
   const endCall = async (notifyPeer = true) => {
+    callRingtone.stop()
     if (localStream) {
       localStream.getTracks().forEach(t => t.stop())
     }
@@ -662,50 +847,57 @@ export default function ChatRoom({
   }
 
   return (
-    <div className="chat-room-container" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      width: '100%',
-      position: 'relative',
-      overflow: 'hidden',
-      background: 'var(--panel)',
-      border: '1px solid var(--line)',
-      borderRadius: '24px',
-      boxShadow: 'var(--shadow)',
-      backdropFilter: 'blur(20px)'
-    }}>
+    <div 
+      className="chat-room-container" 
+      data-hide-chrome="true"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'var(--panel)',
+        border: '1px solid var(--line)',
+        borderRadius: '0px',
+        boxShadow: 'var(--shadow)',
+        backdropFilter: 'blur(20px)'
+      }}
+    >
       {/* ───────── Top Header ───────── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '14px 20px',
+        padding: '12px 18px',
         borderBottom: '1px solid var(--line)',
-        background: 'rgba(7, 17, 31, 0.85)',
-        backdropFilter: 'blur(16px)',
+        background: 'rgba(7, 17, 31, 0.92)',
+        backdropFilter: 'blur(20px)',
         zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Link
-            href="/chat"
+          <button
+            type="button"
+            onClick={() => router.push('/chat')}
             style={{
-              width: '36px',
-              height: '36px',
+              width: '38px',
+              height: '38px',
               borderRadius: '50%',
-              background: 'rgba(0,0,0,0.04)',
+              background: 'rgba(255,255,255,0.08)',
               border: '1px solid var(--line)',
               display: 'grid',
               placeItems: 'center',
               color: 'var(--text)',
-              textDecoration: 'none',
-              fontSize: '1.1rem',
-              transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
+              fontSize: '1.25rem',
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease'
             }}
+            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
+            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
             title="Back to Signals"
           >
             ←
-          </Link>
+          </button>
 
           <div 
             className={`user-avatar ${safeOtherUser.color || 'green'}`}
@@ -800,77 +992,156 @@ export default function ChatRoom({
         </div>
       </div>
 
-      {/* ───────── Incoming Call Alert Modal ───────── */}
+      {/* ───────── WhatsApp-Style Fullscreen Incoming Call Alert ───────── */}
       {(incomingCall || incomingCallSignal) && (
         <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(11, 23, 39, 0.96)',
-          border: '2px solid var(--earth)',
-          borderRadius: '20px',
-          padding: '16px 24px',
+          position: 'fixed',
+          inset: 0,
+          background: 'radial-gradient(circle at center, #0f243d 0%, #050b14 100%)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: '18px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
-          zIndex: 100,
-          animation: 'slideDown 0.3s ease-out'
+          justifyContent: 'space-between',
+          padding: '60px 24px 80px',
+          zIndex: 99999,
+          backdropFilter: 'blur(20px)',
+          animation: 'fadeIn 0.3s ease-out'
         }}>
-          <div style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '50%',
-            background: 'var(--earth)',
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: '1.4rem',
-            animation: 'pulse 1.5s infinite'
-          }}>
-            {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? '📹' : '📞'}
+          {/* Top caller info */}
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: 'rgba(64, 201, 162, 0.15)',
+              border: '1px solid rgba(64, 201, 162, 0.3)',
+              color: 'var(--earth)',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em'
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--earth)', animation: 'pulse 1.2s infinite' }} />
+              Incoming {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? 'Video Call' : 'Audio Call'}
+            </div>
+
+            <h2 style={{ fontSize: '1.85rem', fontWeight: 800, margin: 0, color: '#f3f7fb', letterSpacing: '-0.02em' }}>
+              {incomingCallSignal?.senderName || safeOtherUser.username}
+            </h2>
+            <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.95rem' }}>
+              @{safeOtherUser.handle}
+            </p>
           </div>
 
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-              Incoming {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? 'Video' : 'Audio'} Transmission
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
-              From {incomingCallSignal?.senderName || safeOtherUser.username} (@{safeOtherUser.handle})
+          {/* Pulsing Avatar in Center */}
+          <div style={{ position: 'relative', display: 'grid', placeItems: 'center', margin: '40px 0' }}>
+            {/* Outer pulsating wave rings */}
+            <div style={{
+              position: 'absolute',
+              width: '180px',
+              height: '180px',
+              borderRadius: '50%',
+              border: '2px solid rgba(64, 201, 162, 0.35)',
+              animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+            }} />
+            <div style={{
+              position: 'absolute',
+              width: '140px',
+              height: '140px',
+              borderRadius: '50%',
+              border: '2px solid rgba(64, 201, 162, 0.5)',
+              animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+            }} />
+
+            {/* Avatar Circle */}
+            <div style={{
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: safeOtherUser.avatarUrl ? `url(${safeOtherUser.avatarUrl}) center/cover` : (safeOtherUser.color || 'linear-gradient(135deg, #1e3a5f, #0c1829)'),
+              border: '3px solid var(--earth)',
+              display: 'grid',
+              placeItems: 'center',
+              boxShadow: '0 0 40px rgba(64, 201, 162, 0.4)',
+              zIndex: 2,
+              overflow: 'hidden'
+            }}>
+              {!safeOtherUser.avatarUrl && (
+                <span style={{ fontSize: '2.4rem', fontWeight: 800, color: 'white' }}>
+                  {(safeOtherUser.username?.[0] || 'U').toUpperCase()}
+                </span>
+              )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={handleAnswerCall}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '100px',
-                background: 'var(--earth)',
-                color: 'var(--background)',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.85rem'
-              }}
-            >
-              Accept
-            </button>
-            <button
-              onClick={handleRejectCall}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '100px',
-                background: 'var(--danger)',
-                color: 'white',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.85rem'
-              }}
-            >
-              Decline
-            </button>
+          {/* Bottom Action Controls (Decline / Accept) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '50px', width: '100%', maxWidth: '340px' }}>
+            {/* Decline Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={handleRejectCall}
+                style={{
+                  width: '68px',
+                  height: '68px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ff4d61, #d62839)',
+                  border: 'none',
+                  color: 'white',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(214, 40, 57, 0.5)',
+                  transition: 'transform 0.15s ease'
+                }}
+                onPointerDown={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onPointerUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                title="Decline Call"
+              >
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+                  <line x1="23" y1="1" x2="1" y2="23" />
+                </svg>
+              </button>
+              <span style={{ fontSize: '0.8rem', color: '#ff6b7a', fontWeight: 600 }}>Decline</span>
+            </div>
+
+            {/* Accept Button */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={handleAnswerCall}
+                style={{
+                  width: '68px',
+                  height: '68px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #40c9a2, #299e7d)',
+                  border: 'none',
+                  color: '#07111f',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 25px rgba(64, 201, 162, 0.6)',
+                  animation: 'pulse 1.4s infinite',
+                  transition: 'transform 0.15s ease'
+                }}
+                onPointerDown={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onPointerUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                title="Accept Call"
+              >
+                {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                ) : (
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                )}
+              </button>
+              <span style={{ fontSize: '0.8rem', color: 'var(--earth)', fontWeight: 600 }}>Accept</span>
+            </div>
           </div>
         </div>
       )}
@@ -1273,32 +1544,11 @@ export default function ChatRoom({
                 }}>
                   {/* Media / Image */}
                   {msg.mediaUrl && (
-                    <div style={{ marginBottom: msg.content ? '8px' : 0, cursor: 'pointer' }} onClick={() => setFullscreenMedia(msg.mediaUrl || null)}>
-                      {msg.mediaUrl.endsWith('.mp4') || msg.mediaUrl.includes('video') ? (
-                        <video
-                          src={msg.mediaUrl}
-                          style={{
-                            width: '100%',
-                            maxHeight: '300px',
-                            objectFit: 'cover',
-                            borderRadius: '12px',
-                            display: 'block'
-                          }}
-                          controls
-                        />
-                      ) : (
-                        <img
-                          src={msg.mediaUrl}
-                          alt="Attached transmission"
-                          style={{
-                            width: '100%',
-                            maxHeight: '300px',
-                            objectFit: 'cover',
-                            borderRadius: '12px',
-                            display: 'block'
-                          }}
-                        />
-                      )}
+                    <div style={{ marginBottom: msg.content ? '8px' : 0 }}>
+                      <SmoothChatMedia
+                        src={msg.mediaUrl}
+                        onFullscreen={() => setFullscreenMedia(msg.mediaUrl || null)}
+                      />
                     </div>
                   )}
 

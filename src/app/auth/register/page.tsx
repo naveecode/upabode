@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { registerUser } from '../../actions';
+import { registerUser, sendRegistrationOtp } from '../../actions';
 import { validateEmail } from '../../../lib/emailValidator';
 
 export default function RegisterPage() {
+  const [step, setStep] = useState<1 | 2>(1);
   const [username, setUsername] = useState('');
   const [handle, setHandle] = useState('');
   const [email, setEmail] = useState('');
@@ -14,8 +15,19 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [location, setLocation] = useState('');
   const [avatarColor, setAvatarColor] = useState('green');
+  const [otp, setOtp] = useState('');
+  const [resendTimer, setResendTimer] = useState(0);
+  const [infoMessage, setInfoMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const colors = [
     { id: 'green', name: 'Earth', bg: 'linear-gradient(135deg, var(--earth), var(--earth-dark))' },
@@ -23,9 +35,20 @@ export default function RegisterPage() {
     { id: 'blue', name: 'Ocean', bg: 'linear-gradient(135deg, #00c6ff, #0072ff)' },
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
+
+    if (!username.trim()) {
+      setError('Please enter your display name.');
+      return;
+    }
+
+    if (!handle.trim()) {
+      setError('Please enter a unique handle.');
+      return;
+    }
 
     const emailCheck = validateEmail(email);
     if (!emailCheck.valid) {
@@ -44,17 +67,64 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    
+    try {
+      const res = await sendRegistrationOtp(email.trim().toLowerCase());
+      if (res?.error) {
+        setError(res.error);
+      } else {
+        setStep(2);
+        setResendTimer(60);
+        setInfoMessage(`Security transmission sent! Enter the 6-digit code sent to ${email}.`);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to dispatch verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || loading) return;
+    setError('');
+    setInfoMessage('');
+    setLoading(true);
+    try {
+      const res = await sendRegistrationOtp(email.trim().toLowerCase());
+      if (res?.error) {
+        setError(res.error);
+      } else {
+        setResendTimer(60);
+        setInfoMessage(`A fresh security code was dispatched to ${email}.`);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setInfoMessage('');
+
+    if (!otp.trim() || otp.trim().length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const formData = new FormData();
       formData.append('username', username.trim());
       formData.append('handle', handle.trim().replace(/^@/, ''));
       formData.append('email', email.trim().toLowerCase());
       formData.append('password', password);
+      formData.append('otp', otp.trim());
       if (location) formData.append('location', location.trim());
       formData.append('avatarColor', avatarColor);
       formData.append('color', avatarColor);
-      
+
       const result = await registerUser(formData);
       if (result?.error) {
         setError(result.error);
@@ -63,7 +133,7 @@ export default function RegisterPage() {
         window.location.href = '/';
       }
     } catch (err: any) {
-      setError(err?.message || 'An error occurred during registration.');
+      setError(err?.message || 'An error occurred during verification.');
       setLoading(false);
     }
   };
@@ -116,6 +186,23 @@ export default function RegisterPage() {
           </p>
         </div>
 
+        {/* Step indicator badge */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <span style={{
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            padding: '4px 14px',
+            borderRadius: '100px',
+            background: 'rgba(64, 201, 162, 0.15)',
+            color: 'var(--earth)',
+            border: '1px solid rgba(64, 201, 162, 0.3)'
+          }}>
+            {step === 1 ? 'Step 1 of 2 · Profile Parameters' : 'Step 2 of 2 · Cyber Verification'}
+          </span>
+        </div>
+
         {error && (
           <div style={{
             background: 'rgba(255, 107, 122, 0.12)',
@@ -133,243 +220,364 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Live Avatar Preview */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+        {infoMessage && (
           <div style={{
-            width: '80px',
-            height: '80px',
-            borderRadius: '50%',
-            background: selectedColorObj.bg,
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: '2rem',
-            color: 'white',
-            fontWeight: 'bold',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
-            border: '2px solid rgba(255,255,255,0.2)',
-            transition: 'background 0.3s ease'
+            background: 'rgba(64, 201, 162, 0.12)',
+            border: '1px solid var(--earth)',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            color: 'var(--earth)',
+            fontSize: '0.86rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            {username ? username.charAt(0).toUpperCase() : '✦'}
+            <span>🔒</span>
+            <span>{infoMessage}</span>
           </div>
-          <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>Avatar Preview</span>
-        </div>
+        )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Username */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              placeholder="e.g. Neil Armstrong"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                color: 'var(--text)',
-                outline: 'none',
-                fontSize: '0.92rem'
-              }}
-            />
-          </div>
+        {step === 1 ? (
+          <>
+            {/* Live Avatar Preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: selectedColorObj.bg,
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: '2rem',
+                color: 'white',
+                fontWeight: 'bold',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+                border: '2px solid rgba(255,255,255,0.2)',
+                transition: 'background 0.3s ease'
+              }}>
+                {username ? username.charAt(0).toUpperCase() : '✦'}
+              </div>
+              <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>Avatar Preview</span>
+            </div>
 
-          {/* Handle */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Handle
-            </label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>@</span>
-              <input
-                type="text"
-                value={handle}
-                onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                required
-                placeholder="astronaut"
+            <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Username */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  placeholder="e.g. Neil Armstrong"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '12px',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    fontSize: '0.92rem'
+                  }}
+                />
+              </div>
+
+              {/* Handle */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Handle
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>@</span>
+                  <input
+                    type="text"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    required
+                    placeholder="astronaut"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px 12px 32px',
+                      background: 'rgba(0,0,0,0.25)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '12px',
+                      color: 'var(--text)',
+                      outline: 'none',
+                      fontSize: '0.92rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="astronaut@gmail.com"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: email.includes('@') && email.split('@')[0].includes('.') ? '1px solid var(--danger)' : '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '12px',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    fontSize: '0.92rem'
+                  }}
+                />
+                {email.includes('@') && email.split('@')[0].includes('.') && (
+                  <p style={{ color: 'var(--danger)', fontSize: '0.74rem', marginTop: '5px' }}>
+                    ⚠️ Dots in the name (e.g. user.name) are blocked to prevent temporary email spoofing.
+                  </p>
+                )}
+                <p style={{ color: 'var(--muted)', fontSize: '0.72rem', marginTop: '4px' }}>
+                  Approved: Gmail, Outlook, Yahoo, Proton, iCloud, Zoho, or .edu (no dots in name).
+                </p>
+              </div>
+
+              {/* Password */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ background: 'none', border: 'none', color: 'var(--earth)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '12px',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    fontSize: '0.92rem'
+                  }}
+                />
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder="Confirm your password"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: `1px solid ${confirmPassword && confirmPassword !== password ? 'var(--danger)' : 'rgba(255,255,255,0.12)'}`,
+                    borderRadius: '12px',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    fontSize: '0.92rem'
+                  }}
+                />
+              </div>
+
+              {/* Location (Optional) */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Planetary Sector (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Earth Orbit Station, Mars Base Alpha"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: '12px',
+                    color: 'var(--text)',
+                    outline: 'none',
+                    fontSize: '0.92rem'
+                  }}
+                />
+              </div>
+
+              {/* Avatar Color Choice */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Signal Aura Color
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {colors.map(color => (
+                    <button
+                      key={color.id}
+                      type="button"
+                      onClick={() => setAvatarColor(color.id)}
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: color.bg,
+                        border: avatarColor === color.id ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                        padding: 0,
+                        boxShadow: avatarColor === color.id ? '0 0 12px rgba(64, 201, 162, 0.5)' : 'none',
+                        transform: avatarColor === color.id ? 'scale(1.1)' : 'scale(1)',
+                        transition: '0.15s ease'
+                      }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
                 style={{
                   width: '100%',
-                  padding: '12px 14px 12px 32px',
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  padding: '14px',
+                  background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                  color: '#07111f',
+                  border: 'none',
                   borderRadius: '12px',
-                  color: 'var(--text)',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  marginTop: '6px',
+                  opacity: loading ? 0.7 : 1,
+                  transition: '0.2s ease',
+                  boxShadow: '0 4px 20px rgba(64, 201, 162, 0.3)'
+                }}
+              >
+                {loading ? 'Dispatched Code...' : 'Proceed to Verification Code →'}
+              </button>
+            </form>
+          </>
+        ) : (
+          /* Step 2: 6-Digit Email OTP Verification */
+          <form onSubmit={handleVerifyAndRegister} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ fontSize: '2.8rem', marginBottom: '10px' }}>🔐</div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: '#f3f7fb', fontWeight: 700 }}>
+                Enter Verification Code
+              </h3>
+              <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.86rem', lineHeight: 1.5 }}>
+                We sent a 6-digit cryptographic passcode to:
+                <br />
+                <span style={{ color: 'var(--earth)', fontWeight: 700 }}>{email}</span>
+              </p>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', color: 'var(--muted)', fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
+                6-Digit Security Passcode
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                autoFocus
+                placeholder="••••••"
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '2px solid var(--earth)',
+                  borderRadius: '14px',
+                  color: 'var(--earth)',
                   outline: 'none',
-                  fontSize: '0.92rem'
+                  fontSize: '2rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.35em',
+                  textAlign: 'center',
+                  boxShadow: '0 0 25px rgba(64, 201, 162, 0.25)'
                 }}
               />
             </div>
-          </div>
 
-          {/* Email */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="astronaut@gmail.com"
+            <button
+              type="submit"
+              disabled={loading || otp.length !== 6}
               style={{
                 width: '100%',
-                padding: '12px 14px',
-                background: 'rgba(0,0,0,0.25)',
-                border: email.includes('@') && email.split('@')[0].includes('.') ? '1px solid var(--danger)' : '1px solid rgba(255,255,255,0.12)',
+                padding: '14px',
+                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                color: '#07111f',
+                border: 'none',
                 borderRadius: '12px',
-                color: 'var(--text)',
-                outline: 'none',
-                fontSize: '0.92rem'
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: (loading || otp.length !== 6) ? 'not-allowed' : 'pointer',
+                opacity: (loading || otp.length !== 6) ? 0.6 : 1,
+                transition: '0.2s ease',
+                boxShadow: '0 4px 20px rgba(64, 201, 162, 0.3)'
               }}
-            />
-            {email.includes('@') && email.split('@')[0].includes('.') && (
-              <p style={{ color: 'var(--danger)', fontSize: '0.74rem', marginTop: '5px' }}>
-                ⚠️ Dots in the name (e.g. user.name) are blocked to prevent temporary email spoofing.
-              </p>
-            )}
-            <p style={{ color: 'var(--muted)', fontSize: '0.72rem', marginTop: '4px' }}>
-              Approved: Gmail, Outlook, Yahoo, Proton, iCloud, Zoho, or .edu (no dots in name).
-            </p>
-          </div>
+            >
+              {loading ? 'Authenticating & Launching...' : 'Verify Code & Create Account ✦'}
+            </button>
 
-          {/* Password */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Password
-              </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ background: 'none', border: 'none', color: 'var(--earth)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                onClick={() => { setStep(1); setError(''); setInfoMessage(''); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  padding: '4px 0'
+                }}
               >
-                {showPassword ? 'Hide' : 'Show'}
+                ← Edit details
+              </button>
+
+              <button
+                type="button"
+                disabled={resendTimer > 0 || loading}
+                onClick={handleResendOtp}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: resendTimer > 0 ? 'var(--muted)' : 'var(--earth)',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  cursor: resendTimer > 0 ? 'default' : 'pointer',
+                  padding: '4px 0'
+                }}
+              >
+                {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend 6-Digit Code'}
               </button>
             </div>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              placeholder="At least 6 characters"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                color: 'var(--text)',
-                outline: 'none',
-                fontSize: '0.92rem'
-              }}
-            />
-          </div>
-
-          {/* Confirm Password */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Confirm Password
-            </label>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              placeholder="Confirm your password"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                background: 'rgba(0,0,0,0.25)',
-                border: `1px solid ${confirmPassword && confirmPassword !== password ? 'var(--danger)' : 'rgba(255,255,255,0.12)'}`,
-                borderRadius: '12px',
-                color: 'var(--text)',
-                outline: 'none',
-                fontSize: '0.92rem'
-              }}
-            />
-          </div>
-
-          {/* Location (Optional) */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Planetary Sector (Optional)
-            </label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Earth Orbit Station, Mars Base Alpha"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '12px',
-                color: 'var(--text)',
-                outline: 'none',
-                fontSize: '0.92rem'
-              }}
-            />
-          </div>
-
-          {/* Avatar Color Choice */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', color: 'var(--muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Signal Aura Color
-            </label>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {colors.map(color => (
-                <button
-                  key={color.id}
-                  type="button"
-                  onClick={() => setAvatarColor(color.id)}
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    background: color.bg,
-                    border: avatarColor === color.id ? '2px solid white' : '2px solid transparent',
-                    cursor: 'pointer',
-                    padding: 0,
-                    boxShadow: avatarColor === color.id ? '0 0 12px rgba(64, 201, 162, 0.5)' : 'none',
-                    transform: avatarColor === color.id ? 'scale(1.1)' : 'scale(1)',
-                    transition: '0.15s ease'
-                  }}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-              color: '#07111f',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '1rem',
-              fontWeight: '700',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginTop: '6px',
-              opacity: loading ? 0.7 : 1,
-              transition: '0.2s ease',
-              boxShadow: '0 4px 20px rgba(64, 201, 162, 0.3)'
-            }}
-          >
-            {loading ? 'Initializing...' : 'Initialize Quantum Link'}
-          </button>
-        </form>
+          </form>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '8px 0' }}>
           <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />

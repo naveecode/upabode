@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app/actions'
 import { showToast } from './Toast'
 import { releaseVideoMemory } from '../lib/mediaMemoryManager'
@@ -12,6 +13,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
   const [isMuted, setIsMuted] = useState(false);
   const [brightness, setBrightness] = useState(1);
   const [volume, setVolume] = useState(1);
+  const volumeRef = useRef(1);
   const [showIndicator, setShowIndicator] = useState<'volume' | 'brightness' | null>(null);
   
   // Touch drag state
@@ -21,12 +23,12 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     if (!videoRef.current) return;
     try {
       videoRef.current.muted = false;
-      videoRef.current.volume = volume;
+      videoRef.current.volume = volumeRef.current;
       await videoRef.current.play();
       setIsPlaying(true);
       setIsMuted(false);
       if (audioRef.current && musicTrack) {
-        audioRef.current.volume = volume;
+        audioRef.current.volume = volumeRef.current;
         audioRef.current.play().catch(() => {});
       }
     } catch (err) {
@@ -42,7 +44,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
         setIsPlaying(false);
       }
     }
-  }, [volume, musicTrack]);
+  }, [musicTrack]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -70,18 +72,18 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
       observer.disconnect();
       if (videoEl) releaseVideoMemory(videoEl);
     };
-  }, [playMedia]);
+  }, [src, playMedia]);
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
       videoRef.current.muted = false;
-      videoRef.current.volume = volume || 1;
+      videoRef.current.volume = volumeRef.current || 1;
       setIsMuted(false);
       videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       if (audioRef.current && musicTrack) {
-        audioRef.current.volume = volume || 1;
+        audioRef.current.volume = volumeRef.current || 1;
         audioRef.current.play().catch(() => {});
       }
     } else {
@@ -99,6 +101,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     setIsMuted(nextMuted);
     if (!nextMuted) {
       videoRef.current.volume = 1;
+      volumeRef.current = 1;
       setVolume(1);
       if (audioRef.current) {
         audioRef.current.muted = false;
@@ -123,6 +126,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
 
   const handleLeftTouchMove = (e: React.TouchEvent) => {
     e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     if (touchState.current.type !== 'brightness') return;
     const touch = e.touches[0];
     const diff = (touchState.current.startY - touch.clientY) * 0.01;
@@ -142,17 +146,19 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     const touch = e.touches[0];
     touchState.current = {
       startY: touch.clientY,
-      startVal: videoRef.current?.volume ?? 1,
+      startVal: volumeRef.current,
       type: 'volume'
     };
   };
 
   const handleRightTouchMove = (e: React.TouchEvent) => {
     e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     if (touchState.current.type !== 'volume') return;
     const touch = e.touches[0];
     const diff = (touchState.current.startY - touch.clientY) * 0.01;
     const newVal = Math.max(0, Math.min(1.0, touchState.current.startVal + diff));
+    volumeRef.current = newVal;
     if (videoRef.current) {
       videoRef.current.volume = newVal;
       if (newVal > 0) {
@@ -230,6 +236,9 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           zIndex: 35,
           touchAction: 'none'
         }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerMove={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
         onTouchStart={handleLeftTouchStart}
         onTouchMove={handleLeftTouchMove}
         onTouchEnd={handleLeftTouchEnd}
@@ -246,6 +255,9 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           zIndex: 35,
           touchAction: 'none'
         }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerMove={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
         onTouchStart={handleRightTouchStart}
         onTouchMove={handleRightTouchMove}
         onTouchEnd={handleRightTouchEnd}
@@ -775,7 +787,7 @@ export default function ReelViewer({
       overflow: 'hidden'
     }}>
       {/* Sleek Floating Home / Back Button */}
-      <a
+      <Link
         href="/"
         style={{
           position: 'absolute',
@@ -794,12 +806,13 @@ export default function ReelViewer({
           justifyContent: 'center',
           cursor: 'pointer',
           textDecoration: 'none',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
         title="Return to Feed"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      </a>
+      </Link>
 
       {/* Edge-to-Edge Fullscreen Reel Container */}
       <div
@@ -912,28 +925,35 @@ export default function ReelViewer({
                 type="button"
                 className="pin-interactive"
                 onPointerDown={(e) => { e.stopPropagation(); }}
-                onPointerUp={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
-                onClick={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSharePostId(post.id);
+                }}
                 style={{
                   position: 'absolute',
-                  bottom: '140px',
-                  right: '20px',
-                  background: 'rgba(0,0,0,0.7)',
-                  color: 'white',
-                  border: '1px solid var(--line)',
+                  bottom: '135px',
+                  right: '18px',
+                  background: 'rgba(7, 17, 31, 0.85)',
+                  color: 'var(--earth)',
+                  border: '1.5px solid var(--earth)',
                   borderRadius: '50%',
-                  width: '46px',
-                  height: '46px',
+                  width: '52px',
+                  height: '52px',
                   display: 'grid',
                   placeItems: 'center',
                   cursor: 'pointer',
                   zIndex: 50,
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.6), 0 0 16px rgba(64, 201, 162, 0.25)',
+                  transition: 'transform 0.15s ease, background 0.2s ease'
                 }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                onTouchStart={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onTouchEnd={(e) => (e.currentTarget.style.transform = 'scale(1)')}
                 aria-label="Share Reel"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               </button>
 
 
@@ -1346,7 +1366,14 @@ export default function ReelViewer({
       {/* ───────── Share Modal Overlay ───────── */}
       {sharePostId && (
         <div 
-          onClick={() => setSharePostId(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSharePostId(null)
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
             inset: 0,
@@ -1363,6 +1390,9 @@ export default function ReelViewer({
         >
           <div 
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerMove={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
             style={{
               background: 'var(--panel-solid)',
               border: '1px solid var(--line)',
