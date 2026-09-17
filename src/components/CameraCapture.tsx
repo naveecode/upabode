@@ -6,23 +6,141 @@ import { showToast } from './Toast';
 interface BeautyPreset {
   id: string;
   name: string;
-  icon: string;
+  icon: React.ReactNode;
   value: string;
   category: 'cosmetic' | 'glow' | 'artistic';
 }
 
 const BEAUTY_PRESETS: BeautyPreset[] = [
-  { id: 'normal', name: 'Original', icon: '📷', value: 'none', category: 'artistic' },
-  { id: 'fair_skin', name: 'Fair Skin', icon: '🌸', value: 'brightness(1.18) contrast(0.96) saturate(1.08) sepia(0.03)', category: 'cosmetic' },
-  { id: 'rosy_lips', name: 'Rosy Lips', icon: '💋', value: 'saturate(1.42) contrast(1.1) brightness(1.06) hue-rotate(-8deg)', category: 'cosmetic' },
-  { id: 'slender_face', name: 'Slender V-Shape', icon: '📐', value: 'contrast(1.12) brightness(1.06) saturate(1.15)', category: 'cosmetic' },
-  { id: 'glowing_skin', name: 'Glowing Skin', icon: '✨', value: 'brightness(1.2) contrast(1.06) saturate(1.22)', category: 'glow' },
-  { id: 'glass_skin', name: 'Glass Skin', icon: '💎', value: 'brightness(1.14) contrast(1.04) saturate(1.1) blur(0.3px)', category: 'glow' },
-  { id: 'golden_hour', name: 'Golden Hour', icon: '☀️', value: 'sepia(0.24) saturate(1.35) brightness(1.08) contrast(1.06)', category: 'glow' },
-  { id: 'porcelain', name: 'Porcelain Smooth', icon: '🪞', value: 'brightness(1.12) contrast(0.94) saturate(1.04) blur(0.4px)', category: 'cosmetic' },
-  { id: 'glamour', name: 'Glamour Chic', icon: '💄', value: 'contrast(1.12) brightness(1.12) saturate(1.25)', category: 'cosmetic' },
-  { id: 'cyberpunk', name: 'Cyber Neon', icon: '⚡', value: 'saturate(2) hue-rotate(85deg) contrast(1.35)', category: 'artistic' },
-  { id: 'noir', name: 'Cosmic Noir', icon: '🌌', value: 'grayscale(1) contrast(1.3) brightness(1.05)', category: 'artistic' },
+  {
+    id: 'normal',
+    name: 'Original',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+        <circle cx="12" cy="13" r="3"/>
+      </svg>
+    ),
+    value: 'none',
+    category: 'artistic'
+  },
+  {
+    id: 'fair_skin',
+    name: 'Fair Skin',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2a4 4 0 0 0-4 4c0 3 4 6 4 6s4-3 4-6a4 4 0 0 0-4-4z"/>
+        <path d="M12 22a4 4 0 0 0 4-4c0-3-4-6-4-6s-4 3-4 6a4 4 0 0 0 4 4z"/>
+        <path d="M2 12a4 4 0 0 0 4 4c3 0 6-4 6-4s-3-4-6-4a4 4 0 0 0-4 4z"/>
+        <path d="M22 12a4 4 0 0 0-4-4c-3 0-6 4-6 4s3 4 6 4a4 4 0 0 0 4-4z"/>
+      </svg>
+    ),
+    value: 'brightness(1.18) contrast(0.96) saturate(1.08) sepia(0.03)',
+    category: 'cosmetic'
+  },
+  {
+    id: 'rosy_lips',
+    name: 'Rosy Lips',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+    ),
+    value: 'saturate(1.42) contrast(1.1) brightness(1.06) hue-rotate(-8deg)',
+    category: 'cosmetic'
+  },
+  {
+    id: 'slender_face',
+    name: 'Slender V-Shape',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 22 2 5 22 5 12 22"/>
+      </svg>
+    ),
+    value: 'contrast(1.12) brightness(1.06) saturate(1.15)',
+    category: 'cosmetic'
+  },
+  {
+    id: 'glowing_skin',
+    name: 'Glowing Skin',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l2.4 7.2L21.6 12l-7.2 2.8L12 22l-2.4-7.2L2.4 12l7.2-2.8L12 2z"/>
+      </svg>
+    ),
+    value: 'brightness(1.2) contrast(1.06) saturate(1.22)',
+    category: 'glow'
+  },
+  {
+    id: 'glass_skin',
+    name: 'Glass Skin',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3h12l4 7-10 11L2 10l4-7z"/>
+      </svg>
+    ),
+    value: 'brightness(1.14) contrast(1.04) saturate(1.1) blur(0.3px)',
+    category: 'glow'
+  },
+  {
+    id: 'golden_hour',
+    name: 'Golden Hour',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14l-1.41 1.41"/>
+      </svg>
+    ),
+    value: 'sepia(0.24) saturate(1.35) brightness(1.08) contrast(1.06)',
+    category: 'glow'
+  },
+  {
+    id: 'porcelain',
+    name: 'Porcelain Smooth',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 3v18M3 12h18"/>
+      </svg>
+    ),
+    value: 'brightness(1.12) contrast(0.94) saturate(1.04) blur(0.4px)',
+    category: 'cosmetic'
+  },
+  {
+    id: 'glamour',
+    name: 'Glamour Chic',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m15 4 5 5-11 11H4v-5l11-11z"/>
+        <path d="m13 6 5 5"/>
+      </svg>
+    ),
+    value: 'contrast(1.12) brightness(1.12) saturate(1.25)',
+    category: 'cosmetic'
+  },
+  {
+    id: 'cyberpunk',
+    name: 'Cyber Neon',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    ),
+    value: 'saturate(2) hue-rotate(85deg) contrast(1.35)',
+    category: 'artistic'
+  },
+  {
+    id: 'noir',
+    name: 'Cosmic Noir',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    ),
+    value: 'grayscale(1) contrast(1.3) brightness(1.05)',
+    category: 'artistic'
+  },
 ];
 
 export default function CameraCapture({ onCapture, onClose }: { onCapture: (file: File) => void, onClose: () => void }) {

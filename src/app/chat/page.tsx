@@ -91,7 +91,13 @@ export default async function ChatInbox() {
                 border: '1px dashed var(--line)',
                 marginTop: '10px'
               }}>
-                <span style={{ fontSize: '2rem', display: 'block', marginBottom: '8px' }}>🛰️</span>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                    <path d="M2 12h20"/>
+                  </svg>
+                </div>
                 No transmissions found.<br />Search an astronaut handle above to establish a link.
               </div>
             ) : (
@@ -140,7 +146,7 @@ export default async function ChatInbox() {
                           overflow: 'hidden',
                           textOverflow: 'ellipsis'
                         }}>
-                          {lastMessage.content || (lastMessage.mediaUrl ? '📷 Image transmission' : lastMessage.voiceUrl ? '🎤 Voice log' : '')}
+                          {lastMessage.content || (lastMessage.mediaUrl ? 'Image transmission' : lastMessage.voiceUrl ? 'Voice log' : '')}
                         </div>
                       )}
                     </div>
@@ -168,11 +174,12 @@ export default async function ChatInbox() {
             border: '1px solid var(--line)',
             display: 'grid',
             placeItems: 'center',
-            fontSize: '2.5rem',
             marginBottom: '20px',
             boxShadow: '0 0 30px rgba(64, 201, 162, 0.2)'
           }}>
-            💬
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
           </div>
           <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.4rem', marginBottom: '8px' }}>
             Encrypted Quantum Relays
@@ -181,11 +188,13 @@ export default async function ChatInbox() {
             Select any transmission channel from the left panel or initiate a new connection to broadcast messages, share media, or start a live P2P video call.
           </p>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--earth)', background: 'rgba(64, 201, 162, 0.1)', padding: '6px 14px', borderRadius: '100px', border: '1px solid rgba(64, 201, 162, 0.2)' }}>
-              ⚡ Real-time WebSockets
+            <span style={{ fontSize: '0.75rem', color: 'var(--earth)', background: 'rgba(64, 201, 162, 0.1)', padding: '6px 14px', borderRadius: '100px', border: '1px solid rgba(64, 201, 162, 0.2)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Real-time WebSockets
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--mars)', background: 'rgba(237, 118, 86, 0.1)', padding: '6px 14px', borderRadius: '100px', border: '1px solid rgba(237, 118, 86, 0.2)' }}>
-              📹 Free P2P WebRTC
+            <span style={{ fontSize: '0.75rem', color: 'var(--mars)', background: 'rgba(237, 118, 86, 0.1)', padding: '6px 14px', borderRadius: '100px', border: '1px solid rgba(237, 118, 86, 0.2)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Free P2P WebRTC
             </span>
           </div>
         </div>

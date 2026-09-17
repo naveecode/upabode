@@ -572,9 +572,11 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         <button
           className={`action-button ${showComments ? "active" : ""}`}
           onClick={() => setShowComments(!showComments)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
         >
-          <span>💬</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
           <span>{comments.length} {comments.length === 1 ? 'Reply' : 'Replies'}</span>
         </button>
 
@@ -593,10 +595,14 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
             }
           }}
           className="action-button"
-          style={{ marginLeft: "auto", background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ marginLeft: "auto", background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           title={`Signal directly with @${post.author?.handle}`}
         >
-          <span>↗ Signal</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+          <span>Signal</span>
         </button>
       </div>
 
@@ -699,10 +705,15 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
               }}
               style={{
                 width: '100%', marginTop: '16px', padding: '12px', borderRadius: '100px', background: 'rgba(0,0,0,0.05)',
-                color: 'var(--text)', border: '1px solid var(--line)', cursor: 'pointer', fontWeight: 600
+                color: 'var(--text)', border: '1px solid var(--line)', cursor: 'pointer', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
-              📋 Copy Link
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span>Copy Link</span>
             </button>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Post from './Post'
-import { updateProfile, updateAvatar, toggleFollow, startChat, deleteAccount } from '../app/actions'
+import { updateProfile, updateAvatar, toggleFollow, startChat, deleteAccount, updatePostFolder } from '../app/actions'
 import { UploadButton, useUploadThing } from './UploadButton'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
@@ -16,7 +16,10 @@ interface ProfileViewProps {
 }
 
 export default function ProfileView({ user, savedPosts, currentUserId, onLogout }: ProfileViewProps) {
-  const [activeTab, setActiveTab] = useState<'transmissions' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
+  const [activeTab, setActiveTab] = useState<'transmissions' | 'richtext' | 'saved' | 'followers' | 'following' | 'settings'>('transmissions')
+  const [activeDossierFolder, setActiveDossierFolder] = useState<string>('All')
+  const [movingPostId, setMovingPostId] = useState<string | null>(null)
+  const [userPostsList, setUserPostsList] = useState<any[]>(user.posts || [])
   const [activePostForModal, setActivePostForModal] = useState<any>(null)
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
@@ -138,6 +141,77 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     }
   }
 
+  const mediaPosts = (userPostsList || []).filter((p: any) => p.mediaType !== 'thread' && p.mediaUrl)
+  const richTextPosts = (userPostsList || []).filter((p: any) => p.mediaType === 'thread' || !p.mediaUrl)
+
+  const getPostFolder = (post: any) => {
+    if (!post?.visualFilter) return 'General'
+    try {
+      const parsed = JSON.parse(post.visualFilter)
+      return parsed.folder || 'General'
+    } catch {
+      return 'General'
+    }
+  }
+
+  const userDossierFolders = ['All', 'General', 'Research', 'Logs', 'Ideas', 'Personal', ...Array.from(new Set(richTextPosts.map(getPostFolder)))].filter((val, id, self) => self.indexOf(val) === id)
+
+  const filteredRichTextPosts = richTextPosts.filter((p: any) => {
+    if (activeDossierFolder === 'All') return true
+    return getPostFolder(p).toLowerCase() === activeDossierFolder.toLowerCase()
+  })
+
+  const handleMoveProfileFolder = async (postId: string, newFolder: string) => {
+    try {
+      await updatePostFolder(postId, newFolder)
+      setUserPostsList(prev => prev.map(p => {
+        if (p.id !== postId) return p
+        let vf: any = {}
+        try { vf = JSON.parse(p.visualFilter || '{}') } catch {}
+        vf.folder = newFolder
+        return { ...p, visualFilter: JSON.stringify(vf) }
+      }))
+      setMovingPostId(null)
+    } catch (err) {
+      console.error('Failed to move folder:', err)
+    }
+  }
+
+  const handleDownloadProfileDossierTxt = () => {
+    if (filteredRichTextPosts.length === 0) {
+      alert('No dossiers in this folder to download.')
+      return
+    }
+
+    let text = `====================================================\n`
+    text += `UPABODE DOSSIERS - @${user.handle} (${user.username})\n`
+    text += `Folder: ${activeDossierFolder.toUpperCase()}\n`
+    text += `Exported: ${new Date().toLocaleString()}\n`
+    text += `Total Dossiers: ${filteredRichTextPosts.length}\n`
+    text += `====================================================\n\n`
+
+    filteredRichTextPosts.forEach((p: any, idx: number) => {
+      const f = getPostFolder(p)
+      text += `[DOSSIER #${idx + 1}]  --  FOLDER: [${f}]\n`
+      text += `Date: ${new Date(p.createdAt).toLocaleString()}\n`
+      text += `Channel: ${p.channel || 'earth'}\n`
+      text += `Likes: ${p.likes?.length || 0}  |  Comments: ${p.reelComments?.length || 0}\n`
+      text += `----------------------------------------------------\n`
+      text += `${p.content}\n`
+      text += `====================================================\n\n`
+    })
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${user.handle}_${activeDossierFolder.toLowerCase()}_dossiers.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="profile-page" style={{ maxWidth: '780px', margin: '0 auto', padding: '24px 16px 90px' }}>
       {/* ───────── Profile Hero Header ───────── */}
@@ -178,7 +252,11 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
           </div>
           {user.location && (
             <div style={{ color: 'var(--muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span>📍</span> {user.location}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span>{user.location}</span>
             </div>
           )}
         </div>
@@ -222,7 +300,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   gap: '6px'
                 }}
               >
-                <span>💬</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
                 <span>Signal</span>
               </button>
             </>
@@ -279,9 +359,13 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                     <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
                     <button 
                       onClick={() => { setShowProfileOptions(false); setShowDeleteModal(true) }} 
-                      style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                      style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
-                      <span>🗑️</span> Delete Account
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                      <span>Delete Account</span>
                     </button>
                   </div>
                 )}
@@ -294,12 +378,13 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       {/* ───────── Stats Strip ───────── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '10px',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '8px',
         marginBottom: '24px'
       }}>
         {[
-          { label: 'Signals', value: user.posts?.length || 0, tab: 'transmissions' },
+          { label: 'Signals', value: mediaPosts.length, tab: 'transmissions' },
+          { label: 'Rich Texts', value: richTextPosts.length, tab: 'richtext' },
           { label: 'Followers', value: user.followers?.length || 0, tab: 'followers' },
           { label: 'Following', value: user.following?.length || 0, tab: 'following' },
           { label: 'Saved', value: savedPosts?.length || 0, tab: 'saved' },
@@ -311,16 +396,16 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               background: 'var(--panel)',
               border: '1px solid var(--line)',
               borderRadius: '16px',
-              padding: '12px 8px',
+              padding: '10px 6px',
               textAlign: 'center',
               cursor: stat.tab ? 'pointer' : 'default',
               transition: '0.2s ease'
             }}
           >
-            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
+            <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text)' }}>
               {stat.value}
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.66rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>
               {stat.label}
             </div>
           </div>
@@ -338,11 +423,42 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         scrollbarWidth: 'none'
       }}>
         {[
-          { id: 'transmissions', label: 'Transmissions', icon: '📡', show: true },
-          { id: 'saved', label: isCurrentUser ? 'Saved Cache' : 'Public Saves', icon: '🔖', show: true },
-          { id: 'followers', label: 'Followers', icon: '👥', show: true },
-          { id: 'following', label: 'Following', icon: '👣', show: true },
-          { id: 'settings', label: 'Edit Profile', icon: '⚙️', show: isCurrentUser },
+          { 
+            id: 'transmissions', 
+            label: 'Transmissions', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>, 
+            show: true 
+          },
+          { 
+            id: 'richtext', 
+            label: 'Rich Texts', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>, 
+            show: true 
+          },
+          { 
+            id: 'saved', 
+            label: isCurrentUser ? 'Saved Cache' : 'Public Saves', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>, 
+            show: true 
+          },
+          { 
+            id: 'followers', 
+            label: 'Followers', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>, 
+            show: true 
+          },
+          { 
+            id: 'following', 
+            label: 'Following', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>, 
+            show: true 
+          },
+          { 
+            id: 'settings', 
+            label: 'Edit Profile', 
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>, 
+            show: isCurrentUser 
+          },
         ].filter(t => t.show).map(tab => (
           <button
             key={tab.id}
@@ -356,7 +472,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               borderColor: activeTab === tab.id ? 'var(--earth)' : 'transparent',
               color: activeTab === tab.id ? 'var(--earth)' : 'var(--muted)',
               fontWeight: activeTab === tab.id ? 700 : 500,
-              fontSize: '0.88rem',
+              fontSize: '0.86rem',
               background: 'none',
               cursor: 'pointer',
               display: 'flex',
@@ -372,12 +488,12 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         ))}
       </div>
 
-      {/* ───────── Grid Rendering Logic ───────── */}
+      {/* ───────── Transmissions (Strictly Visual Media) & Saved ───────── */}
       {(activeTab === 'transmissions' || activeTab === 'saved') && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-          {activeTab === 'transmissions' && user.posts?.length === 0 && (
+          {activeTab === 'transmissions' && mediaPosts.length === 0 && (
             <div style={{ gridColumn: 'span 3', padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '20px' }}>
-              No transmissions yet.
+              No visual transmissions yet.
             </div>
           )}
           {activeTab === 'saved' && savedPosts?.length === 0 && (
@@ -386,26 +502,149 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
             </div>
           )}
 
-          {(activeTab === 'transmissions' ? user.posts : (isCurrentUser ? savedPosts : savedPosts?.filter(s => s.isPublic))?.map((s: any) => s.post).filter(Boolean))?.map((post: any) => (
+          {(activeTab === 'transmissions' ? mediaPosts : (isCurrentUser ? savedPosts : savedPosts?.filter(s => s.isPublic))?.map((s: any) => s.post).filter(Boolean))?.map((post: any) => (
             <div 
               key={post.id} 
               onClick={() => setActivePostForModal({...post, author: activeTab === 'transmissions' ? user : post.author})}
               style={{ width: '100%', aspectRatio: '1', background: 'var(--panel)', cursor: 'pointer', overflow: 'hidden', position: 'relative', borderRadius: '8px' }}
             >
-              {post.mediaUrl ? (
+              {post.mediaUrl && (
                 post.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || post.mediaUrl.includes('#video') ? (
                   <video src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <img src={post.mediaUrl.split(',')[0]} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Post thumbnail" />
                 )
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px', fontSize: '0.78rem', color: 'var(--muted)', textAlign: 'center' }}>
-                  <span style={{ fontSize: '1.4rem', marginBottom: '4px' }}>📝</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{post.content}</span>
-                </div>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ───────── Dedicated Rich Texts Dossiers Tab ───────── */}
+      {activeTab === 'richtext' && (
+        <div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+            gap: '10px'
+          }}>
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '4px' }}>
+              {userDossierFolders.map(folderName => (
+                <button
+                  key={folderName}
+                  onClick={() => setActiveDossierFolder(folderName)}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: '100px',
+                    border: activeDossierFolder === folderName ? '1px solid var(--earth)' : '1px solid var(--line)',
+                    background: activeDossierFolder === folderName ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255,255,255,0.04)',
+                    color: activeDossierFolder === folderName ? 'var(--earth)' : 'var(--text)',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  {folderName}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleDownloadProfileDossierTxt}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '100px',
+                background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+                color: '#07111f',
+                border: 'none',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(64, 201, 162, 0.25)'
+              }}
+              title="Download dossier folder as .txt"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download {activeDossierFolder} as .txt
+            </button>
+          </div>
+
+          {filteredRichTextPosts.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)', background: 'var(--panel)', borderRadius: '20px' }}>
+              No rich text dossiers in folder &quot;{activeDossierFolder}&quot;.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+              {filteredRichTextPosts.map((post: any) => (
+                <div
+                  key={post.id}
+                  onClick={() => setActivePostForModal({ ...post, author: user })}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '16px',
+                    background: 'var(--panel)',
+                    border: '1px solid var(--line)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    minHeight: '140px',
+                    transition: 'transform 0.2s ease, border-color 0.2s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--earth)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--earth)', padding: '2px 8px', borderRadius: '100px', background: 'rgba(64, 201, 162, 0.15)', border: '1px solid rgba(64, 201, 162, 0.3)' }}>
+                        {getPostFolder(post)}
+                      </span>
+                      {isCurrentUser && (
+                        <div onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+                          <button
+                            onClick={() => setMovingPostId(movingPostId === post.id ? null : post.id)}
+                            style={{ padding: '2px 8px', borderRadius: '100px', background: 'rgba(255,255,255,0.08)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: '0.68rem', cursor: 'pointer' }}
+                          >
+                            Move ▾
+                          </button>
+                          {movingPostId === post.id && (
+                            <div style={{ position: 'absolute', top: '110%', right: 0, background: '#0c1829', border: '1px solid var(--earth)', borderRadius: '10px', padding: '6px', zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '120px' }}>
+                              {['General', 'Research', 'Logs', 'Ideas', 'Personal'].map(fn => (
+                                <button
+                                  key={fn}
+                                  onClick={() => handleMoveProfileFolder(post.id, fn)}
+                                  style={{ textAlign: 'left', padding: '5px 8px', borderRadius: '6px', background: getPostFolder(post) === fn ? 'rgba(64, 201, 162, 0.2)' : 'transparent', border: 'none', color: getPostFolder(post) === fn ? 'var(--earth)' : 'var(--text)', fontSize: '0.74rem', cursor: 'pointer' }}
+                                >
+                                  {fn}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.5, margin: 0, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {post.content}
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)' }}>
+                    <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                    <span>♥ {post.likes?.length || 0} · 💬 {post.reelComments?.length || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -695,6 +934,56 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   <span style={{ fontSize: '0.72rem', color: 'var(--muted)', fontWeight: 400 }}>Full standard font size</span>
                 </button>
               </div>
+            </div>
+
+            {/* Storage & Cache Management */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                  Device Storage & Media Cache
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--earth)', fontWeight: 600 }}>
+                  Active (LRU Auto-Purge)
+                </span>
+              </div>
+              <p style={{ fontSize: '0.78rem', color: 'var(--muted)', margin: '0 0 12px 0', lineHeight: 1.4 }}>
+                Orbit dynamically purges stale video and image buffers from device RAM to prevent memory bloat and keep performance snappy.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const keys = Object.keys(localStorage);
+                    keys.forEach(k => {
+                      if (k.startsWith('orbit_cache_') || k.startsWith('media_temp_')) {
+                        localStorage.removeItem(k);
+                      }
+                    });
+                    if ('caches' in window) {
+                      caches.keys().then(names => names.forEach(n => caches.delete(n)));
+                    }
+                    alert('Local media buffers and offline cache purged successfully! 🧹');
+                  } catch (e) {
+                    alert('Cache cleared.');
+                  }
+                }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '100px',
+                  border: '1px solid var(--line)',
+                  background: 'rgba(255,255,255,0.06)',
+                  color: 'var(--text)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Purge Temporary Cache & Buffers
+              </button>
             </div>
 
             {/* Save Button bottom */}

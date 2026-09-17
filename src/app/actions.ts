@@ -358,7 +358,7 @@ export async function sendMessage(
 
     const message = await prisma.message.create({
       data: {
-        content: content || (effectiveVoiceUrl ? '🎤 Voice Transmission' : '📷 Image'),
+        content: content || (effectiveVoiceUrl ? 'Voice Transmission' : 'Image'),
         mediaUrl: effectiveMediaUrl,
         voiceUrl: effectiveVoiceUrl,
         chatId,
@@ -1060,6 +1060,33 @@ export async function getShareContacts() {
   if (!currentUser) return { success: false, users: [] };
 
   try {
+    const contactMap = new Map<string, any>();
+
+    // 1. Mutual friends first: users who follow each other
+    const myFollows = await prisma.follow.findMany({
+      where: { followerId: currentUser.id },
+      include: {
+        following: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+        }
+      }
+    });
+
+    const followBacks = await prisma.follow.findMany({
+      where: { followingId: currentUser.id },
+      select: { followerId: true }
+    });
+
+    const followerIdSet = new Set(followBacks.map(f => f.followerId));
+
+    // Add mutual friends
+    myFollows.forEach((f: any) => {
+      if (f.following && followerIdSet.has(f.following.id)) {
+        contactMap.set(f.following.id, { ...f.following, isMutual: true });
+      }
+    });
+
+    // 2. Previously interacted or chatted contacts
     const recentChats = await prisma.chat.findMany({
       where: {
         users: { some: { id: currentUser.id } }
@@ -1070,10 +1097,9 @@ export async function getShareContacts() {
         }
       },
       orderBy: { updatedAt: 'desc' },
-      take: 8
+      take: 12
     });
 
-    const contactMap = new Map<string, any>();
     recentChats.forEach((c: any) => {
       const other = c.users.find((u: any) => u.id !== currentUser.id);
       if (other && !contactMap.has(other.id)) {
@@ -1081,34 +1107,12 @@ export async function getShareContacts() {
       }
     });
 
-    const following = await prisma.follow.findMany({
-      where: { followerId: currentUser.id },
-      include: {
-        following: {
-          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
-        }
-      },
-      take: 12
-    });
-
-    following.forEach((f: any) => {
+    // 3. Followings that currentUser explicitly follows
+    myFollows.forEach((f: any) => {
       if (f.following && !contactMap.has(f.following.id)) {
         contactMap.set(f.following.id, f.following);
       }
     });
-
-    if (contactMap.size < 5) {
-      const otherUsers = await prisma.user.findMany({
-        where: { id: { not: currentUser.id } },
-        select: { id: true, username: true, handle: true, avatarUrl: true, color: true },
-        take: 6
-      });
-      otherUsers.forEach((u: any) => {
-        if (!contactMap.has(u.id)) {
-          contactMap.set(u.id, u);
-        }
-      });
-    }
 
     return { success: true, users: Array.from(contactMap.values()) };
   } catch (err) {

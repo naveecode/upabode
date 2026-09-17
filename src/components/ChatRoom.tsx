@@ -803,14 +803,14 @@ export default function ChatRoom({
           const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
           const tempMessage: Message = {
             id: tempId,
-            content: '🎤 Voice Transmission',
+            content: 'Voice Transmission',
             voiceUrl: base64Audio,
             senderId: currentUser.id,
             createdAt: new Date(),
           }
           setMessages(prev => [...prev, tempMessage])
           
-          const res = await sendMessage(chatId, '🎤 Voice Transmission', null, base64Audio)
+          const res = await sendMessage(chatId, 'Voice Transmission', null, base64Audio)
           if (res?.message) {
             setMessages(prev => prev.map(m => m.id === tempId ? res.message : m))
           }
@@ -966,7 +966,9 @@ export default function ChatRoom({
             }}
             title="Encrypted Voice Call"
           >
-            📞
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
           </button>
           <button
             onClick={() => startCall('video')}
@@ -987,7 +989,10 @@ export default function ChatRoom({
             }}
             title="Quantum P2P Video Call"
           >
-            📹
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -1212,7 +1217,10 @@ export default function ChatRoom({
               fontSize: '0.78rem',
               backdropFilter: 'blur(10px)'
             }}>
-              <span>🔒 E2E WebRTC</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                E2E WebRTC
+              </span>
             </div>
           </div>
 
@@ -1252,7 +1260,13 @@ export default function ChatRoom({
                   />
                 ) : (
                   <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📡</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                        <path d="M2 12h20"/>
+                      </svg>
+                    </div>
                     <div style={{ fontSize: '1.2rem', color: 'white', fontWeight: 600, marginBottom: '6px' }}>
                       Establishing Optical Link...
                     </div>
@@ -1404,7 +1418,11 @@ export default function ChatRoom({
               }}
               title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
             >
-              {isMuted ? '🔇' : '🎤'}
+              {isMuted ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              )}
             </button>
 
             {/* Video Camera Toggle */}
@@ -1429,7 +1447,11 @@ export default function ChatRoom({
                 }}
                 title={isVideoDisabled ? 'Turn On Camera' : 'Turn Off Camera'}
               >
-                {isVideoDisabled ? '🚫' : '📹'}
+                {isVideoDisabled ? (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m4 0h6a2 2 0 0 1 2 2v3"/><polygon points="23 7 16 12 23 17 23 7"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                )}
               </button>
             )}
 
@@ -1453,7 +1475,7 @@ export default function ChatRoom({
                 }}
                 title="Swap Camera View"
               >
-                🔄
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
               </button>
             )}
 
@@ -1501,7 +1523,13 @@ export default function ChatRoom({
             color: 'var(--muted)',
             padding: '30px'
           }}>
-            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '10px' }}>🛰️</span>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                <path d="M2 12h20"/>
+              </svg>
+            </div>
             Quantum channel connected with <strong>{safeOtherUser.username}</strong>.<br />
             Transmit your first signal below.
           </div>
@@ -1654,16 +1682,21 @@ export default function ChatRoom({
             borderRadius: '50%',
             border: '1px solid var(--line)',
             background: showEmojiPicker ? 'rgba(64, 201, 162, 0.2)' : 'rgba(0,0,0,0.04)',
-            color: 'var(--text)',
-            fontSize: '1.15rem',
+            color: showEmojiPicker ? 'var(--earth)' : 'var(--muted)',
             cursor: 'pointer',
             display: 'grid',
             placeItems: 'center',
-            flexShrink: 0
+            flexShrink: 0,
+            transition: '0.2s ease'
           }}
           title="Pick Emoji"
         >
-          😀
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
         </button>
 
         {/* Media Upload Button */}
@@ -1678,13 +1711,20 @@ export default function ChatRoom({
             background: isUploadingMedia ? 'rgba(197, 160, 89, 0.2)' : 'rgba(0,0,0,0.04)',
             border: '1px solid var(--line)',
             color: isUploadingMedia ? 'var(--earth)' : 'var(--muted)',
-            fontSize: '1.15rem',
             cursor: isUploadingMedia ? 'wait' : 'pointer',
             transition: '0.2s ease'
           }}
           title={isUploadingMedia ? 'Optimizing & uploading media...' : 'Attach Image or Video Transmission'}
         >
-          {isUploadingMedia ? '⏳' : '📎'}
+          {isUploadingMedia ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="chat-spin" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          ) : (
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          )}
           <input
             type="file"
             accept="image/*,video/*"
@@ -1752,17 +1792,20 @@ export default function ChatRoom({
               background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
               color: 'var(--background)',
               border: 'none',
-              fontSize: '1.2rem',
               cursor: 'pointer',
               display: 'grid',
               placeItems: 'center',
               fontWeight: 700,
               flexShrink: 0,
-              boxShadow: '0 4px 15px rgba(64, 201, 162, 0.4)'
+              boxShadow: '0 4px 15px rgba(64, 201, 162, 0.4)',
+              transition: 'transform 0.15s ease'
             }}
             title="Send Signal"
           >
-            ↗
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
           </button>
         ) : (
           <button
@@ -1774,7 +1817,6 @@ export default function ChatRoom({
               background: isRecording ? 'var(--danger)' : 'rgba(0,0,0,0.04)',
               border: '1px solid var(--line)',
               color: isRecording ? 'white' : 'var(--muted)',
-              fontSize: '1.2rem',
               cursor: 'pointer',
               display: 'grid',
               placeItems: 'center',
@@ -1783,7 +1825,18 @@ export default function ChatRoom({
             }}
             title={isRecording ? 'Click to beam voice log' : 'Click to record voice transmission'}
           >
-            {isRecording ? '⏹' : '🎤'}
+            {isRecording ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="5" y="5" width="14" height="14" rx="2"/>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            )}
           </button>
         )}
       </div>

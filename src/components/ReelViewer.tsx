@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app/actions'
 import { showToast } from './Toast'
 import { releaseVideoMemory } from '../lib/mediaMemoryManager'
@@ -412,6 +413,24 @@ export default function ReelViewer({
   const [activeIdx, setActiveIdx] = useState(0)
   const [showComments, setShowComments] = useState(true)
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+
+  // Jump to specific reel if id is in URL params
+  useEffect(() => {
+    const targetId = searchParams?.get('id') || searchParams?.get('post')
+    if (targetId && posts.length > 0) {
+      const idx = posts.findIndex(p => p.id === targetId)
+      if (idx !== -1) {
+        setActiveIdx(idx)
+        setTimeout(() => {
+          const el = document.getElementById(`reel-${targetId}`)
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 150)
+      }
+    }
+  }, [searchParams, posts])
   
   // New pin placement state
   const [pendingPin, setPendingPin] = useState<{
@@ -429,21 +448,11 @@ export default function ReelViewer({
   const [recentContacts, setRecentContacts] = useState<any[]>([])
   const [isSearchingShare, setIsSearchingShare] = useState(false)
 
-  // Fetch frequent / followed contacts whenever the share modal is opened
+  // Fetch mutual / chatted contacts ONLY when share modal is opened
   useEffect(() => {
     if (sharePostId) {
-      // Immediate local contacts from posts in feed
-      const feedAuthors = initialPosts
-        .map(p => p.author)
-        .filter(a => a && a.id !== currentUser?.id);
-      const uniqueFeedAuthors = Array.from(new Map(feedAuthors.map(a => [a.id, a])).values()).slice(0, 8);
-      if (uniqueFeedAuthors.length > 0) {
-        setShareUsers(uniqueFeedAuthors);
-        setRecentContacts(uniqueFeedAuthors);
-      }
-
       getShareContacts().then(res => {
-        if (res?.success && res.users && res.users.length > 0) {
+        if (res?.success && res.users) {
           setRecentContacts(res.users)
           if (!shareSearchQuery) {
             setShareUsers(res.users)
@@ -840,6 +849,7 @@ export default function ReelViewer({
           return (
             <div
               key={post.id}
+              id={`reel-${post.id}`}
               onPointerDown={(e) => handlePointerDown(e, post.id, post.authorId, post.author.handle)}
               onPointerMove={handlePointerMove}
               onPointerUp={(e) => handlePointerUp(e, post.id, post.authorId, post.author.handle)}
@@ -992,11 +1002,15 @@ export default function ReelViewer({
                       background: 'rgba(244, 201, 93, 0.2)',
                       color: 'var(--yellow)',
                       border: '1px solid var(--yellow)',
-                      padding: '4px 8px',
+                      padding: '4px 10px',
                       borderRadius: '100px',
-                      fontWeight: 600
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}>
-                      🔖 Saved
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                      Saved
                     </span>
                   )}
                 </div>
@@ -1010,9 +1024,13 @@ export default function ReelViewer({
                       backdropFilter: 'blur(12px)',
                       padding: '4px 10px',
                       borderRadius: '100px',
-                      border: '1px solid var(--line)'
+                      border: '1px solid var(--line)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}>
-                      💬 {comments.length} localized
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      {comments.length} localized
                     </span>
                   )}
                 </div>
@@ -1329,7 +1347,12 @@ export default function ReelViewer({
             textAlign: 'center',
             color: 'var(--muted)'
           }}>
-            <span style={{ fontSize: '3rem', marginBottom: '14px' }}>🪐</span>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="7"/>
+                <ellipse cx="12" cy="12" rx="11" ry="4" transform="rotate(-25 12 12)"/>
+              </svg>
+            </div>
             <h3 style={{ color: 'var(--text)', marginBottom: '6px' }}>No Cosmic Reels Yet</h3>
             <p style={{ fontSize: '0.85rem' }}>Broadcast the first reel transmission from the Home feed!</p>
           </div>
@@ -1424,11 +1447,11 @@ export default function ReelViewer({
                 width: '100%',
                 padding: '12px 18px',
                 borderRadius: '100px',
+                border: '1px solid var(--line)',
                 background: 'rgba(197, 160, 89, 0.12)',
-                border: '1px solid var(--earth)',
                 color: 'var(--earth)',
-                fontWeight: 700,
                 fontSize: '0.85rem',
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1440,7 +1463,11 @@ export default function ReelViewer({
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(197, 160, 89, 0.2)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(197, 160, 89, 0.12)')}
             >
-              <span>🔗</span> Copy Reel Link
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span>Copy Reel Link</span>
             </button>
             
             <div style={{ position: 'relative', marginBottom: '16px' }}>
@@ -1461,8 +1488,11 @@ export default function ReelViewer({
                   boxSizing: 'border-box'
                 }}
               />
-              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>
-                ⌕
+              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
               </span>
             </div>
 
@@ -1493,8 +1523,9 @@ export default function ReelViewer({
                       <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</div>
                       <div style={{ color: 'var(--earth)', fontSize: '0.74rem' }}>@{u.handle}</div>
                     </div>
-                    <div style={{ marginLeft: 'auto', background: 'var(--earth)', color: '#07111f', padding: '6px 14px', borderRadius: '100px', fontSize: '0.76rem', fontWeight: 700, flexShrink: 0 }}>
-                      Send ↗
+                    <div style={{ marginLeft: 'auto', background: 'var(--earth)', color: '#07111f', padding: '6px 14px', borderRadius: '100px', fontSize: '0.76rem', fontWeight: 700, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <span>Send</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     </div>
                   </button>
                 ))}

@@ -32,10 +32,13 @@ export default function ChatError({
         border: '1px solid rgba(237, 118, 86, 0.4)',
         display: 'grid',
         placeItems: 'center',
-        fontSize: '2rem',
         marginBottom: '16px'
       }}>
-        🛰️
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--mars)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
       </div>
       <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.3rem', marginBottom: '8px' }}>
         Quantum Relay Interrupted
