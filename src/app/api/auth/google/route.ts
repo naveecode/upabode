@@ -7,13 +7,18 @@ export async function GET(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '') : `${protocol}://${host}`;
   const redirectUri = `${appUrl}/api/auth/google/callback`;
   
-  console.log('[Google Auth] Initializing login...', { host, protocol, appUrl, redirectUri });
+  const url = new URL(request.url);
+  const returnUrl = url.searchParams.get('returnUrl') || '/';
+  const statePayload = JSON.stringify({ returnUrl });
+  const encodedState = Buffer.from(statePayload).toString('base64');
+
+  console.log('[Google Auth] Initializing login...', { host, protocol, appUrl, redirectUri, returnUrl });
 
   if (!clientId) {
     return NextResponse.json({ error: 'Google Client ID is not configured.' }, { status: 500 });
   }
 
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email profile&access_type=offline&prompt=consent`;
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email profile&access_type=offline&prompt=select_account&state=${encodedState}`;
   
   return NextResponse.redirect(googleAuthUrl);
 }

@@ -8,7 +8,7 @@ export default function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
 
-  if (pathname.startsWith('/chat/') && pathname !== '/chat') {
+  if ((pathname.startsWith('/chat/') && pathname !== '/chat') || pathname.startsWith('/reels')) {
     return null
   }
 

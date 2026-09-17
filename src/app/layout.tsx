@@ -8,6 +8,7 @@ import Link from 'next/link'
 import MobileNav from '../components/MobileNav'
 import SplashLoader from '../components/SplashLoader'
 import HeaderActions from '../components/HeaderActions'
+import OnboardingModal from '../components/OnboardingModal'
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -76,23 +77,32 @@ export default async function RootLayout({
       </head>
       <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
         <SplashLoader />
-        <header className="topbar">
-          <Link href="/" className="brand">
-            <span className="brand-mark">
-              <img src="/icon.png" alt="Upabode" width={38} height={38} />
-            </span>
-            <span className="brand-name">Upabode</span>
-          </Link>
-          <div className="topbar-right flex items-center gap-3">
-            <HeaderActions user={user} />
+        {user ? (
+          <>
+            <header className="topbar">
+              <Link href="/" className="brand">
+                <span className="brand-mark">
+                  <img src="/icon.png" alt="Upabode" width={38} height={38} />
+                </span>
+                <span className="brand-name">Upabode</span>
+              </Link>
+              <div className="topbar-right flex items-center gap-3">
+                <HeaderActions user={user} />
+              </div>
+            </header>
+
+            <div className="page-content">
+              {children}
+            </div>
+
+            <MobileNav />
+            {!user.onboarded && <OnboardingModal currentUser={user} />}
+          </>
+        ) : (
+          <div className="page-content auth-only-layout" style={{ minHeight: '100dvh', padding: 0 }}>
+            {children}
           </div>
-        </header>
-
-        <div className="page-content">
-          {children}
-        </div>
-
-        <MobileNav />
+        )}
       </body>
     </html>
   )

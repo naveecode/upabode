@@ -19,6 +19,7 @@ model User {
   avatarUrl String?
   color     String?  
   location  String?
+  onboarded Boolean  @default(false)
   createdAt DateTime @default(now())
 
   posts     Post[]

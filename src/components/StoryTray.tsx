@@ -196,6 +196,54 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
 
   return (
     <>
+      {/* Immediate Full-Screen Status Upload Overlay */}
+      {(isUploadingMedia || isUploadingMusic) && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(7, 17, 31, 0.88)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            position: 'relative',
+            width: '76px',
+            height: '76px',
+            display: 'grid',
+            placeItems: 'center'
+          }}>
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '3.5px solid rgba(64, 201, 162, 0.2)',
+              borderTopColor: 'var(--earth)',
+              animation: 'spin 0.8s linear infinite'
+            }} />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text)', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+              {isUploadingMusic ? 'Uploading Status Audio...' : 'Transmitting Status to Orbit...'}
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--muted)' }}>
+              Please wait while your status is processed.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div style={{
         display: 'flex',
         gap: '16px',

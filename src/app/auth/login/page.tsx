@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { loginUser } from '../../actions';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/';
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +22,6 @@ export default function LoginPage() {
     
     try {
       const formData = new FormData();
-      // Pass identifier as both email and handle so server handles both seamlessly
       formData.append('email', identifier.trim().toLowerCase());
       formData.append('handle', identifier.trim().replace(/^@/, ''));
       formData.append('password', password);
@@ -28,7 +31,7 @@ export default function LoginPage() {
         setError(result.error);
         setLoading(false);
       } else {
-        window.location.href = '/';
+        window.location.href = returnUrl;
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during login.');
@@ -185,7 +188,7 @@ export default function LoginPage() {
         </div>
 
         <a
-          href="/api/auth/google"
+          href={`/api/auth/google${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
           style={{
             display: 'block',
             textAlign: 'center',
@@ -206,12 +209,20 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>
             New to Orbit?{' '}
-            <Link href="/auth/register" style={{ color: 'var(--earth)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href={`/auth/register${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`} style={{ color: 'var(--earth)', fontWeight: 600, textDecoration: 'none' }}>
               Register new account
             </Link>
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

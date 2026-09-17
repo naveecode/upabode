@@ -142,6 +142,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    setIsUploadingGallery(true);
     showToast(`Optimizing ${files.length} ${files.length === 1 ? 'file' : 'files'}...`);
     try {
       const validFiles: File[] = [];
@@ -173,6 +174,9 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       }
     } catch (err: any) {
       showToast(`Upload error: ${err.message}`);
+    } finally {
+      setIsUploadingGallery(false);
+      e.target.value = '';
     }
   };
 
@@ -192,6 +196,54 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       transition: 'all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
       textAlign: 'center'
     }}>
+      {/* Immediate Full-Screen Upload Overlay */}
+      {(isUploadingGallery || isUploadingCustomMusic || isUploading) && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(7, 17, 31, 0.88)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            position: 'relative',
+            width: '76px',
+            height: '76px',
+            display: 'grid',
+            placeItems: 'center'
+          }}>
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border: '3.5px solid rgba(64, 201, 162, 0.2)',
+              borderTopColor: 'var(--earth)',
+              animation: 'spin 0.8s linear infinite'
+            }} />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', color: 'var(--text)', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
+              {isUploadingCustomMusic ? 'Uploading Audio Soundtrack...' : 'Transmitting Media to Orbit...'}
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--muted)' }}>
+              Please wait while your media is optimized and encrypted.
+            </p>
+          </div>
+        </div>
+      )}
+
       {showCamera ? (
         <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />
       ) : !isOpen && mediaUrls.length === 0 ? (

@@ -8,7 +8,7 @@ export default async function ProfilePage() {
   const currentUser = await getCurrentUser();
   
   if (!currentUser) {
-    redirect('/auth/register');
+    redirect('/auth/login?returnUrl=/profile');
   }
 
   let user: any = null;

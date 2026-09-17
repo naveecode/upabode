@@ -216,7 +216,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           position: 'relative',
           width: '100%',
           height: '100%',
-          objectFit: 'contain',
+          objectFit: 'cover',
           filter: `brightness(${brightness})`,
           zIndex: 5
         }}
@@ -791,7 +791,7 @@ export default function ReelViewer({
       width: '100vw',
       height: '100dvh',
       background: '#000',
-      zIndex: 45,
+      zIndex: 100,
       userSelect: 'none',
       overflow: 'hidden'
     }}>
@@ -800,7 +800,7 @@ export default function ReelViewer({
         href="/"
         style={{
           position: 'absolute',
-          top: '18px',
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
           left: '18px',
           zIndex: 60,
           width: '42px',
@@ -941,7 +941,7 @@ export default function ReelViewer({
                 }}
                 style={{
                   position: 'absolute',
-                  bottom: '135px',
+                  bottom: 'calc(32px + env(safe-area-inset-bottom, 16px))',
                   right: '18px',
                   background: 'rgba(7, 17, 31, 0.85)',
                   color: 'var(--earth)',
@@ -1059,27 +1059,27 @@ export default function ReelViewer({
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 8px 4px 4px',
+                      gap: '4px',
+                      padding: '2px 6px 2px 3px',
                       borderRadius: '100px',
-                      background: 'rgba(7, 17, 31, 0.75)',
-                      border: '1px solid var(--earth)',
-                      backdropFilter: 'blur(8px)',
-                      boxShadow: isOpen ? '0 0 20px rgba(64, 201, 162, 0.6)' : '0 4px 12px rgba(0,0,0,0.4)',
+                      background: 'rgba(7, 17, 31, 0.45)',
+                      border: isOpen ? '1px solid var(--earth)' : '1px solid rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(4px)',
+                      boxShadow: isOpen ? '0 0 12px rgba(64, 201, 162, 0.4)' : '0 2px 6px rgba(0,0,0,0.25)',
                       cursor: 'pointer',
                       transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
-                      transform: isOpen ? 'scale(1.1)' : 'scale(1)',
-                      maxWidth: '120px'
+                      transform: isOpen ? 'scale(1.05)' : 'scale(1)',
+                      maxWidth: '110px'
                     }}>
                       <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{
-                        width: '20px', height: '20px', fontSize: '0.6rem', flexShrink: 0
+                        width: '15px', height: '15px', fontSize: '0.5rem', flexShrink: 0, opacity: 0.7, borderRadius: '50%'
                       }}>
-                        {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦')}
+                        {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', opacity: 0.7 }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase() || '✦')}
                       </div>
                       <div style={{
-                        color: 'white',
-                        fontSize: '0.65rem',
-                        fontWeight: 600,
+                        color: 'rgba(243, 247, 251, 0.85)',
+                        fontSize: '0.62rem',
+                        fontWeight: 500,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
@@ -1098,28 +1098,28 @@ export default function ReelViewer({
                           bottom: '125%',
                           left: '50%',
                           transform: 'translateX(-50%)',
-                          minWidth: '180px',
-                          maxWidth: '240px',
-                          padding: '10px 14px',
-                          borderRadius: '16px',
-                          background: 'rgba(11, 23, 39, 0.95)',
-                          backdropFilter: 'blur(20px)',
-                          border: '1px solid var(--earth)',
-                          boxShadow: '0 12px 35px rgba(0,0,0,0.8)',
+                          minWidth: '170px',
+                          maxWidth: '230px',
+                          padding: '8px 12px',
+                          borderRadius: '14px',
+                          background: 'rgba(11, 23, 39, 0.88)',
+                          backdropFilter: 'blur(16px)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
                           color: 'var(--text)',
                           zIndex: 40,
                           animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.8rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>
                             {comment.user?.username}
                           </span>
-                          <span style={{ color: 'var(--earth)', fontSize: '0.7rem' }}>
+                          <span style={{ color: 'var(--earth)', fontSize: '0.68rem' }}>
                             @{comment.user?.handle}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.82rem', margin: 0, lineHeight: 1.4, color: '#f3f7fb' }}>
+                        <p style={{ fontSize: '0.78rem', margin: 0, lineHeight: 1.35, color: 'rgba(243, 247, 251, 0.9)' }}>
                           {comment.content}
                         </p>
                         {/* Down Arrow */}
@@ -1128,9 +1128,9 @@ export default function ReelViewer({
                           top: '100%',
                           left: '50%',
                           transform: 'translateX(-50%)',
-                          borderLeft: '6px solid transparent',
-                          borderRight: '6px solid transparent',
-                          borderTop: '6px solid var(--earth)'
+                          borderLeft: '5px solid transparent',
+                          borderRight: '5px solid transparent',
+                          borderTop: '5px solid rgba(255, 255, 255, 0.15)'
                         }} />
                       </div>
                     )}
@@ -1162,8 +1162,8 @@ export default function ReelViewer({
                   <div style={{ overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {post.reelComments!.map(comment => (
                       <div key={`list-${comment.id}`} style={{ display: 'flex', gap: '10px' }}>
-                        <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{ width: '28px', height: '28px', flexShrink: 0, fontSize: '0.75rem' }}>
-                          {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase())}
+                        <div className={`user-avatar ${comment.user?.color || 'green'}`} style={{ width: '18px', height: '18px', flexShrink: 0, fontSize: '0.6rem', opacity: 0.7, borderRadius: '50%' }}>
+                          {comment.user?.avatarUrl?.startsWith?.('http') ? <img src={comment.user?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', opacity: 0.7 }} alt='avatar' /> : (comment.user?.avatarUrl || comment.user?.username?.charAt(0).toUpperCase())}
                         </div>
                         <div>
                           <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>@{comment.user?.handle}</div>
@@ -1286,7 +1286,7 @@ export default function ReelViewer({
               <div style={{
                 position: 'relative',
                 zIndex: 10,
-                padding: '24px 20px calc(80px + env(safe-area-inset-bottom, 16px))',
+                padding: '24px 20px calc(28px + env(safe-area-inset-bottom, 16px))',
                 pointerEvents: 'none'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>

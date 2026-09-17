@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.upabode.orbit",
+      "sha256_cert_fingerprints": [
+        "0A:57:98:C5:F5:B0:B2:7A:60:A0:44:8E:C2:D4:0E:0A:0A:30:36:28:58:3D:DD:49:F8:7F:48:0E:F7:55:62:89"
+      ]
+    }
+  }
+]

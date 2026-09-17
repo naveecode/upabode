@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma";
 import { getCurrentUser } from "./actions";
+import { redirect } from "next/navigation";
 import Post from "../components/Post";
 import Toast from "../components/Toast";
 import CreatePostBox from "../components/CreatePostBox";
@@ -7,6 +8,9 @@ import StoryTray from "../components/StoryTray";
 
 export default async function Home() {
   const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect('/auth/login');
+  }
 
   let posts: any[] = [];
   let dbError: string | null = null;

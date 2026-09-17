@@ -2,9 +2,13 @@ import React from 'react';
 import prisma from '../../lib/prisma';
 import { getCurrentUser } from '../actions';
 import ExploreSearch from '../../components/ExploreSearch';
+import { redirect } from 'next/navigation';
 
 export default async function ExplorePage() {
   const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    redirect('/auth/login?returnUrl=/explore');
+  }
   let users: any[] = [];
   let posts: any[] = [];
 

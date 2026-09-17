@@ -9,6 +9,10 @@ export default async function OtherUserProfilePage({ params }: { params: Promise
   const currentUser = await getCurrentUser();
   const handle = resolvedParams.handle;
 
+  if (!currentUser) {
+    redirect(`/auth/login?returnUrl=/profile/${encodeURIComponent(handle)}`);
+  }
+
   if (currentUser && currentUser.handle === handle) {
     redirect('/profile');
   }

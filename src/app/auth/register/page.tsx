@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { registerUser, sendRegistrationOtp } from '../../actions';
 import { validateEmail } from '../../../lib/emailValidator';
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/';
   const [step, setStep] = useState<1 | 2>(1);
   const [username, setUsername] = useState('');
   const [handle, setHandle] = useState('');
@@ -130,7 +133,7 @@ export default function RegisterPage() {
         setError(result.error);
         setLoading(false);
       } else {
-        window.location.href = '/';
+        window.location.href = returnUrl;
       }
     } catch (err: any) {
       setError(err?.message || 'An error occurred during verification.');
@@ -586,7 +589,7 @@ export default function RegisterPage() {
         </div>
 
         <a
-          href="/api/auth/google"
+          href={`/api/auth/google${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
           style={{
             display: 'block',
             textAlign: 'center',
@@ -607,12 +610,20 @@ export default function RegisterPage() {
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>
             Already registered?{' '}
-            <Link href="/auth/login" style={{ color: 'var(--earth)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href={`/auth/login${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`} style={{ color: 'var(--earth)', fontWeight: 600, textDecoration: 'none' }}>
               Log in with credentials
             </Link>
           </p>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

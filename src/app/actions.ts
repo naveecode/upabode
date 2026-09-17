@@ -40,6 +40,63 @@ export async function updateAvatar(url: string) {
   return { success: true };
 }
 
+export async function completeOnboarding(formData: FormData) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+
+  let handle = (formData.get('handle') as string || '').trim().toLowerCase();
+  if (handle.startsWith('@')) handle = handle.substring(1);
+  const avatarUrl = formData.get('avatarUrl') as string || null;
+
+  if (handle.length < 3) {
+    return { error: 'User ID must be at least 3 characters.' };
+  }
+
+  // Check if handle is already taken by someone else
+  const existing = await prisma.user.findFirst({
+    where: {
+      handle: { equals: handle, mode: 'insensitive' },
+      NOT: { id: currentUser.id }
+    }
+  });
+
+  if (existing) {
+    return { error: 'This User ID is already taken. Please choose another.' };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: {
+        handle,
+        avatarUrl: avatarUrl || currentUser.avatarUrl,
+        onboarded: true
+      }
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('completeOnboarding error:', err);
+    return { error: err?.message || 'Failed to update profile.' };
+  }
+}
+
+export async function skipOnboarding() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+
+  try {
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: { onboarded: true }
+    });
+    return { success: true };
+  } catch (err: any) {
+    console.error('skipOnboarding error:', err);
+    return { error: 'Failed to skip onboarding.' };
+  }
+}
+
 export async function sendRegistrationOtp(email: string) {
   const normalizedEmail = (email || '').trim().toLowerCase();
   const emailValidation = validateEmail(normalizedEmail);
@@ -234,6 +291,7 @@ export async function getCurrentUser() {
         avatarUrl: true,
         color: true,
         location: true,
+        onboarded: true,
         createdAt: true,
       },
     });
