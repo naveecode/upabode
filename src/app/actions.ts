@@ -997,7 +997,7 @@ export async function getShareContacts() {
       }
     });
 
-    const following = await prisma.follows.findMany({
+    const following = await prisma.follow.findMany({
       where: { followerId: currentUser.id },
       include: {
         following: {

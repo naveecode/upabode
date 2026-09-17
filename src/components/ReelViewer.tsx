@@ -225,7 +225,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
         style={{
           position: 'absolute',
           top: 0,
-          bottom: 0,
+          bottom: '220px',
           left: 0,
           width: '75px',
           zIndex: 35,
@@ -241,7 +241,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
         style={{
           position: 'absolute',
           top: 0,
-          bottom: 0,
+          bottom: '220px',
           right: 0,
           width: '75px',
           zIndex: 35,
@@ -421,14 +421,24 @@ export default function ReelViewer({
   // Fetch frequent / followed contacts whenever the share modal is opened
   useEffect(() => {
     if (sharePostId) {
+      // Immediate local contacts from posts in feed
+      const feedAuthors = initialPosts
+        .map(p => p.author)
+        .filter(a => a && a.id !== currentUser?.id);
+      const uniqueFeedAuthors = Array.from(new Map(feedAuthors.map(a => [a.id, a])).values()).slice(0, 8);
+      if (uniqueFeedAuthors.length > 0) {
+        setShareUsers(uniqueFeedAuthors);
+        setRecentContacts(uniqueFeedAuthors);
+      }
+
       getShareContacts().then(res => {
-        if (res?.success && res.users) {
+        if (res?.success && res.users && res.users.length > 0) {
           setRecentContacts(res.users)
           if (!shareSearchQuery) {
             setShareUsers(res.users)
           }
         }
-      })
+      }).catch(() => {})
     } else {
       setShareSearchQuery('')
       setShareUsers([])
@@ -881,12 +891,16 @@ export default function ReelViewer({
 
               {/* Share Button (Bottom Right) */}
               <button
+                type="button"
+                className="pin-interactive"
+                onPointerDown={(e) => { e.stopPropagation(); }}
+                onPointerUp={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
                 onClick={(e) => { e.stopPropagation(); setSharePostId(post.id); }}
                 style={{
                   position: 'absolute',
                   bottom: '140px',
                   right: '20px',
-                  background: 'rgba(0,0,0,0.6)',
+                  background: 'rgba(0,0,0,0.7)',
                   color: 'white',
                   border: '1px solid var(--line)',
                   borderRadius: '50%',
@@ -895,9 +909,11 @@ export default function ReelViewer({
                   display: 'grid',
                   placeItems: 'center',
                   cursor: 'pointer',
-                  zIndex: 20,
-                  backdropFilter: 'blur(8px)'
+                  zIndex: 50,
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
                 }}
+                aria-label="Share Reel"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               </button>

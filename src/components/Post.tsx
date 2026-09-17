@@ -287,7 +287,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     const { startChat, shareReelToChat } = await import('../app/actions');
     const chat = await startChat(userId);
     if (chat && chat.chatId) {
-      await shareReelToChat(chat.chatId, post.id);
+      await shareReelToChat(post.id, chat.chatId);
       showToast('Transmission shared to secure channel!');
       setShowShareModal(false);
     } else {
@@ -317,7 +317,24 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
     <article className="post" data-post-id={post.id} style={{ opacity: isArchived ? 0.6 : 1 }}>
       <div className="post-header" style={{ position: 'relative' }}>
         <Link href={`/profile/${post.author?.handle}`} className="user" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className={`user-avatar ${post.author?.color || 'green'}`}>
+          <div 
+            className={`user-avatar ${post.author?.color || 'green'}`}
+            style={{
+              width: '42px',
+              height: '42px',
+              minWidth: '42px',
+              minHeight: '42px',
+              maxWidth: '42px',
+              maxHeight: '42px',
+              aspectRatio: '1 / 1',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
             {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
           </div>
           <div className="user-details">
