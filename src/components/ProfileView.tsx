@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Post from './Post'
-import { updateProfile, updateAvatar, toggleFollow, startChat } from '../app/actions'
+import { updateProfile, updateAvatar, toggleFollow, startChat, deleteAccount } from '../app/actions'
 import { UploadButton, useUploadThing } from './UploadButton'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
@@ -21,6 +21,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
   const [showProfileOptions, setShowProfileOptions] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const isCurrentUser = currentUserId === user.id
   const [isEditing, setIsEditing] = useState(false)
@@ -253,7 +256,14 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                   }}>
                     <button onClick={() => { setActiveTab('settings'); setIsEditing(true); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Parameters</button>
                     <button onClick={() => { setActiveTab('saved'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Private Saves</button>
-                    <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
+                    <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
+                    <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
+                    <button 
+                      onClick={() => { setShowProfileOptions(false); setShowDeleteModal(true) }} 
+                      style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span>🗑️</span> Delete Account
+                    </button>
                   </div>
                 )}
               </div>
@@ -634,6 +644,131 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                 }}
               >
                 {isSaving ? 'Saving Changes...' : 'Save Profile Parameters'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────── Irreversible Delete Account Confirmation Modal ───────── */}
+      {showDeleteModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => {
+            if (!isDeleting) {
+              setShowDeleteModal(false);
+              setDeleteConfirmText('');
+            }
+          }}
+        >
+          <div 
+            style={{
+              background: 'var(--panel-solid)',
+              border: '1px solid var(--danger)',
+              borderRadius: '24px',
+              padding: '28px',
+              maxWidth: '420px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem', color: 'var(--danger)', fontWeight: 700 }}>
+              Permanently Delete Account?
+            </h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '18px' }}>
+              This will irreversibly delete your profile, all uploaded transmissions, media files, comments, likes, private saves, chat messages, and follower links.
+            </p>
+            <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+              <label style={{ display: 'block', color: 'var(--text)', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
+                Type <span style={{ color: 'var(--danger)', fontWeight: 700 }}>DELETE</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={isDeleting}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--line)',
+                  background: 'rgba(0,0,0,0.25)',
+                  color: 'var(--text)',
+                  outline: 'none',
+                  fontSize: '0.9rem',
+                  textAlign: 'center',
+                  letterSpacing: '0.1em',
+                  fontWeight: 700
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '100px',
+                  border: '1px solid var(--line)',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.85rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    const res = await deleteAccount();
+                    if (res?.success) {
+                      window.location.href = '/auth/register';
+                    } else {
+                      alert(res?.error || 'Failed to delete account.');
+                      setIsDeleting(false);
+                    }
+                  } catch (e: any) {
+                    alert('Error deleting account: ' + e?.message);
+                    setIsDeleting(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '100px',
+                  border: 'none',
+                  background: deleteConfirmText === 'DELETE' ? 'var(--danger)' : 'rgba(184, 92, 92, 0.35)',
+                  color: 'white',
+                  cursor: deleteConfirmText === 'DELETE' && !isDeleting ? 'pointer' : 'not-allowed',
+                  fontWeight: 700,
+                  fontSize: '0.85rem'
+                }}
+              >
+                {isDeleting ? 'Purging Account...' : 'Delete Everything'}
               </button>
             </div>
           </div>

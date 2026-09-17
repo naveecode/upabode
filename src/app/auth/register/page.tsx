@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { registerUser } from '../../actions';
+import { validateEmail } from '../../../lib/emailValidator';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -25,6 +26,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) {
+      setError(emailCheck.error || 'Please enter an approved email address.');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
@@ -209,18 +216,26 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="astronaut@orbit.net"
+              placeholder="astronaut@gmail.com"
               style={{
                 width: '100%',
                 padding: '12px 14px',
                 background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                border: email.includes('@') && email.split('@')[0].includes('.') ? '1px solid var(--danger)' : '1px solid rgba(255,255,255,0.12)',
                 borderRadius: '12px',
                 color: 'var(--text)',
                 outline: 'none',
                 fontSize: '0.92rem'
               }}
             />
+            {email.includes('@') && email.split('@')[0].includes('.') && (
+              <p style={{ color: 'var(--danger)', fontSize: '0.74rem', marginTop: '5px' }}>
+                ⚠️ Dots in the name (e.g. user.name) are blocked to prevent temporary email spoofing.
+              </p>
+            )}
+            <p style={{ color: 'var(--muted)', fontSize: '0.72rem', marginTop: '4px' }}>
+              Approved: Gmail, Outlook, Yahoo, Proton, iCloud, Zoho, or .edu (no dots in name).
+            </p>
           </div>
 
           {/* Password */}

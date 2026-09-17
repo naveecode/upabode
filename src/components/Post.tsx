@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
+import { releaseVideoMemory } from "../lib/mediaMemoryManager";
 import Link from "next/link";
 import ThreadCommentTree from "./ThreadCommentTree";
 
@@ -96,8 +97,12 @@ function VideoPlayer({ src }: { src: string }) {
       { threshold: 0.6 } // Needs to be 60% visible to autoplay
     );
 
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => { if (videoRef.current) observer.disconnect(); };
+    const videoEl = videoRef.current;
+    if (videoEl) observer.observe(videoEl);
+    return () => {
+      observer.disconnect();
+      if (videoEl) releaseVideoMemory(videoEl);
+    };
   }, []);
 
   const togglePlay = (e: React.MouseEvent) => {
@@ -440,6 +445,8 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
                 <img
                   src={mediaList[currentSlide]}
                   alt={`Transmission slide ${currentSlide + 1}`}
+                  loading="lazy"
+                  decoding="async"
                   style={{
                     width: '100%',
                     height: '100%',

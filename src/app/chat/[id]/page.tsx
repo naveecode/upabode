@@ -46,9 +46,9 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
     <div className="chat-room-page-wrapper">
       <ChatRoom 
         chatId={chat.id} 
-        initialMessages={chat.messages} 
-        currentUser={user} 
-        otherUser={otherUser} 
+        initialMessages={JSON.parse(JSON.stringify(chat.messages || []))} 
+        currentUser={JSON.parse(JSON.stringify(user))} 
+        otherUser={JSON.parse(JSON.stringify(otherUser))} 
       />
     </div>
   )

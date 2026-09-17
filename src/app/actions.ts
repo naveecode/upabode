@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma';
 import { getSession, setSession, clearSession } from '../lib/session';
 import { pusherServer } from '../lib/pusher';
 import { hashPassword, verifyPassword } from '../lib/password';
+import { validateEmail } from '../lib/emailValidator';
+import { checkRateLimit } from '../lib/rateLimiter';
 
 export async function updateProfile(formData: FormData) {
   const user = await getCurrentUser();
@@ -54,9 +56,18 @@ export async function registerUser(formData: FormData) {
   if (!handle) {
     return { error: 'Handle is required.' };
   }
-  if (!email || !email.includes('@')) {
-    return { error: 'Valid email address is required.' };
+  
+  const emailValidation = validateEmail(email);
+  if (!emailValidation.valid) {
+    return { error: emailValidation.error || 'Invalid email address.' };
   }
+
+  // Rate limiting to prevent bot flood
+  const regLimit = checkRateLimit(`reg-${handle}`, 4, 60000);
+  if (!regLimit.allowed) {
+    return { error: `Too many registration attempts. Please wait ${regLimit.retryAfterSeconds} seconds.` };
+  }
+
   if (!password || password.length < 6) {
     return { error: 'Password must be at least 6 characters.' };
   }
@@ -117,6 +128,12 @@ export async function loginUser(formData: FormData) {
   }
   if (!password) {
     return { error: 'Password is required.' };
+  }
+
+  // Rate limiting to prevent brute force attacks
+  const loginLimit = checkRateLimit(`login-${identifier}`, 5, 60000);
+  if (!loginLimit.allowed) {
+    return { error: `Too many login attempts. Please wait ${loginLimit.retryAfterSeconds} seconds before retrying.` };
   }
 
   try {
@@ -277,6 +294,19 @@ export async function sendMessage(
   if (!currentUser) return { error: 'Not authenticated.' };
 
   try {
+    // IDOR protection: Verify user is an enrolled participant in the chat
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { users: { select: { id: true } } }
+    });
+    if (!chat || !chat.users.some((u: any) => u.id === currentUser.id)) {
+      return { error: 'Unauthorized: You are not a participant in this transmission channel.' };
+    }
+
+    if (content && content.length > 5000) {
+      return { error: 'Transmission content exceeds permissible limits.' };
+    }
+
     // If voice note was passed as mediaUrl or voiceUrl
     const effectiveVoiceUrl = voiceUrl || (mediaUrl?.startsWith('data:audio') ? mediaUrl : null);
     const effectiveMediaUrl = effectiveVoiceUrl ? null : mediaUrl;
@@ -957,6 +987,15 @@ export async function signalCall(chatId: string, payload: any) {
   if (!currentUser) return { error: 'Not authenticated' };
 
   try {
+    // IDOR protection: Verify membership before triggering call signals
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { users: { select: { id: true } } }
+    });
+    if (!chat || !chat.users.some((u: any) => u.id === currentUser.id)) {
+      return { error: 'Unauthorized: Not a participant in this call channel.' };
+    }
+
     const { pusherServer } = await import('../lib/pusher');
     await pusherServer.trigger(`chat-${chatId}`, 'call-signal', {
       ...payload,
@@ -1030,5 +1069,62 @@ export async function getShareContacts() {
   } catch (err) {
     console.error('getShareContacts error:', err);
     return { success: false, users: [] };
+  }
+}
+
+export async function deleteAccount() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.' };
+
+  try {
+    const userId = currentUser.id;
+
+    // Use Prisma transaction to atomically cascade delete all user data
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete all user comments on reels/posts
+      await tx.reelComment.deleteMany({ where: { userId } });
+
+      // 2. Delete all user likes
+      await tx.like.deleteMany({ where: { userId } });
+
+      // 3. Delete all user saved posts
+      await tx.savedPost.deleteMany({ where: { userId } });
+
+      // 4. Delete user story views and stories
+      await tx.storyView.deleteMany({ where: { userId } });
+      await tx.story.deleteMany({ where: { authorId: userId } });
+
+      // 5. Delete all user notifications (both received and sent)
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.notification.deleteMany({ where: { fromId: userId } });
+
+      // 6. Delete all follows (as follower and following)
+      await tx.follow.deleteMany({ where: { followerId: userId } });
+      await tx.follow.deleteMany({ where: { followingId: userId } });
+
+      // 7. Delete all messages sent by user
+      await tx.message.deleteMany({ where: { senderId: userId } });
+
+      // 8. Find all posts created by user and delete their dependent comments/likes/saves
+      const userPosts = await tx.post.findMany({ where: { authorId: userId }, select: { id: true } });
+      const postIds = userPosts.map(p => p.id);
+      if (postIds.length > 0) {
+        await tx.reelComment.deleteMany({ where: { postId: { in: postIds } } });
+        await tx.like.deleteMany({ where: { postId: { in: postIds } } });
+        await tx.savedPost.deleteMany({ where: { postId: { in: postIds } } });
+        await tx.post.deleteMany({ where: { authorId: userId } });
+      }
+
+      // 9. Delete user record (implicit _ChatUsers rows will be cleaned up by Prisma)
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    // 10. Clear session cookie
+    await clearSession();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete account error:', error);
+    return { error: 'Failed to delete account. Please try again.' };
   }
 }

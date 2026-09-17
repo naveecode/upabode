@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app/actions'
 import { showToast } from './Toast'
+import { releaseVideoMemory } from '../lib/mediaMemoryManager'
 
 function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -63,8 +64,12 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
       { threshold: 0.6 }
     );
 
-    if (videoRef.current) observer.observe(videoRef.current);
-    return () => { if (videoRef.current) observer.disconnect(); };
+    const videoEl = videoRef.current;
+    if (videoEl) observer.observe(videoEl);
+    return () => {
+      observer.disconnect();
+      if (videoEl) releaseVideoMemory(videoEl);
+    };
   }, [playMedia]);
 
   const togglePlay = (e: React.MouseEvent) => {
@@ -173,20 +178,14 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
     <div 
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000', overflow: 'hidden' }} 
     >
-      {/* Ambient backdrop to fill letterbox areas naturally without zoom-cropping */}
-      <video
-        src={src}
-        loop
-        muted
-        playsInline
+      {/* Ambient backdrop to fill letterbox areas naturally without duplicate video decoders */}
+      <div
         style={{
           position: 'absolute',
           inset: 0,
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
-          filter: 'blur(40px) brightness(0.35)',
-          transform: 'scale(1.15)',
+          background: 'radial-gradient(circle at 50% 50%, rgba(35, 52, 77, 0.55) 0%, rgba(5, 10, 18, 0.98) 100%)',
           pointerEvents: 'none',
           zIndex: 1
         }}
@@ -843,38 +842,57 @@ export default function ReelViewer({
                 touchAction: 'pan-y'
               }}
             >
-              {/* Media Background */}
+              {/* Media Background with Active Windowing (Decaches offscreen RAM) */}
               <div className={(post as any).visualFilter || ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-                {post.mediaUrl ? (() => {
-                  const mediaList = post.mediaUrl.split(',');
-                  const safeUrl = mediaList[0];
-                  
-                  return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                    <VideoPlayer src={safeUrl} musicTrack={(post as any).musicTrack} />
-                  ) : (
-                    <img
-                      src={safeUrl}
-                      alt="Reel Media"
+                {Math.abs(idx - activeIdx) <= 1 ? (
+                  post.mediaUrl ? (() => {
+                    const mediaList = post.mediaUrl.split(',');
+                    const safeUrl = mediaList[0];
+                    
+                    return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
+                      <VideoPlayer src={safeUrl} musicTrack={(post as any).musicTrack} />
+                    ) : (
+                      <img
+                        src={safeUrl}
+                        alt="Reel Media"
+                        loading="lazy"
+                        decoding="async"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    );
+                  })() : (
+                    <div
+                      className={`post-media ${getMediaClass(post.mediaType)}`}
                       style={{
                         position: 'absolute',
                         inset: 0,
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover'
+                        pointerEvents: 'none'
                       }}
                     />
-                  );
-                })() : (
+                  )
+                ) : (
                   <div
-                    className={`post-media ${getMediaClass(post.mediaType)}`}
                     style={{
                       position: 'absolute',
                       inset: 0,
                       width: '100%',
                       height: '100%',
-                      pointerEvents: 'none'
+                      background: 'radial-gradient(circle at 50% 50%, #0c1829 0%, #050b14 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
-                  />
+                  >
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--earth)', animation: 'spin 1s linear infinite' }} />
+                  </div>
                 )}
               </div>
 
