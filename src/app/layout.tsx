@@ -66,7 +66,9 @@ export default async function RootLayout({
         <SplashLoader />
         <header className="topbar">
           <Link href="/" className="brand">
-            <span className="brand-mark"></span>
+            <span className="brand-mark">
+              <img src="/icon.png" alt="Upabode" width={38} height={38} />
+            </span>
             <span className="brand-name">Upabode</span>
           </Link>
           <div className="topbar-right flex items-center gap-3">

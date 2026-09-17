@@ -520,9 +520,6 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
             </div>
           )}
 
-          <span className="media-label">
-            Transmission #{post.id.substring(post.id.length - 4)}
-          </span>
           <div className={`gesture-feedback ${feedback ? "show" : ""}`}>
             {feedback}
           </div>

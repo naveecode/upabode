@@ -40,7 +40,7 @@ export default function NewChatSearch() {
       if (res && res.chatId) {
         setQuery('')
         setResults([])
-        router.push(`/chat/${res.chatId}`)
+        window.location.href = `/chat/${res.chatId}`
       }
     } catch (e) {
       console.error(e)

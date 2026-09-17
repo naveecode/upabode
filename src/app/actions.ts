@@ -952,5 +952,83 @@ export async function getPostById(postId: string) {
   }
 }
 
+export async function signalCall(chatId: string, payload: any) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
 
+  try {
+    const { pusherServer } = await import('../lib/pusher');
+    await pusherServer.trigger(`chat-${chatId}`, 'call-signal', {
+      ...payload,
+      senderId: currentUser.id,
+      senderName: currentUser.username || currentUser.handle || 'Astronaut',
+      timestamp: Date.now()
+    });
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to trigger call-signal:', err);
+    return { error: 'Signaling failed' };
+  }
+}
 
+export async function getShareContacts() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false, users: [] };
+
+  try {
+    const recentChats = await prisma.chat.findMany({
+      where: {
+        users: { some: { id: currentUser.id } }
+      },
+      include: {
+        users: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+        }
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 8
+    });
+
+    const contactMap = new Map<string, any>();
+    recentChats.forEach((c: any) => {
+      const other = c.users.find((u: any) => u.id !== currentUser.id);
+      if (other && !contactMap.has(other.id)) {
+        contactMap.set(other.id, other);
+      }
+    });
+
+    const following = await prisma.follows.findMany({
+      where: { followerId: currentUser.id },
+      include: {
+        following: {
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+        }
+      },
+      take: 12
+    });
+
+    following.forEach((f: any) => {
+      if (f.following && !contactMap.has(f.following.id)) {
+        contactMap.set(f.following.id, f.following);
+      }
+    });
+
+    if (contactMap.size < 5) {
+      const otherUsers = await prisma.user.findMany({
+        where: { id: { not: currentUser.id } },
+        select: { id: true, username: true, handle: true, avatarUrl: true, color: true },
+        take: 6
+      });
+      otherUsers.forEach((u: any) => {
+        if (!contactMap.has(u.id)) {
+          contactMap.set(u.id, u);
+        }
+      });
+    }
+
+    return { success: true, users: Array.from(contactMap.values()) };
+  } catch (err) {
+    console.error('getShareContacts error:', err);
+    return { success: false, users: [] };
+  }
+}

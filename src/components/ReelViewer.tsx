@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { toggleFollow, savePost, addReelComment } from '../app/actions'
+import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app/actions'
 import { showToast } from './Toast'
 
 function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
@@ -415,12 +415,30 @@ export default function ReelViewer({
   const [sharePostId, setSharePostId] = useState<string | null>(null)
   const [shareSearchQuery, setShareSearchQuery] = useState('')
   const [shareUsers, setShareUsers] = useState<any[]>([])
+  const [recentContacts, setRecentContacts] = useState<any[]>([])
   const [isSearchingShare, setIsSearchingShare] = useState(false)
+
+  // Fetch frequent / followed contacts whenever the share modal is opened
+  useEffect(() => {
+    if (sharePostId) {
+      getShareContacts().then(res => {
+        if (res?.success && res.users) {
+          setRecentContacts(res.users)
+          if (!shareSearchQuery) {
+            setShareUsers(res.users)
+          }
+        }
+      })
+    } else {
+      setShareSearchQuery('')
+      setShareUsers([])
+    }
+  }, [sharePostId])
 
   const handleShareSearch = async (q: string) => {
     setShareSearchQuery(q)
-    if (q.trim().length < 2) {
-      setShareUsers([])
+    if (q.trim().length < 1) {
+      setShareUsers(recentContacts)
       return
     }
     setIsSearchingShare(true)
@@ -430,6 +448,20 @@ export default function ReelViewer({
       setShareUsers(res.users)
     }
     setIsSearchingShare(false)
+  }
+
+  const handleCopyLink = () => {
+    if (!sharePostId) return
+    const url = `${window.location.origin}/reels?post=${sharePostId}`
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Reel link copied to clipboard! 📋')
+      }).catch(() => {
+        showToast('Link copied: ' + url)
+      })
+    } else {
+      showToast('Link: ' + url)
+    }
   }
 
   const handleShareToUser = async (userId: string) => {
@@ -1279,91 +1311,135 @@ export default function ReelViewer({
 
       {/* ───────── Share Modal Overlay ───────── */}
       {sharePostId && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 200,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          animation: 'fadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease-out'
-        }}>
-          <div style={{
-            background: 'var(--panel)',
-            border: '1px solid var(--line)',
-            borderRadius: '24px',
-            width: '100%',
-            maxWidth: '400px',
-            padding: '24px',
-            position: 'relative'
-          }}>
+        <div 
+          onClick={() => setSharePostId(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(16px)',
+            zIndex: 100000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) ease-out'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--panel-solid)',
+              border: '1px solid var(--line)',
+              borderRadius: '24px',
+              width: '100%',
+              maxWidth: '420px',
+              padding: '24px',
+              position: 'relative',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            }}
+          >
             <button
               onClick={() => setSharePostId(null)}
               style={{
                 position: 'absolute', top: '16px', right: '16px', background: 'none',
-                border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer'
+                border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer',
+                padding: '4px 8px'
               }}
             >✕</button>
             
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
               Transmit Reel
             </h3>
-            
-            <input
-              type="text"
-              placeholder="Search user by handle or name..."
-              value={shareSearchQuery}
-              onChange={(e) => handleShareSearch(e.target.value)}
+
+            {/* Quick Copy Link Action */}
+            <button
+              onClick={handleCopyLink}
               style={{
                 width: '100%',
                 padding: '12px 18px',
                 borderRadius: '100px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid var(--line)',
-                color: 'var(--text)',
-                outline: 'none',
-                marginBottom: '16px'
+                background: 'rgba(197, 160, 89, 0.12)',
+                border: '1px solid var(--earth)',
+                color: 'var(--earth)',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                marginBottom: '16px',
+                transition: '0.2s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
-            />
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(197, 160, 89, 0.2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(197, 160, 89, 0.12)')}
+            >
+              <span>🔗</span> Copy Reel Link
+            </button>
+            
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <input
+                type="text"
+                placeholder="Search astronaut by name or @handle..."
+                value={shareSearchQuery}
+                onChange={(e) => handleShareSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px 18px 12px 42px',
+                  borderRadius: '100px',
+                  background: 'rgba(28, 25, 20, 0.04)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  fontSize: '16px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}>
+                ⌕
+              </span>
+            </div>
+
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              {shareSearchQuery.trim() ? 'Search Results' : 'Following & Close Contacts'}
+            </div>
             
             {isSearchingShare ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>Scanning frequencies...</div>
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)', fontSize: '0.85rem' }}>Scanning frequencies...</div>
             ) : shareUsers.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
                 {shareUsers.map(u => (
                   <button
                     key={u.id}
                     onClick={() => handleShareToUser(u.id)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
-                      background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
-                      cursor: 'pointer', textAlign: 'left', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+                      background: 'rgba(28, 25, 20, 0.03)', borderRadius: '14px', border: '1px solid var(--line)',
+                      cursor: 'pointer', textAlign: 'left', transition: '0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(197, 160, 89, 0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(28, 25, 20, 0.03)'}
                   >
-                    <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
-                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username.charAt(0))}
+                    <div className={`user-avatar ${u.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem', flexShrink: 0 }}>
+                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username?.charAt(0))}
                     </div>
-                    <div>
-                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>@{u.handle}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</div>
+                      <div style={{ color: 'var(--earth)', fontSize: '0.74rem' }}>@{u.handle}</div>
                     </div>
-                    <div style={{ marginLeft: 'auto', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 700 }}>
+                    <div style={{ marginLeft: 'auto', background: 'var(--earth)', color: '#07111f', padding: '6px 14px', borderRadius: '100px', fontSize: '0.76rem', fontWeight: 700, flexShrink: 0 }}>
                       Send ↗
                     </div>
                   </button>
                 ))}
               </div>
-            ) : shareSearchQuery.length >= 2 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>No signals found.</div>
+            ) : shareSearchQuery.length >= 1 ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)', fontSize: '0.85rem' }}>No matching astronauts found.</div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)', fontSize: '0.85rem' }}>
-                Type a handle to transmit this reel directly to a secure channel.
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)', fontSize: '0.85rem' }}>
+                No recent contacts found. Type a handle to search.
               </div>
             )}
           </div>

@@ -66,14 +66,16 @@ export default function LoginPage() {
             gap: '10px',
             marginBottom: '8px'
           }}>
-            <span className="brand-mark" style={{ width: '36px', height: '36px' }}></span>
+            <span className="brand-mark" style={{ width: '38px', height: '38px' }}>
+              <img src="/icon.png" alt="Upabode" width={38} height={38} />
+            </span>
             <span style={{
               fontFamily: 'var(--font-space-grotesk)',
               fontSize: '2rem',
               fontWeight: 700,
               color: 'var(--text)',
               letterSpacing: '-0.03em'
-            }}>Orbit</span>
+            }}>Upabode</span>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
             Welcome back, cosmic explorer

@@ -4,7 +4,7 @@ import Pusher from 'pusher-js'
 import Link from 'next/link'
 import type { MediaConnection } from 'peerjs'
 import { UploadButton, useUploadThing } from './UploadButton'
-import { sendMessage, getMessageById, getPostById } from '../app/actions'
+import { sendMessage, getMessageById, getPostById, signalCall } from '../app/actions'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
 interface Message {
@@ -80,6 +80,9 @@ const PEER_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:global.stun.twilio.com:3478' }
     ]
   }
@@ -123,6 +126,12 @@ export default function ChatRoom({
   const [swappedPiP, setSwappedPiP] = useState(false)
   const [fullscreenMedia, setFullscreenMedia] = useState<string | null>(null)
   const [incomingCall, setIncomingCall] = useState<{ call: MediaConnection; isVideo: boolean } | null>(null)
+  const [incomingCallSignal, setIncomingCallSignal] = useState<{
+    senderId: string
+    senderName: string
+    callType: 'audio' | 'video'
+    peerId: string
+  } | null>(null)
   
   // Streams
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
@@ -263,6 +272,25 @@ export default function ChatRoom({
       })
     })
 
+    channel.bind('call-signal', async (data: any) => {
+      if (!data || data.senderId === currentUser.id) return
+
+      if (data.type === 'call-offer') {
+        setIncomingCallSignal({
+          senderId: data.senderId,
+          senderName: data.senderName || safeOtherUser.username,
+          callType: data.callType || 'audio',
+          peerId: data.peerId
+        })
+      } else if (data.type === 'call-answer') {
+        setCallStatus('connected')
+      } else if (data.type === 'call-ended' || data.type === 'call-rejected') {
+        setIncomingCallSignal(null)
+        setIncomingCall(null)
+        endCall(false)
+      }
+    })
+
     return () => {
       pusher.unsubscribe(`chat-${chatId}`)
     }
@@ -318,51 +346,70 @@ export default function ChatRoom({
 
   // Answer Incoming Call
   const handleAnswerCall = async () => {
-    if (!incomingCall) return
-    const call = incomingCall.call
-    activeCallRef.current = call
-    setCallType(incomingCall.isVideo ? 'video' : 'audio')
+    const isVideo = incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video'
+    const targetPeerId = incomingCallSignal?.peerId || `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+
+    setCallType(isVideo ? 'video' : 'audio')
     setIsInCall(true)
     setCallStatus('connecting')
-    setIncomingCall(null)
+    setIncomingCallSignal(null)
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: incomingCall.isVideo,
+        video: isVideo,
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       setLocalStream(stream)
-      call.answer(stream)
 
-      call.on('stream', (rStream) => {
-        setRemoteStream(rStream)
-        setCallStatus('connected')
+      // Signal caller via Pusher that call has been accepted
+      await signalCall(chatId, {
+        type: 'call-answer',
+        peerId: `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
       })
 
-      call.on('close', () => {
-        endCall()
-      })
-
-      call.on('error', () => {
-        endCall()
-      })
+      if (incomingCall?.call) {
+        incomingCall.call.answer(stream)
+        incomingCall.call.on('stream', (rStream: any) => {
+          setRemoteStream(rStream)
+          setCallStatus('connected')
+        })
+        incomingCall.call.on('close', () => endCall(true))
+        incomingCall.call.on('error', () => endCall(true))
+        activeCallRef.current = incomingCall.call
+      } else if (peerRef.current) {
+        const call = peerRef.current.call(targetPeerId, stream, {
+          metadata: { callType: isVideo ? 'video' : 'audio' }
+        })
+        activeCallRef.current = call
+        if (call) {
+          call.on('stream', (rStream: any) => {
+            setRemoteStream(rStream)
+            setCallStatus('connected')
+          })
+          call.on('close', () => endCall(true))
+          call.on('error', () => endCall(true))
+        }
+      }
+      setIncomingCall(null)
     } catch (err) {
       console.error('Failed to answer call:', err)
-      endCall()
+      endCall(true)
     }
   }
 
   // Reject Incoming Call
-  const handleRejectCall = () => {
+  const handleRejectCall = async () => {
     if (incomingCall) {
       incomingCall.call.close()
       setIncomingCall(null)
     }
+    setIncomingCallSignal(null)
+    await signalCall(chatId, { type: 'call-rejected' })
   }
 
   // Start Outgoing Call
   const startCall = async (type: 'audio' | 'video') => {
-    if (!peerRef.current || !safeOtherUser?.id) return
+    if (!safeOtherUser?.id) return
 
     setIsInCall(true)
     setCallType(type)
@@ -375,35 +422,40 @@ export default function ChatRoom({
       })
       setLocalStream(stream)
 
+      const myPeerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
       const targetPeerId = `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
-      const call = peerRef.current.call(targetPeerId, stream, {
-        metadata: { callType: type }
+
+      // Instantly alert recipient via Pusher
+      await signalCall(chatId, {
+        type: 'call-offer',
+        callType: type,
+        peerId: myPeerId
       })
-      activeCallRef.current = call
 
-      if (call) {
-        call.on('stream', (rStream) => {
-          setRemoteStream(rStream)
-          setCallStatus('connected')
+      if (peerRef.current) {
+        const call = peerRef.current.call(targetPeerId, stream, {
+          metadata: { callType: type }
         })
+        activeCallRef.current = call
 
-        call.on('close', () => {
-          endCall()
-        })
-
-        call.on('error', () => {
-          endCall()
-        })
+        if (call) {
+          call.on('stream', (rStream: any) => {
+            setRemoteStream(rStream)
+            setCallStatus('connected')
+          })
+          call.on('close', () => endCall(true))
+          call.on('error', () => endCall(true))
+        }
       }
     } catch (err) {
       console.error('Call initialization failed:', err)
       alert('Could not access camera/microphone. Please grant permissions.')
-      endCall()
+      endCall(true)
     }
   }
 
   // Terminate Call & Clean Up Hardware Tracks
-  const endCall = () => {
+  const endCall = async (notifyPeer = true) => {
     if (localStream) {
       localStream.getTracks().forEach(t => t.stop())
     }
@@ -423,6 +475,12 @@ export default function ChatRoom({
     setIsMuted(false)
     setIsVideoDisabled(false)
     setSwappedPiP(false)
+    setIncomingCall(null)
+    setIncomingCallSignal(null)
+
+    if (notifyPeer) {
+      await signalCall(chatId, { type: 'call-ended' })
+    }
   }
 
   // Toggle Mute Mic
@@ -649,23 +707,42 @@ export default function ChatRoom({
             ←
           </Link>
 
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '50%',
-            background: safeOtherUser.color === 'orange'
-              ? 'linear-gradient(135deg, var(--mars), #8a2be2)'
-              : safeOtherUser.color === 'blue'
-              ? 'linear-gradient(135deg, #00c6ff, #0072ff)'
-              : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 700,
-            fontSize: '1.05rem',
-            color: 'white',
-            border: '2px solid rgba(255,255,255,0.2)'
-          }}>
-            {safeOtherUser.avatarUrl?.startsWith?.('http') ? <img src={safeOtherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase() || '✦')}
+          <div 
+            className={`user-avatar ${safeOtherUser.color || 'green'}`}
+            style={{
+              width: '42px',
+              height: '42px',
+              minWidth: '42px',
+              minHeight: '42px',
+              maxWidth: '42px',
+              maxHeight: '42px',
+              aspectRatio: '1 / 1',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: safeOtherUser.color === 'orange'
+                ? 'linear-gradient(135deg, var(--mars), #8a2be2)'
+                : safeOtherUser.color === 'blue'
+                ? 'linear-gradient(135deg, #00c6ff, #0072ff)'
+                : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+              fontWeight: 700,
+              fontSize: '1.05rem',
+              color: 'white',
+              border: '2px solid rgba(255,255,255,0.2)'
+            }}
+          >
+            {safeOtherUser.avatarUrl?.startsWith?.('http') ? (
+              <img 
+                src={safeOtherUser.avatarUrl} 
+                style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', aspectRatio: '1 / 1', borderRadius: '50%', objectFit: 'cover', display: 'block' }} 
+                alt='avatar' 
+              />
+            ) : (
+              safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase() || '✦'
+            )}
           </div>
 
           <div>
@@ -724,7 +801,7 @@ export default function ChatRoom({
       </div>
 
       {/* ───────── Incoming Call Alert Modal ───────── */}
-      {incomingCall && (
+      {(incomingCall || incomingCallSignal) && (
         <div style={{
           position: 'absolute',
           top: '20px',
@@ -751,15 +828,15 @@ export default function ChatRoom({
             fontSize: '1.4rem',
             animation: 'pulse 1.5s infinite'
           }}>
-            {incomingCall.isVideo ? '📹' : '📞'}
+            {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? '📹' : '📞'}
           </div>
 
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-              Incoming {incomingCall.isVideo ? 'Video' : 'Audio'} Transmission
+              Incoming {(incomingCall ? incomingCall.isVideo : incomingCallSignal?.callType === 'video') ? 'Video' : 'Audio'} Transmission
             </div>
             <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>
-              From {safeOtherUser.username} (@{safeOtherUser.handle})
+              From {incomingCallSignal?.senderName || safeOtherUser.username} (@{safeOtherUser.handle})
             </div>
           </div>
 
@@ -828,14 +905,19 @@ export default function ChatRoom({
               <div style={{
                 width: '42px',
                 height: '42px',
+                minWidth: '42px',
+                minHeight: '42px',
                 borderRadius: '50%',
+                overflow: 'hidden',
+                aspectRatio: '1 / 1',
+                flexShrink: 0,
                 background: 'var(--earth)',
                 display: 'grid',
                 placeItems: 'center',
                 fontWeight: 700,
                 color: 'var(--background)'
               }}>
-                {safeOtherUser.avatarUrl?.startsWith?.('http') ? <img src={safeOtherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase())}
+                {safeOtherUser.avatarUrl?.startsWith?.('http') ? <img src={safeOtherUser.avatarUrl} style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', aspectRatio: '1 / 1', borderRadius: '50%', objectFit: 'cover', display: 'block' }} alt='avatar' /> : (safeOtherUser.avatarUrl || safeOtherUser.username?.charAt(0).toUpperCase())}
               </div>
               <div>
                 <div style={{ color: 'white', fontWeight: 700, fontSize: '1.05rem' }}>
@@ -913,7 +995,12 @@ export default function ChatRoom({
                 <div style={{
                   width: '120px',
                   height: '120px',
+                  minWidth: '120px',
+                  minHeight: '120px',
                   borderRadius: '50%',
+                  overflow: 'hidden',
+                  aspectRatio: '1 / 1',
+                  flexShrink: 0,
                   background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
                   display: 'grid',
                   placeItems: 'center',
@@ -923,7 +1010,7 @@ export default function ChatRoom({
                   boxShadow: '0 0 50px rgba(64, 201, 162, 0.4)',
                   animation: 'pulse 2s infinite'
                 }}>
-                  {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase())}
+                  {otherUser.avatarUrl?.startsWith?.('http') ? <img src={otherUser.avatarUrl} style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', aspectRatio: '1 / 1', borderRadius: '50%', objectFit: 'cover', display: 'block' }} alt='avatar' /> : (otherUser.avatarUrl || otherUser.username?.charAt(0).toUpperCase())}
                 </div>
                 <h2 style={{ color: 'white', fontSize: '1.4rem', marginBottom: '6px' }}>{otherUser.username}</h2>
                 <p style={{ color: 'var(--earth)', fontSize: '0.9rem' }}>

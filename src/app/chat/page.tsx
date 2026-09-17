@@ -100,10 +100,14 @@ export default async function ChatInbox() {
                 const lastMessage = chat.messages[0]
                 
                 return (
-                  <Link
+                  <a
                     href={`/chat/${chat.id}`}
                     key={chat.id}
                     className="chat-item"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      window.location.href = `/chat/${chat.id}`
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -144,7 +148,7 @@ export default async function ChatInbox() {
                         </div>
                       )}
                     </div>
-                  </Link>
+                  </a>
                 )
               })
             )}

@@ -41,8 +41,8 @@ function ThreadCommentItem({
   const [replyText, setReplyText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Foldable: nested branches (depth >= 1) start collapsed to keep threads neat
-  const [isCollapsed, setIsCollapsed] = useState(depth >= 1)
+  // Foldable: nested child branches can be collapsed/expanded. The comment itself is always shown!
+  const [isRepliesCollapsed, setIsRepliesCollapsed] = useState(false)
   const [showAllReplies, setShowAllReplies] = useState(depth > 0)
 
   // Get replies and sort by most active (most replies in sub-branch)
@@ -73,7 +73,7 @@ function ThreadCommentItem({
       if (res.success && res.comment) {
         setReplyText('')
         setIsReplying(false)
-        setIsCollapsed(false) // expand branch to see new reply
+        setIsRepliesCollapsed(false) // expand branch to see new reply
         setShowAllReplies(true)
         onCommentAdded(res.comment)
         showToast('Reply published')
@@ -117,21 +117,21 @@ function ThreadCommentItem({
       {/* Connecting Vertical Guide Line for Replies */}
       {depth > 0 && (
         <div 
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          title="Click to collapse branch"
+          onClick={() => sortedReplies.length > 0 && setIsRepliesCollapsed(!isRepliesCollapsed)}
+          title={sortedReplies.length > 0 ? (isRepliesCollapsed ? "Expand replies" : "Collapse replies") : undefined}
           style={{
             position: 'absolute',
             left: '-10px',
             top: '0px',
             bottom: '0px',
             width: '2px',
-            background: isCollapsed ? 'var(--earth)' : 'rgba(197, 160, 89, 0.25)',
-            cursor: 'pointer',
+            background: isRepliesCollapsed ? 'var(--earth)' : 'rgba(197, 160, 89, 0.25)',
+            cursor: sortedReplies.length > 0 ? 'pointer' : 'default',
             transition: 'background 0.2s',
             borderRadius: '2px'
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--earth)')}
-          onMouseLeave={e => (e.currentTarget.style.background = isCollapsed ? 'var(--earth)' : 'rgba(197, 160, 89, 0.25)')}
+          onMouseEnter={e => sortedReplies.length > 0 && (e.currentTarget.style.background = 'var(--earth)')}
+          onMouseLeave={e => (e.currentTarget.style.background = isRepliesCollapsed ? 'var(--earth)' : 'rgba(197, 160, 89, 0.25)')}
         />
       )}
 
@@ -186,11 +186,11 @@ function ThreadCommentItem({
 
           {sortedReplies.length > 0 && (
             <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
+              onClick={() => setIsRepliesCollapsed(!isRepliesCollapsed)}
               style={{
                 background: 'none',
                 border: 'none',
-                color: isCollapsed ? 'var(--earth)' : 'var(--muted)',
+                color: isRepliesCollapsed ? 'var(--earth)' : 'var(--muted)',
                 fontSize: '0.72rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -198,188 +198,115 @@ function ThreadCommentItem({
                 borderRadius: '4px',
                 flexShrink: 0
               }}
-              title={isCollapsed ? 'Expand thread' : 'Collapse thread'}
+              title={isRepliesCollapsed ? 'Expand replies' : 'Collapse replies'}
             >
-              {isCollapsed ? `[+${sortedReplies.length}]` : '[-]'}
+              {isRepliesCollapsed ? `[+${sortedReplies.length}]` : '[-]'}
             </button>
           )}
         </div>
 
-        {/* Comment Content (if not collapsed) */}
-        {!isCollapsed && (
-          <>
-            <div style={{
-              fontSize: '0.88rem',
-              lineHeight: 1.45,
-              color: 'var(--text)',
-              wordBreak: 'break-word',
-              paddingLeft: '34px',
-              marginBottom: '6px'
-            }}>
-              {comment.content}
-            </div>
+        {/* Comment Content - Always visible for every comment */}
+        <div style={{
+          fontSize: '0.88rem',
+          lineHeight: 1.45,
+          color: 'var(--text)',
+          wordBreak: 'break-word',
+          paddingLeft: '34px',
+          marginBottom: '6px'
+        }}>
+          {comment.content}
+        </div>
 
-            {/* Comment Actions: Reply toggle */}
-            <div style={{ paddingLeft: '34px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.74rem' }}>
-              <button
-                onClick={() => setIsReplying(!isReplying)}
+        {/* Comment Actions: Reply toggle */}
+        <div style={{ paddingLeft: '34px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.74rem' }}>
+          <button
+            onClick={() => setIsReplying(!isReplying)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: isReplying ? 'var(--earth)' : 'var(--muted)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 6px',
+              borderRadius: '6px',
+              transition: 'color 0.2s'
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            {isReplying ? 'Cancel' : 'Reply'}
+          </button>
+        </div>
+
+        {/* Inline Reply Form */}
+        {isReplying && (
+          <form 
+            onSubmit={handlePostReply} 
+            style={{ 
+              marginTop: '8px', 
+              width: '100%', 
+              boxSizing: 'border-box' 
+            }}
+          >
+            <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              alignItems: 'center', 
+              width: '100%', 
+              minWidth: 0,
+              boxSizing: 'border-box'
+            }}>
+              <input
+                type="text"
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                placeholder={`Reply to @${comment.user.handle}...`}
                 style={{
-                  background: 'none',
+                  flex: 1,
+                  minWidth: 0,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '8px 14px',
+                  borderRadius: '100px',
+                  background: 'var(--panel-solid)',
+                  border: '1px solid var(--earth)',
+                  color: 'var(--text)',
+                  fontSize: '16px', // Prevents iOS zoom
+                  outline: 'none'
+                }}
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting || !replyText.trim()}
+                style={{
+                  flexShrink: 0,
+                  padding: '8px 16px',
+                  borderRadius: '100px',
+                  background: 'var(--earth)',
+                  color: '#07111f',
                   border: 'none',
-                  color: isReplying ? 'var(--earth)' : 'var(--muted)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 6px',
-                  borderRadius: '6px',
-                  transition: 'color 0.2s'
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: isSubmitting ? 'wait' : 'pointer'
                 }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                {isReplying ? 'Cancel' : 'Reply'}
+                {isSubmitting ? '...' : 'Reply'}
               </button>
             </div>
-
-            {/* Inline Reply Form - Form and input are guaranteed not to overflow */}
-            {isReplying && (
-              <form 
-                onSubmit={handlePostReply} 
-                style={{ 
-                  marginTop: '8px', 
-                  width: '100%', 
-                  boxSizing: 'border-box' 
-                }}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '8px', 
-                  alignItems: 'center', 
-                  width: '100%', 
-                  minWidth: 0,
-                  boxSizing: 'border-box'
-                }}>
-                  <input
-                    type="text"
-                    value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
-                    placeholder={`Reply to @${comment.user.handle}...`}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '8px 14px',
-                      borderRadius: '100px',
-                      background: 'var(--panel-solid)',
-                      border: '1px solid var(--earth)',
-                      color: 'var(--text)',
-                      fontSize: '16px', // Prevents iOS zoom
-                      outline: 'none'
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !replyText.trim()}
-                    style={{
-                      flexShrink: 0,
-                      padding: '8px 16px',
-                      borderRadius: '100px',
-                      background: 'var(--earth)',
-                      color: '#07111f',
-                      border: 'none',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      cursor: isSubmitting ? 'wait' : 'pointer'
-                    }}
-                  >
-                    {isSubmitting ? '...' : 'Reply'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Collapsed Branches Trigger Pill */}
-            {sortedReplies.length > 0 && isCollapsed && (
-              <div style={{ paddingLeft: '34px', marginTop: '6px' }}>
-                <button
-                  onClick={() => setIsCollapsed(false)}
-                  style={{
-                    background: 'rgba(197, 160, 89, 0.1)',
-                    border: '1px solid rgba(197, 160, 89, 0.3)',
-                    color: 'var(--earth)',
-                    padding: '4px 12px',
-                    borderRadius: '100px',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  💬 Show {sortedReplies.length} {sortedReplies.length === 1 ? 'reply' : 'replies'}
-                </button>
-              </div>
-            )}
-
-            {/* Render Nested Replies with clamped indentation */}
-            {sortedReplies.length > 0 && !isCollapsed && (
-              <div 
-                style={{ 
-                  marginLeft: indentMarginLeft, 
-                  paddingLeft: '10px', 
-                  borderLeft: '1.5px solid rgba(197, 160, 89, 0.2)',
-                  width: 'calc(100% - ' + indentMarginLeft + ')',
-                  boxSizing: 'border-box'
-                }}
-              >
-                {visibleReplies.map(child => (
-                  <ThreadCommentItem
-                    key={child.id}
-                    comment={child}
-                    childrenMap={childrenMap}
-                    postId={postId}
-                    currentUserId={currentUserId}
-                    depth={depth + 1}
-                    onCommentAdded={onCommentAdded}
-                  />
-                ))}
-
-                {/* Show more replies toggle if root comment has extensive branches */}
-                {depth === 0 && !showAllReplies && sortedReplies.length > 2 && (
-                  <div style={{ marginTop: '8px' }}>
-                    <button
-                      onClick={() => setShowAllReplies(true)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--earth)',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        padding: '4px 8px'
-                      }}
-                    >
-                      ↳ Show {sortedReplies.length - 2} more replies...
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+          </form>
         )}
 
-        {/* When branch is collapsed, show simple expand preview pill */}
-        {isCollapsed && sortedReplies.length > 0 && (
-          <div style={{ paddingLeft: '34px', marginTop: '4px' }}>
+        {/* Collapsed Branches Trigger Pill */}
+        {sortedReplies.length > 0 && isRepliesCollapsed && (
+          <div style={{ paddingLeft: '34px', marginTop: '6px' }}>
             <button
-              onClick={() => setIsCollapsed(false)}
+              onClick={() => setIsRepliesCollapsed(false)}
               style={{
-                background: 'rgba(197, 160, 89, 0.08)',
-                border: '1px solid rgba(197, 160, 89, 0.25)',
+                background: 'rgba(197, 160, 89, 0.1)',
+                border: '1px solid rgba(197, 160, 89, 0.3)',
                 color: 'var(--earth)',
                 padding: '4px 12px',
                 borderRadius: '100px',
@@ -393,6 +320,51 @@ function ThreadCommentItem({
             >
               💬 Show {sortedReplies.length} {sortedReplies.length === 1 ? 'reply' : 'replies'}
             </button>
+          </div>
+        )}
+
+        {/* Render Nested Replies with clamped indentation */}
+        {sortedReplies.length > 0 && !isRepliesCollapsed && (
+          <div 
+            style={{ 
+              marginLeft: indentMarginLeft, 
+              paddingLeft: '10px', 
+              borderLeft: '1.5px solid rgba(197, 160, 89, 0.2)',
+              width: 'calc(100% - ' + indentMarginLeft + ')',
+              boxSizing: 'border-box'
+            }}
+          >
+            {visibleReplies.map(child => (
+              <ThreadCommentItem
+                key={child.id}
+                comment={child}
+                childrenMap={childrenMap}
+                postId={postId}
+                currentUserId={currentUserId}
+                depth={depth + 1}
+                onCommentAdded={onCommentAdded}
+              />
+            ))}
+
+            {/* Show more replies toggle if root comment has extensive branches */}
+            {depth === 0 && !showAllReplies && sortedReplies.length > 2 && (
+              <div style={{ marginTop: '8px' }}>
+                <button
+                  onClick={() => setShowAllReplies(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--earth)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '4px 8px'
+                  }}
+                >
+                  ↳ Show {sortedReplies.length - 2} more replies...
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

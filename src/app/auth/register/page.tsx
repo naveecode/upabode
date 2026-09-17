@@ -93,14 +93,16 @@ export default function RegisterPage() {
             gap: '10px',
             marginBottom: '8px'
           }}>
-            <span className="brand-mark" style={{ width: '32px', height: '32px' }}></span>
+            <span className="brand-mark" style={{ width: '36px', height: '36px' }}>
+              <img src="/icon.png" alt="Upabode" width={36} height={36} />
+            </span>
             <span style={{
               fontFamily: 'var(--font-space-grotesk)',
               fontSize: '1.8rem',
               fontWeight: 700,
               color: 'var(--text)',
               letterSpacing: '-0.03em'
-            }}>Orbit</span>
+            }}>Upabode</span>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>
             Establish your identity in the quantum network

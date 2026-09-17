@@ -32,8 +32,19 @@ export default function MobileNav() {
 
   useEffect(() => {
     setVisualIndex(safeIndex)
-    if (!isReelsPage) {
+    if (isReelsPage) {
+      // Keep menu visible for 2.8 seconds when entering reels so users can continue navigating
+      setReelsNavRevealed(true)
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = setTimeout(() => {
+        setReelsNavRevealed(false)
+      }, 2800)
+    } else {
       setReelsNavRevealed(false)
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+    }
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
     }
   }, [safeIndex, isReelsPage])
 
@@ -42,7 +53,7 @@ export default function MobileNav() {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
     hideTimeoutRef.current = setTimeout(() => {
       setReelsNavRevealed(false)
-    }, 4500)
+    }, 3500)
   }
 
   // Directional Swipe handling
@@ -104,7 +115,7 @@ export default function MobileNav() {
           padding-bottom: env(safe-area-inset-bottom, 8px);
           overflow: hidden;
           box-sizing: border-box;
-          transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
@@ -116,7 +127,7 @@ export default function MobileNav() {
           width: ${100 / tabs.length}%;
           height: 24px;
           pointer-events: none;
-          transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+          transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 1;
         }
 
@@ -150,7 +161,7 @@ export default function MobileNav() {
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), color 0.3s ease;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
           transform: translateY(0);
           color: var(--muted);
           opacity: 0.75;
@@ -167,7 +178,7 @@ export default function MobileNav() {
           font-size: 0.68rem;
           font-weight: 500;
           margin-top: 3px;
-          transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
           color: var(--muted);
           opacity: 0.75;
         }
