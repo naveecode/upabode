@@ -59,6 +59,7 @@ model Story {
   id        String      @id @default(cuid())
   mediaUrl  String
   content   String?
+  musicUrl  String?
   expiresAt DateTime
   authorId  String
   author    User        @relation(fields: [authorId], references: [id])

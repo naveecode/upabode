@@ -843,7 +843,7 @@ export async function markNotificationsRead() {
 
 // ───────── STORIES (STATUS) ACTIONS ─────────
 
-export async function createStory(mediaUrl: string, content?: string) {
+export async function createStory(mediaUrl: string, content?: string, musicUrl?: string) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: 'Not authenticated.' };
 
@@ -855,6 +855,7 @@ export async function createStory(mediaUrl: string, content?: string) {
       data: {
         mediaUrl,
         content: content || null,
+        musicUrl: musicUrl || null,
         expiresAt,
         authorId: currentUser.id,
       },

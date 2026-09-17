@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createPost } from '../app/actions'
-import { UploadButton, useUploadThing } from './UploadButton'
+import { useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
 import CameraCapture from './CameraCapture'
 import CreateRichPostModal from './CreateRichPostModal'
@@ -19,7 +19,52 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [showRichTextModal, setShowRichTextModal] = useState(false)
   const [musicTrack, setMusicTrack] = useState('')
   const [visualFilter, setVisualFilter] = useState('')
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false)
+  const [isUploadingCustomMusic, setIsUploadingCustomMusic] = useState(false)
   const { startUpload, isUploading } = useUploadThing("mediaUploader")
+
+  const handleGalleryPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : []
+    if (files.length === 0) return
+    setIsUploadingGallery(true)
+    showToast('Optimizing & uploading media...')
+    try {
+      const res = await startUpload(files)
+      if (res && res.length > 0) {
+        const newUrls = res.map((r: any) => {
+          const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video')
+          return isVideo ? `${r.url}#video` : r.url
+        })
+        setMediaUrls(prev => [...prev, ...newUrls])
+        setIsOpen(true)
+        showToast(newUrls.length > 1 ? 'Carousel frames attached!' : 'Media attached! Choose format.')
+      }
+    } catch (err: any) {
+      showToast(`Upload failed: ${err.message}`)
+    } finally {
+      setIsUploadingGallery(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleCustomMusicPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : []
+    if (files.length === 0) return
+    setIsUploadingCustomMusic(true)
+    showToast('Uploading custom soundtrack...')
+    try {
+      const res = await startUpload(files)
+      if (res && res[0]) {
+        setMusicTrack(res[0].url)
+        showToast('Custom audio soundtrack attached!')
+      }
+    } catch (err: any) {
+      showToast(`Audio upload failed: ${err.message}`)
+    } finally {
+      setIsUploadingCustomMusic(false)
+      e.target.value = ''
+    }
+  }
 
   const atmospheres = [
     { id: 'aurora', label: 'Aurora', emoji: '🌌' },
@@ -151,19 +196,51 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
         <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />
       ) : !isOpen && mediaUrls.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0 10px' }}>
-          <div style={{ 
-            width: '90px', height: '90px', borderRadius: '50%', 
-            background: 'linear-gradient(135deg, var(--earth), var(--yellow))', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            boxShadow: '0 12px 40px rgba(197, 160, 89, 0.3)', 
-            color: '#fff', fontSize: '2.6rem', position: 'relative', cursor: 'pointer',
-            transition: 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
-          }}
-          onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08) translateY(-4px)'}
-          onMouseOut={e => e.currentTarget.style.transform = 'scale(1) translateY(0)'}
-          onClick={() => setShowCamera(true)}
+          {/* Modern Aperture Camera Button */}
+          <div 
+            title="Open Camera"
+            style={{ 
+              width: '92px', 
+              height: '92px', 
+              borderRadius: '50%', 
+              background: 'radial-gradient(circle at 35% 30%, #1e3a5f 0%, #0d1e34 70%, #061120 100%)', 
+              border: '2px solid rgba(64, 201, 162, 0.75)',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              boxShadow: '0 12px 36px rgba(64, 201, 162, 0.35), inset 0 0 20px rgba(64, 201, 162, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.4)', 
+              position: 'relative', 
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.transform = 'scale(1.08) translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 16px 44px rgba(64, 201, 162, 0.5), inset 0 0 25px rgba(64, 201, 162, 0.3)';
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.transform = 'scale(1) translateY(0)';
+              e.currentTarget.style.boxShadow = '0 12px 36px rgba(64, 201, 162, 0.35), inset 0 0 20px rgba(64, 201, 162, 0.2)';
+            }}
+            onClick={() => setShowCamera(true)}
           >
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            {/* Outer subtle dashed orbit ring */}
+            <div style={{
+              position: 'absolute',
+              inset: '-6px',
+              borderRadius: '50%',
+              border: '1.5px dashed rgba(64, 201, 162, 0.4)',
+              pointerEvents: 'none'
+            }} />
+            
+            {/* Modern High-Tech Camera Graphic */}
+            <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="13" width="36" height="27" rx="9" fill="rgba(255, 255, 255, 0.08)" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="2.2" />
+              <path d="M16 13V10.5C16 9.12 17.12 8 18.5 8H29.5C30.88 8 32 9.12 32 10.5V13" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="35" cy="18" r="2.2" fill="#40c9a2" />
+              <circle cx="24" cy="26.5" r="9" stroke="var(--earth)" strokeWidth="2.2" />
+              <circle cx="24" cy="26.5" r="5.5" fill="rgba(64, 201, 162, 0.25)" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" />
+              <circle cx="25.5" cy="25" r="2" fill="#ffffff" />
+            </svg>
           </div>
           
           <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
@@ -187,28 +264,70 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             </select>
           </div>
 
-          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <div style={{ overflow: 'hidden', height: '36px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--line)' }}>
-              <UploadButton
-                endpoint="mediaUploader"
-                content={{ button() { return 'Gallery' }, allowedContent() { return '' } }}
-                appearance={{
-                  button: { width: 'auto', padding: '0 16px', height: '100%', background: 'transparent', color: 'var(--text)', border: 'none', cursor: 'pointer', outline: 'none', fontSize: '0.85rem', fontWeight: 600 },
-                  allowedContent: { display: 'none' }, container: { margin: 0, padding: 0 }
-                }}
-                onClientUploadComplete={(res: any) => {
-                  if (res) {
-                    const newUrls = res.map((r: any) => {
-                      const isVideo = r.name?.match(/\.(mp4|webm|ogg|mov)$/i) || r.type?.includes('video')
-                      return isVideo ? `${r.url}#video` : r.url
-                    })
-                    setMediaUrls(prev => [...prev, ...newUrls])
-                    setIsOpen(true)
-                    showToast('Media attached! Choose format.')
-                  }
-                }}
+          {/* Gallery Button positioned directly below the camera */}
+          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '9px 24px',
+                borderRadius: '100px',
+                background: isUploadingGallery 
+                  ? 'rgba(64, 201, 162, 0.25)' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
+                border: '1.5px solid rgba(255, 255, 255, 0.16)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+                color: isUploadingGallery ? 'var(--earth)' : 'var(--text)',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                cursor: isUploadingGallery ? 'wait' : 'pointer',
+                transition: 'all 0.25s ease',
+                backdropFilter: 'blur(10px)',
+                userSelect: 'none'
+              }}
+              onMouseOver={e => {
+                if (!isUploadingGallery) {
+                  e.currentTarget.style.borderColor = 'var(--earth)';
+                  e.currentTarget.style.background = 'rgba(64, 201, 162, 0.12)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
+              }}
+              onMouseOut={e => {
+                if (!isUploadingGallery) {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                disabled={isUploadingGallery}
+                style={{ display: 'none' }}
+                onChange={handleGalleryPick}
               />
-            </div>
+              {isUploadingGallery ? (
+                <>
+                  <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+                  </svg>
+                  <span>Attaching media...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span>Open Gallery</span>
+                </>
+              )}
+            </label>
           </div>
           <h2 style={{ marginTop: '20px', color: 'var(--text)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }}>Capture & Broadcast</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '6px' }}>Share photos or videos across planetary horizons</p>
@@ -445,22 +564,42 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
                       </select>
                       
                       {/* Custom Music Upload */}
-                      <div style={{ width: '120px', overflow: 'hidden' }} title="Upload custom audio">
-                        <UploadButton
-                          endpoint="mediaUploader"
-                          content={{ button() { return '🎵 Upload' }, allowedContent() { return '' } }}
-                          appearance={{
-                            button: { width: '100%', height: '100%', padding: '0 10px', fontSize: '0.85rem', background: 'rgba(64, 201, 162, 0.15)', color: 'var(--earth)', border: '1px solid var(--earth)', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 },
-                            allowedContent: { display: 'none' }, container: { margin: 0, padding: 0, height: '100%' }
-                          }}
-                          onClientUploadComplete={(res: any) => {
-                            if (res && res[0]) {
-                              setMusicTrack(res[0].url);
-                              showToast('Custom audio track uploaded!');
-                            }
-                          }}
+                      <label 
+                        title="Upload custom audio track"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '0 14px',
+                          height: '42px',
+                          borderRadius: '8px',
+                          background: isUploadingCustomMusic ? 'rgba(64, 201, 162, 0.3)' : 'rgba(64, 201, 162, 0.15)',
+                          border: '1px solid var(--earth)',
+                          color: 'var(--earth)',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          cursor: isUploadingCustomMusic ? 'wait' : 'pointer',
+                          whiteSpace: 'nowrap',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="audio/*"
+                          style={{ display: 'none' }}
+                          disabled={isUploadingCustomMusic}
+                          onChange={handleCustomMusicPick}
                         />
-                      </div>
+                        {isUploadingCustomMusic ? (
+                          <>
+                            <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" /></svg>
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>🎵 Upload</>
+                        )}
+                      </label>
                     </div>
                   </div>
                 </div>

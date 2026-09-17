@@ -1067,17 +1067,16 @@ h1 {
 
 /* ───────── Page Transitions ───────── */
 .page-content {
-  animation: pageIn 0.3s ease;
+  animation: pageFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
 }
 
-@keyframes pageIn {
+@keyframes pageFadeIn {
   from {
-    opacity: 0;
-    transform: translateY(8px);
+    opacity: 0.85;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

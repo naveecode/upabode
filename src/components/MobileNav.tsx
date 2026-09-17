@@ -56,8 +56,17 @@ export default function MobileNav() {
     }, 3500)
   }
 
-  // Directional Swipe handling
-  const touchStartRef = useRef<{ x: number; y: number; startIndex: number } | null>(null)
+  // Prefetch all tab routes on mount for instant, zero-lag section switching
+  useEffect(() => {
+    tabs.forEach(tab => {
+      try {
+        router.prefetch(tab.href)
+      } catch (e) {}
+    })
+  }, [router])
+
+  // Directional Swipe handling over bottom navigation bar
+  const touchStartRef = useRef<{ x: number; y: number; startIndex: number; hasMoved: boolean } | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isReelsPage && reelsNavRevealed) {
@@ -67,7 +76,8 @@ export default function MobileNav() {
     touchStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
-      startIndex: visualIndex
+      startIndex: visualIndex,
+      hasMoved: false
     }
   }
 
@@ -77,9 +87,11 @@ export default function MobileNav() {
     const deltaX = touch.clientX - touchStartRef.current.x
     const deltaY = touch.clientY - touchStartRef.current.y
 
-    // Directional swipe: Horizontal swipe moves with respect to direction regardless of position
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      const step = -Math.round(deltaX / 48)
+    // Directional swipe: Moving thumb towards the right moves selection right; moving thumb left moves selection left
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
+      touchStartRef.current.hasMoved = true
+      // Sensitivity: 36px per tab step in the swiping direction
+      const step = Math.round(deltaX / 36)
       const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
       if (targetIndex !== visualIndex) {
         setVisualIndex(targetIndex)
@@ -89,8 +101,9 @@ export default function MobileNav() {
 
   const handleTouchEnd = () => {
     if (!touchStartRef.current) return
+    const hadMoved = touchStartRef.current.hasMoved
     touchStartRef.current = null
-    if (visualIndex !== safeIndex) {
+    if (hadMoved && visualIndex !== safeIndex) {
       router.push(tabs[visualIndex].href)
     }
   }
@@ -115,6 +128,7 @@ export default function MobileNav() {
           padding-bottom: env(safe-area-inset-bottom, 8px);
           overflow: hidden;
           box-sizing: border-box;
+          touch-action: pan-x;
           transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
