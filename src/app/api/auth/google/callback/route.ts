@@ -120,7 +120,12 @@ export async function GET(request: Request) {
     const isNativeApp = /MultigramApp|OrbitApp/i.test(userAgent);
     const isAndroid = /android/i.test(userAgent);
 
+    const cookieHeader = `orbit-session=${token}; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+
     if (isNativeApp || isAndroid) {
+      const intentUrl = `intent://auth-callback?session_token=${encodeURIComponent(token)}&returnUrl=${encodeURIComponent(returnUrl)}#Intent;scheme=multigram;package=com.upabode.orbit;end`;
+      const fallbackSchemeUrl = `multigram://auth-callback?session_token=${encodeURIComponent(token)}&returnUrl=${encodeURIComponent(returnUrl)}`;
+
       const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -128,26 +133,33 @@ export async function GET(request: Request) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Logging into Multigram...</title>
   <style>
-    body { background: #07111F; color: #40C9A2; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-    .spinner { width: 44px; height: 44px; border: 3px solid rgba(64,201,162,0.2); border-top-color: #40C9A2; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    body { background: #07111F; color: #F3F7FB; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px; box-sizing: border-box; text-align: center; }
+    .spinner { width: 50px; height: 50px; border: 4px solid rgba(64,201,162,0.2); border-top-color: #40C9A2; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 24px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .btn { display: inline-block; background: #40C9A2; color: #07111F; font-weight: 700; padding: 14px 28px; border-radius: 14px; text-decoration: none; font-size: 16px; margin-top: 20px; box-shadow: 0 4px 14px rgba(64,201,162,0.3); }
+    .btn-sub { display: block; color: #91A5BA; font-size: 13px; text-decoration: underline; margin-top: 16px; }
   </style>
 </head>
 <body>
   <div class="spinner"></div>
-  <p>Connecting to Multigram...</p>
+  <h2 style="margin: 0 0 8px 0; font-size: 22px;">Multigram Authenticated</h2>
+  <p style="color: #91A5BA; margin: 0; font-size: 15px;">Entering Orbit...</p>
+
+  <a id="intent-btn" href="${intentUrl}" class="btn">Open Multigram App</a>
+  <a href="${fallbackSchemeUrl}" class="btn-sub">Tap here if app didn't open automatically</a>
+
   <script>
     try {
-      window.location.replace("multigram://auth-callback?session_token=" + encodeURIComponent("${token}") + "&returnUrl=" + encodeURIComponent("${returnUrl}"));
-    } catch(e) {}
-    try {
-      window.location.replace("orbit://auth-callback?session_token=" + encodeURIComponent("${token}") + "&returnUrl=" + encodeURIComponent("${returnUrl}"));
+      window.location.href = "${intentUrl}";
     } catch(e) {}
     setTimeout(function() {
-      try { window.close(); } catch(e) {}
-      // Fallback for mobile browsers or if deep link was already consumed
-      window.location.replace("${destination}");
-    }, 600);
+      try {
+        window.location.href = "${fallbackSchemeUrl}";
+      } catch(e) {}
+    }, 400);
+    setTimeout(function() {
+      try { window.location.replace("${destination}"); } catch(e) {}
+    }, 1500);
   </script>
 </body>
 </html>`;
@@ -155,11 +167,16 @@ export async function GET(request: Request) {
       return new NextResponse(html, {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
+          'Set-Cookie': cookieHeader,
         },
       });
     }
 
-    return NextResponse.redirect(destination);
+    return NextResponse.redirect(destination, {
+      headers: {
+        'Set-Cookie': cookieHeader,
+      },
+    });
   } catch (err) {
     console.error('Google OAuth Error:', err);
     return NextResponse.redirect(`${baseUrl}/auth/login?error=OAuthException`);

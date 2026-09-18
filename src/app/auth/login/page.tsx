@@ -18,6 +18,43 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
 
+  React.useEffect(() => {
+    let active = true;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user && active) {
+            window.location.href = returnUrl && !returnUrl.includes('/auth/') ? returnUrl : '/';
+          }
+        }
+      } catch {}
+    };
+
+    checkAuth();
+
+    const onFocus = () => {
+      checkAuth();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [returnUrl]);
+
+  React.useEffect(() => {
+    if (isGoogleConnecting) {
+      const timer = setTimeout(() => {
+        setIsGoogleConnecting(false);
+      }, 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [isGoogleConnecting]);
+
   const handleGoogleLogin = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isGoogleConnecting) return;
@@ -91,6 +128,22 @@ function LoginForm() {
               Securing quantum identity credentials...
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsGoogleConnecting(false)}
+            style={{
+              marginTop: '12px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: '#fff',
+              padding: '8px 20px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.85rem'
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
 
