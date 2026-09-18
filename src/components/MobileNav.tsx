@@ -27,13 +27,26 @@ export default function MobileNav() {
 
   const [visualIndex, setVisualIndex] = useState(safeIndex)
   const isReelsPage = pathname.startsWith('/reels')
-  const [reelsMenuExpanded, setReelsMenuExpanded] = useState(false)
+  // isShrunkToMenu determines if the bottom panel has morphed into the floating menu pill
+  const [isShrunkToMenu, setIsShrunkToMenu] = useState(false)
   const autoCollapseTimer = useRef<NodeJS.Timeout | null>(null)
 
+  // Sync active index & manage 3-second delay on reels before whirlpool menu morph
   useEffect(() => {
     setVisualIndex(safeIndex)
-    if (!isReelsPage) {
-      setReelsMenuExpanded(false)
+    if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+
+    if (isReelsPage) {
+      // Keep bottom navigation visible for 3 seconds after entering Reels
+      setIsShrunkToMenu(false)
+      autoCollapseTimer.current = setTimeout(() => {
+        setIsShrunkToMenu(true)
+      }, 3000)
+    } else {
+      setIsShrunkToMenu(false)
+    }
+
+    return () => {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
     }
   }, [safeIndex, isReelsPage])
@@ -47,30 +60,29 @@ export default function MobileNav() {
     })
   }, [router])
 
+  // Open menu and reveal full bottom bar
   const triggerReelsMenu = () => {
-    setReelsMenuExpanded(true)
-    haptic(8)
+    setIsShrunkToMenu(false)
+    haptic(10)
     playTabTick()
     if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+    // Keep open for 4.5 seconds then whirlpool back to menu pill
     autoCollapseTimer.current = setTimeout(() => {
-      setReelsMenuExpanded(false)
-    }, 3800)
+      setIsShrunkToMenu(true)
+    }, 4500)
   }
 
-  // Touch scrubbing / directional swipe handling over the bottom navigation bar
-  const touchStartRef = useRef<{ x: number; y: number; startIndex: number; hasMoved: boolean } | null>(null)
+  // Touch scrubbing / directional swipe handling: strictly 1-step per swipe
+  const touchStartRef = useRef<{ x: number; y: number; startIndex: number; hasStepped: boolean } | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isReelsPage) {
-      if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
-      autoCollapseTimer.current = setTimeout(() => setReelsMenuExpanded(false), 4500)
-    }
+    if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
     const touch = e.touches[0]
     touchStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
       startIndex: visualIndex,
-      hasMoved: false
+      hasStepped: false
     }
   }
 
@@ -80,62 +92,137 @@ export default function MobileNav() {
     const deltaX = touch.clientX - touchStartRef.current.x
     const deltaY = touch.clientY - touchStartRef.current.y
 
-    // Directional swipe: Moving thumb towards the right moves selection right; moving thumb left moves selection left
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
-      touchStartRef.current.hasMoved = true
-      const step = Math.round(deltaX / 32)
-      const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
-      if (targetIndex !== visualIndex) {
-        setVisualIndex(targetIndex)
-        haptic(8)
-        playTabTick()
-        router.push(tabs[targetIndex].href)
+    // Directional swipe: one step per swipe gesture (threshold 26px)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 26) {
+      if (!touchStartRef.current.hasStepped) {
+        touchStartRef.current.hasStepped = true
+        const step = deltaX > 0 ? 1 : -1
+        const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
+        if (targetIndex !== visualIndex) {
+          setVisualIndex(targetIndex)
+          haptic(10)
+          playTabTick()
+          router.push(tabs[targetIndex].href)
+        }
       }
     }
   }
 
   const handleTouchEnd = () => {
     touchStartRef.current = null
+    // If on reels, restart 3s timer before whirlpool collapsing to menu
+    if (isReelsPage) {
+      if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+      autoCollapseTimer.current = setTimeout(() => {
+        setIsShrunkToMenu(true)
+      }, 3000)
+    }
   }
 
   const handleTabClick = (idx: number) => {
     if (idx !== visualIndex) {
       setVisualIndex(idx)
-      haptic(8)
+      haptic(10)
       playTabTick()
     }
     if (isReelsPage) {
       if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
-      autoCollapseTimer.current = setTimeout(() => setReelsMenuExpanded(false), 2000)
+      autoCollapseTimer.current = setTimeout(() => setIsShrunkToMenu(true), 3000)
     }
   }
 
   return (
     <>
       <style>{`
+        /* Adaptable, non-deforming bottom bar for all screen sizes and gesture insets */
         .mobile-tabs-wave {
           position: fixed;
           bottom: 0;
-          left: 0;
-          right: 0;
-          width: 100vw;
-          max-width: 100vw;
-          height: 68px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 100%;
+          max-width: min(540px, 100vw);
+          min-height: 64px;
+          height: auto;
           background: ${isReelsPage ? 'rgba(7, 17, 31, 0.88)' : 'var(--panel-solid)'};
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           display: flex;
           align-items: center;
           border-top: 1px solid ${isReelsPage ? 'rgba(255, 255, 255, 0.12)' : 'rgba(28, 25, 20, 0.08)'};
-          box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.12);
+          box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.18);
           z-index: 1000;
-          padding-bottom: env(safe-area-inset-bottom, 8px);
+          padding-top: 6px;
+          padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
           overflow: hidden;
           box-sizing: border-box;
           touch-action: pan-x;
-          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, filter 0.35s ease;
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
+
+        /* Gentle Magic Whirlpool Animations */
+        @keyframes whirlpoolWrap {
+          0% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1) rotate(0deg);
+            filter: blur(0px);
+          }
+          50% {
+            opacity: 0.5;
+            transform: translateX(-50%) scale(0.65) rotate(120deg);
+            filter: blur(3px);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.15) rotate(260deg);
+            filter: blur(8px);
+            pointer-events: none;
+          }
+        }
+
+        @keyframes whirlpoolUnwrap {
+          0% {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.2) rotate(-180deg);
+            filter: blur(8px);
+          }
+          65% {
+            opacity: 0.85;
+            transform: translateX(-50%) scale(1.04) rotate(12deg);
+            filter: blur(1px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1) rotate(0deg);
+            filter: blur(0px);
+          }
+        }
+
+        @keyframes whirlpoolPillSpawn {
+          0% {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.2) rotate(180deg);
+            filter: blur(6px);
+          }
+          70% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1.08) rotate(-8deg);
+            filter: blur(0px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1) rotate(0deg);
+          }
+        }
+
+        .mobile-tabs-wave.whirlpool-active {
+          animation: whirlpoolWrap 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .mobile-tabs-wave.whirlpool-opening {
+          animation: whirlpoolUnwrap 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
         
         /* The sliding cavity dock */
         .tab-cavity-slider {
@@ -166,6 +253,7 @@ export default function MobileNav() {
           align-items: center;
           justify-content: center;
           height: 100%;
+          min-height: 48px;
           position: relative;
           z-index: 2;
           color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
@@ -182,11 +270,11 @@ export default function MobileNav() {
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
           transform: translateY(0);
           color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
-          opacity: 0.8;
+          opacity: 0.85;
         }
 
         .tab-item.active .tab-icon {
-          transform: translateY(4px) scale(1.15);
+          transform: translateY(2px) scale(1.15);
           color: var(--earth);
           opacity: 1;
           filter: drop-shadow(0 2px 8px rgba(197, 160, 89, 0.45));
@@ -195,22 +283,22 @@ export default function MobileNav() {
         .tab-label {
           font-size: 0.68rem;
           font-weight: 500;
-          margin-top: 3px;
+          margin-top: 2px;
           transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
-          opacity: 0.8;
+          opacity: 0.85;
         }
 
         .tab-item.active .tab-label {
           color: var(--earth);
           font-weight: 700;
-          transform: translateY(3px);
+          transform: translateY(1px);
           opacity: 1;
         }
       `}</style>
 
-      {/* In Reels Mode: Sleek Almost-Transparent Floating Menu Pill */}
-      {isReelsPage && !reelsMenuExpanded && (
+      {/* In Reels Mode: Sleek Floating Transparent Menu Pill with Whirlpool Appearance */}
+      {isReelsPage && isShrunkToMenu && (
         <button
           type="button"
           onClick={triggerReelsMenu}
@@ -219,14 +307,13 @@ export default function MobileNav() {
             position: 'fixed',
             bottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
             left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(7, 17, 31, 0.35)',
+            background: 'rgba(7, 17, 31, 0.4)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.18)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
             borderRadius: '100px',
             padding: '7px 18px',
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'rgba(255, 255, 255, 0.9)',
             fontSize: '0.74rem',
             fontWeight: 700,
             letterSpacing: '0.04em',
@@ -238,7 +325,7 @@ export default function MobileNav() {
             boxShadow: '0 8px 30px rgba(0, 0, 0, 0.45)',
             userSelect: 'none',
             WebkitTapHighlightColor: 'transparent',
-            animation: 'fadeIn 0.25s ease'
+            animation: 'whirlpoolPillSpawn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -250,14 +337,9 @@ export default function MobileNav() {
         </button>
       )}
 
-      {/* Navigation Bar (Full bar on all pages, slides down in reels when collapsed) */}
+      {/* Navigation Bar (Full bar on all pages; swirls down in reels when collapsed) */}
       <nav 
-        className="mobile-tabs-wave"
-        style={{
-          transform: isReelsPage
-            ? (reelsMenuExpanded ? 'translateY(0)' : 'translateY(115%)')
-            : 'translateY(0)'
-        }}
+        className={`mobile-tabs-wave ${isReelsPage && isShrunkToMenu ? 'whirlpool-active' : (isReelsPage ? 'whirlpool-opening' : '')}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

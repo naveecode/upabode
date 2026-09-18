@@ -6,6 +6,34 @@ import { addThreadComment } from '../app/actions'
 import { showToast } from './Toast'
 import { haptic, playToggleTick } from '../lib/soundAndHaptics'
 
+function renderWithMentions(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(@[a-zA-Z0-9_]{3,30})/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@') && part.length > 3) {
+      const handle = part.slice(1);
+      return (
+        <Link
+          key={i}
+          href={`/profile/${handle}`}
+          style={{
+            color: 'var(--earth)',
+            fontWeight: 600,
+            textDecoration: 'none',
+            borderRadius: '4px',
+            padding: '0 2px',
+            background: 'rgba(64, 201, 162, 0.1)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 interface CommentNode {
   id: string
   content: string
@@ -219,7 +247,7 @@ function ThreadCommentItem({
           paddingLeft: '34px',
           marginBottom: '6px'
         }}>
-          {comment.content}
+          {renderWithMentions(comment.content)}
         </div>
 
         {/* Comment Actions: Reply toggle */}

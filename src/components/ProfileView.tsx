@@ -8,6 +8,34 @@ import { updateProfile, updateAvatar, toggleFollow, startChat, deleteAccount, up
 import { UploadButton, useUploadThing } from './UploadButton'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
+function renderWithMentions(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(@[a-zA-Z0-9_]{3,30})/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@') && part.length > 3) {
+      const handle = part.slice(1);
+      return (
+        <Link
+          key={i}
+          href={`/profile/${handle}`}
+          style={{
+            color: 'var(--earth)',
+            fontWeight: 600,
+            textDecoration: 'none',
+            borderRadius: '4px',
+            padding: '0 2px',
+            background: 'rgba(64, 201, 162, 0.1)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 interface ProfileViewProps {
   user: any
   savedPosts: any[]
@@ -67,7 +95,13 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
     ? (user?.handle || 'Cosmic Traveler')
     : (user?.username || '')
 
-  const [editForm, setEditForm] = useState({ username: initialUsername, handle: user?.handle || '' })
+  const [editForm, setEditForm] = useState({
+    username: initialUsername,
+    handle: user?.handle || '',
+    title: user?.title || '',
+    bio: user?.bio || '',
+    location: user?.location || '',
+  })
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
   const { startUpload } = useUploadThing('mediaUploader', {
@@ -126,6 +160,9 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
       const fd = new FormData()
       fd.append('username', editForm.username.trim())
       fd.append('handle', editForm.handle.trim())
+      fd.append('title', editForm.title.trim())
+      fd.append('bio', editForm.bio.trim())
+      fd.append('location', editForm.location.trim())
       const res = await updateProfile(fd)
       if (res.error) {
         setEditStatus(res.error)
@@ -239,17 +276,47 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
         </div>
 
         <div style={{ flex: 1, minWidth: '200px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+          {/* 1. Display Name & 2. Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px', flexWrap: 'wrap' }}>
             <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.5rem', margin: 0, fontWeight: 700, wordBreak: 'break-word' }}>
               {user.username?.startsWith('http') ? user.handle : user.username}
             </h1>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(197, 160, 89, 0.15)', color: 'var(--earth)', padding: '3px 10px', borderRadius: '100px', fontWeight: 700 }}>
-              Astronaut
-            </span>
+            {user.title && (
+              <span style={{
+                fontSize: '0.74rem',
+                background: 'rgba(64, 201, 162, 0.15)',
+                color: 'var(--earth)',
+                border: '1px solid rgba(64, 201, 162, 0.3)',
+                padding: '3px 12px',
+                borderRadius: '100px',
+                fontWeight: 700,
+                letterSpacing: '0.04em'
+              }}>
+                {user.title}
+              </span>
+            )}
           </div>
-          <div style={{ color: 'var(--earth)', fontSize: '0.88rem', marginBottom: '6px' }}>
+
+          {/* 3. Handle */}
+          <div style={{ color: 'var(--earth)', fontSize: '0.88rem', marginBottom: '6px', fontWeight: 600 }}>
             @{user.handle}
           </div>
+
+          {/* 4. Bio */}
+          {user.bio && (
+            <div style={{
+              color: 'rgba(255, 255, 255, 0.92)',
+              fontSize: '0.88rem',
+              lineHeight: 1.45,
+              marginBottom: '8px',
+              whiteSpace: 'pre-line',
+              wordBreak: 'break-word'
+            }}>
+              {renderWithMentions(user.bio)}
+            </div>
+          )}
+
+          {/* 5. Location */}
           {user.location && (
             <div style={{ color: 'var(--muted)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -353,7 +420,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                     position: 'absolute', top: '110%', right: '0', background: 'var(--panel-solid)', border: '1px solid var(--line)', borderRadius: '12px',
                     padding: '8px', zIndex: 100, minWidth: '180px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '4px'
                   }}>
-                    <button onClick={() => { setActiveTab('settings'); setIsEditing(true); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Parameters</button>
+                    <button onClick={() => { setActiveTab('settings'); setIsEditing(true); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Edit Profile & Title</button>
                     <button onClick={() => { setActiveTab('saved'); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Private Saves</button>
                     <button onClick={() => { handleLogoutClick(); setShowProfileOptions(false) }} style={{ textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.85rem' }}>Logout</button>
                     <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
@@ -881,6 +948,105 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
               <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
                 Unique handle used for mentions, search, and direct links.
               </div>
+            </div>
+
+            {/* Custom Title Designation Input (Max 30 Chars) */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label htmlFor="title-input" style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                  Custom Title / Designation
+                </label>
+                <span style={{ fontSize: '0.72rem', color: editForm.title.length > 25 ? 'var(--danger)' : 'var(--muted)', fontWeight: 600 }}>
+                  {editForm.title.length}/30
+                </span>
+              </div>
+              <input 
+                id="title-input"
+                type="text"
+                maxLength={30}
+                value={editForm.title} 
+                onChange={e => setEditForm({...editForm, title: e.target.value})} 
+                placeholder="e.g. Quantum Creator, Sound Architect"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: 'var(--background)',
+                  border: '1.5px solid var(--earth)',
+                  borderRadius: '10px',
+                  color: 'var(--text)',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  outline: 'none'
+                }}
+              />
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
+                Displayed as an authentic cosmic badge next to your name (replaces generic Astronaut label).
+              </div>
+            </div>
+
+            {/* Biography Input (Max 160 Chars) */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label htmlFor="bio-input" style={{ fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+                  Biography & Transmissions Manifesto
+                </label>
+                <span style={{ fontSize: '0.72rem', color: editForm.bio.length > 140 ? 'var(--danger)' : 'var(--muted)', fontWeight: 600 }}>
+                  {editForm.bio.length}/160
+                </span>
+              </div>
+              <textarea 
+                id="bio-input"
+                rows={3}
+                maxLength={160}
+                value={editForm.bio} 
+                onChange={e => setEditForm({...editForm, bio: e.target.value})} 
+                placeholder="Share your missions, explorations, frequencies, or @handles..."
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: 'var(--background)',
+                  border: '1.5px solid var(--earth)',
+                  borderRadius: '10px',
+                  color: 'var(--text)',
+                  fontSize: '15px',
+                  lineHeight: 1.45,
+                  outline: 'none',
+                  resize: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+              <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: '4px' }}>
+                Supports clickable @mentions to fellow travelers across the network.
+              </div>
+            </div>
+
+            {/* Location Input */}
+            <div style={{ padding: '16px 20px', background: 'var(--panel-solid)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+              <label htmlFor="location-input" style={{ display: 'block', fontSize: '0.74rem', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 700 }}>
+                Planetary Sector / Location
+              </label>
+              <input 
+                id="location-input"
+                type="text"
+                maxLength={50}
+                value={editForm.location} 
+                onChange={e => setEditForm({...editForm, location: e.target.value})} 
+                placeholder="e.g. Kepler-452b Outpost, Earth"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '12px 14px',
+                  background: 'var(--background)',
+                  border: '1.5px solid var(--earth)',
+                  borderRadius: '10px',
+                  color: 'var(--text)',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  outline: 'none'
+                }}
+              />
             </div>
 
             {/* UI Scaling Selector */}

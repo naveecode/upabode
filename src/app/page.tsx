@@ -142,6 +142,29 @@ export default async function Home() {
       </section>
 
       <aside className="right-panel">
+        {/* Multigram Neural Studio (Mars Sphere) */}
+        <div className="info-card coming-soon-card">
+          <span className="coming-label" style={{ background: 'rgba(237, 118, 86, 0.2)', color: 'var(--mars)', border: '1px solid rgba(237, 118, 86, 0.35)' }}>
+            COMING SOON • NEURAL AI
+          </span>
+          <h2>Multigram Neural Studio</h2>
+          <p>
+            Automated 60s highlight distillation, neural audio mastering, and instant AI spatial enhancement calibrated for Deep Space transmissions.
+          </p>
+        </div>
+
+        {/* Volumetric Spatial Reels (Moon Sphere) */}
+        <div className="info-card coming-soon-card moon-card">
+          <span className="coming-label" style={{ background: 'rgba(197, 160, 89, 0.2)', color: 'var(--earth)', border: '1px solid rgba(197, 160, 89, 0.35)' }}>
+            COMING SOON • VOLUMETRIC
+          </span>
+          <h2>Volumetric Spatial Reels</h2>
+          <p>
+            Immersive depth parallax reels calibrated for real-time mobile gyroscope motion and spatial ambient projection.
+          </p>
+        </div>
+
+        {/* Gesture Protocol */}
         <div className="info-card">
           <h2>Gesture protocol</h2>
           <p>
@@ -150,7 +173,7 @@ export default async function Home() {
 
           <div className="instruction">
             <span className="instruction-icon">→</span>
-            <span>Swipe right to follow an astronaut</span>
+            <span>Swipe right to follow a creator</span>
           </div>
 
           <div className="instruction">
@@ -171,18 +194,6 @@ export default async function Home() {
             </span>
             <span>Long press to pin note at coordinate</span>
           </div>
-        </div>
-
-        <div className="info-card coming-soon-card">
-          <span className="coming-label">Orbital Relay</span>
-          <h2>Mars Channel</h2>
-          <p>The first red planet transmissions are synchronizing across Deep Space Network relay nodes.</p>
-        </div>
-
-        <div className="info-card coming-soon-card moon-card">
-          <span className="coming-label">Lagrange Point 1</span>
-          <h2>Moon Channel</h2>
-          <p>Sub-second lunar relay stations calibrated and receiving ambient transmissions.</p>
         </div>
       </aside>
       <Toast />

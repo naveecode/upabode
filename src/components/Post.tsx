@@ -8,6 +8,34 @@ import { haptic, playLikePop, playToggleTick, playTabTick } from "../lib/soundAn
 import Link from "next/link";
 import ThreadCommentTree from "./ThreadCommentTree";
 
+export function renderWithMentions(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(@[a-zA-Z0-9_]{3,30})/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@') && part.length > 3) {
+      const handle = part.slice(1);
+      return (
+        <Link
+          key={i}
+          href={`/profile/${handle}`}
+          style={{
+            color: 'var(--earth)',
+            fontWeight: 600,
+            textDecoration: 'none',
+            borderRadius: '4px',
+            padding: '0 2px',
+            background: 'rgba(64, 201, 162, 0.1)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -597,15 +625,42 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
           <span>{comments.length} {comments.length === 1 ? 'Reply' : 'Replies'}</span>
         </button>
 
+        {/* Dedicated Share Button */}
+        <button
+          onClick={async () => {
+            setShowShareModal(true);
+            const { getRecentChatContacts } = await import('../app/actions');
+            const res = await getRecentChatContacts();
+            if (res.success && res.users) {
+              setShareUsers(res.users);
+            }
+          }}
+          className="action-button"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          title="Share Transmission"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          <span>Share</span>
+        </button>
+
+        {/* Signal Button with Auto-Media Forwarding to Author Chat */}
         <button
           onClick={async () => {
             if (!currentUserId) {
               window.location.href = '/auth/login';
               return;
             }
-            const { startChat } = await import('../app/actions');
+            const { startChat, shareReelToChat } = await import('../app/actions');
+            showToast('Opening secure channel & transmitting card...');
             const res = await startChat(post.authorId);
             if (res && res.chatId) {
+              await shareReelToChat(post.id, res.chatId);
               window.location.href = `/chat/${res.chatId}`;
             } else {
               window.location.href = '/chat';
@@ -630,7 +685,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
         </div>
         {!isThreadPost && (
           <p className="caption">
-            <strong>@{post.author?.handle}</strong> {post.content}
+            <strong>@{post.author?.handle}</strong> {renderWithMentions(post.content)}
           </p>
         )}
         {mediaList.length === 1 && (mediaList[0].match(/\.(mp4|webm|ogg|mov)$/i) || mediaList[0].includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video') && (

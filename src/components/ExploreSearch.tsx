@@ -20,7 +20,7 @@ export default function ExploreSearch({
   const searchParams = useSearchParams()
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
-  const [activeFilter, setActiveFilter] = useState<'all' | 'reels' | 'carousel' | 'people'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'reels' | 'texts' | 'carousel' | 'people'>('all')
   const [postsList, setPostsList] = useState<any[]>(initialPosts)
   const [isSearching, setIsSearching] = useState(false)
   const [searchedUsers, setSearchedUsers] = useState<any[]>([])
@@ -104,13 +104,14 @@ export default function ExploreSearch({
 
   const isVideoPost = (p: any) => p.mediaType === 'reel' || p.mediaType === 'video' || (p.mediaUrl && (p.mediaUrl.match(/\.(mp4|webm|ogg|mov)$/i) || p.mediaUrl.includes('#video')));
   const isCarouselPost = (p: any) => p.mediaUrl && p.mediaUrl.includes(',');
+  const isTextPost = (p: any) => p.mediaType === 'thread' || (!p.mediaUrl && Boolean(p.content));
 
   const rawPosts = hasSearched ? searchedPosts : postsList;
   const displayPosts = rawPosts.filter((p: any) => {
-    // Only visual media in Explore
-    if (p.mediaType === 'thread' && !p.mediaUrl) return false;
     if (activeFilter === 'reels') return isVideoPost(p);
-    if (activeFilter === 'carousel') return isCarouselPost(p) || (!isVideoPost(p) && p.mediaUrl);
+    if (activeFilter === 'texts') return isTextPost(p);
+    if (activeFilter === 'carousel') return isCarouselPost(p) || (!isVideoPost(p) && !isTextPost(p) && p.mediaUrl);
+    // 'all' preserves visual media AND rich texts
     return true;
   });
 
@@ -193,7 +194,7 @@ export default function ExploreSearch({
           {[
             {
               id: 'all',
-              label: 'All Media',
+              label: 'All Transmissions',
               icon: (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
               )
@@ -206,6 +207,13 @@ export default function ExploreSearch({
               )
             },
             {
+              id: 'texts',
+              label: 'Rich Texts',
+              icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              )
+            },
+            {
               id: 'carousel',
               label: 'Carousels & Photos',
               icon: (
@@ -214,7 +222,7 @@ export default function ExploreSearch({
             },
             {
               id: 'people',
-              label: 'Astronauts',
+              label: 'Creators',
               icon: (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               )
@@ -259,7 +267,7 @@ export default function ExploreSearch({
         <div style={{ marginBottom: '36px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
-              {hasSearched ? `Astronauts Matching "${query}"` : 'Active Explorers'}
+              {hasSearched ? `Creators Matching "${query}"` : 'Active Explorers'}
             </h2>
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
               {displayUsers.length} discovered
@@ -374,11 +382,17 @@ export default function ExploreSearch({
       )}
 
       {/* ───────── Visual & Dossier Discovery Grid ───────── */}
-      {(activeFilter === 'all' || activeFilter === 'media' || activeFilter === 'threads') && (
+      {activeFilter !== 'people' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
-              {activeFilter === 'threads' ? `Dossiers (${activeFolder})` : hasSearched ? `Transmissions Matching "${query}"` : 'Transmissions Mosaic'}
+              {activeFilter === 'texts'
+                ? (hasSearched ? `Rich Texts Matching "${query}"` : 'Cosmic Dossiers & Rich Texts')
+                : activeFilter === 'reels'
+                ? (hasSearched ? `Reels Matching "${query}"` : 'Spatial Reels Gallery')
+                : activeFilter === 'carousel'
+                ? (hasSearched ? `Carousels Matching "${query}"` : 'Carousels & Imagery')
+                : (hasSearched ? `Transmissions Matching "${query}"` : 'Transmissions Mosaic')}
             </h2>
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
               {displayPosts.length} units
@@ -397,22 +411,119 @@ export default function ExploreSearch({
               <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', marginBottom: '12px' }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
               </div>
-              No transmissions found{activeFilter === 'threads' ? ` in folder "${activeFolder}"` : query ? ` for "${query}"` : ''}. Try exploring other filters.
+              <div>No transmissions found{query ? ` for "${query}"` : ''}. Try exploring other filters.</div>
             </div>
           ) : (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: '14px',
+              gridTemplateColumns: activeFilter === 'reels'
+                ? 'repeat(auto-fill, minmax(180px, 1fr))'
+                : activeFilter === 'texts'
+                ? 'repeat(auto-fill, minmax(280px, 1fr))'
+                : 'repeat(auto-fill, minmax(230px, 1fr))',
+              gap: '16px',
               gridAutoFlow: 'dense'
             }}>
               {displayPosts.map((post, idx) => {
-                // Every 7th post becomes a 2x2 featured tile if grid supports it
-                const isFeatured = idx % 7 === 0 && displayPosts.length > 4
-
                 const isVideo = isVideoPost(post)
                 const isCarousel = isCarouselPost(post)
+                const isText = isTextPost(post)
                 const safeMediaUrl = post.mediaUrl ? post.mediaUrl.split(',')[0] : ''
+
+                // If this is a rich text transmission, render it as pure typography card (NOT image)
+                if (isText && (activeFilter === 'texts' || (!safeMediaUrl && !isVideo))) {
+                  return (
+                    <div
+                      key={post.id}
+                      onClick={() => openPostModal(post)}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '20px',
+                        background: 'linear-gradient(145deg, rgba(14, 25, 43, 0.85), rgba(6, 12, 23, 0.95))',
+                        border: '1px solid var(--line)',
+                        padding: '20px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        minHeight: '230px',
+                        cursor: 'pointer',
+                        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+                        transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, border-color 0.25s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)'
+                        e.currentTarget.style.borderColor = 'var(--earth)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)'
+                        e.currentTarget.style.borderColor = 'var(--line)'
+                      }}
+                    >
+                      <div>
+                        {/* Sector badge & rich text icon */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                          <span style={{
+                            padding: '3px 10px',
+                            borderRadius: '100px',
+                            background: 'rgba(64, 201, 162, 0.15)',
+                            border: '1px solid var(--line)',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            color: 'var(--earth)',
+                            textTransform: 'uppercase'
+                          }}>
+                            {post.channel || 'dossier'}
+                          </span>
+                          <span style={{ color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span>Rich Text</span>
+                          </span>
+                        </div>
+
+                        {/* Text Content */}
+                        <p style={{
+                          fontSize: '0.94rem',
+                          lineHeight: 1.55,
+                          color: '#e6edf3',
+                          fontFamily: 'var(--font-space-grotesk)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 5,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          margin: 0
+                        }}>
+                          {post.content}
+                        </p>
+                      </div>
+
+                      {/* Footer: Author & Metrics */}
+                      <div style={{ marginTop: '18px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '24px', height: '24px', fontSize: '0.68rem' }}>
+                            {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
+                          </div>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text)', fontWeight: 600 }}>
+                            @{post.author?.handle}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px', fontSize: '0.72rem', color: 'var(--muted)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--danger)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            {post.likes?.length || 0}
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            {post.reelComments?.length || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                // Reels or Visual Media Cards
+                const isFeatured = (activeFilter === 'all') && idx % 7 === 0 && displayPosts.length > 4 && !isVideo
 
                 const handleCardClick = () => {
                   if (isVideo) {
@@ -430,7 +541,8 @@ export default function ExploreSearch({
                       position: 'relative',
                       borderRadius: '20px',
                       overflow: 'hidden',
-                      aspectRatio: '1',
+                      // Fashionable portrait rectangle (9:16) for reels, square for photos
+                      aspectRatio: isVideo ? '9 / 16' : '1',
                       gridColumn: isFeatured ? 'span 2' : 'span 1',
                       gridRow: isFeatured ? 'span 2' : 'span 1',
                       border: '1px solid var(--line)',
@@ -448,11 +560,11 @@ export default function ExploreSearch({
                       e.currentTarget.style.zIndex = '1'
                     }}
                   >
-                    {/* Media Thumbnail Rendering */}
+                    {/* Media Thumbnail Rendering with Frame Grab */}
                     {isVideo ? (
                       <video
-                        src={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.001`}
-                        poster={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.001`}
+                        src={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.5`}
+                        poster={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.5`}
                         preload="metadata"
                         muted
                         playsInline
@@ -461,7 +573,7 @@ export default function ExploreSearch({
                         onMouseLeave={(e) => {
                           const v = e.target as HTMLVideoElement
                           v.pause()
-                          v.currentTime = 0
+                          v.currentTime = 0.5
                         }}
                       />
                     ) : safeMediaUrl ? (
@@ -517,7 +629,7 @@ export default function ExploreSearch({
                         fontWeight: 700,
                         zIndex: 10
                       }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         <span>Reel</span>
                       </div>
                     )}
@@ -545,11 +657,11 @@ export default function ExploreSearch({
                       </div>
                     )}
 
-                    {/* Instagram-style Hover/Permanent Overlay */}
+                    {/* Editorial Overlay */}
                     <div style={{
                       position: 'absolute',
                       inset: 0,
-                      background: 'linear-gradient(180deg, transparent 40%, rgba(4, 10, 20, 0.95) 90%)',
+                      background: 'linear-gradient(180deg, transparent 45%, rgba(4, 10, 20, 0.95) 90%)',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'flex-end',
@@ -565,18 +677,20 @@ export default function ExploreSearch({
                         </span>
                       </div>
 
-                      <p style={{
-                        fontSize: '0.8rem',
-                        color: 'rgba(255, 255, 255, 0.9)',
-                        lineHeight: 1.35,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        margin: '0 0 6px 0'
-                      }}>
-                        {post.content}
-                      </p>
+                      {post.content && (
+                        <p style={{
+                          fontSize: '0.8rem',
+                          color: 'rgba(255, 255, 255, 0.9)',
+                          lineHeight: 1.35,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          margin: '0 0 6px 0'
+                        }}>
+                          {post.content}
+                        </p>
+                      )}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

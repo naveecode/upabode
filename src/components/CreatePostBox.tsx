@@ -6,6 +6,7 @@ import { useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
 import CameraCapture from './CameraCapture'
 import CreateRichPostModal from './CreateRichPostModal'
+import VideoTrimmerModal from './VideoTrimmerModal'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
@@ -17,6 +18,7 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [isOpen, setIsOpen] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const [showRichTextModal, setShowRichTextModal] = useState(false)
+  const [pendingTrimmingVideo, setPendingTrimmingVideo] = useState<File | null>(null)
   const [musicTrack, setMusicTrack] = useState('')
   const [visualFilter, setVisualFilter] = useState('')
   const [isUploadingGallery, setIsUploadingGallery] = useState(false)
@@ -26,6 +28,33 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const handleGalleryPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : []
     if (files.length === 0) return
+
+    // Strict 60s limit check on video uploads
+    const videoFile = files.find(f => f.type.startsWith('video/') || f.name.match(/\.(mp4|webm|ogg|mov)$/i))
+    if (videoFile) {
+      const dur = await new Promise<number>((resolve) => {
+        try {
+          const v = document.createElement('video')
+          v.preload = 'metadata'
+          v.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(v.src)
+            resolve(v.duration || 0)
+          }
+          v.onerror = () => resolve(0)
+          v.src = URL.createObjectURL(videoFile)
+        } catch {
+          resolve(0)
+        }
+      })
+
+      if (dur > 60) {
+        showToast('Video exceeds 60-second limit. Opening Trimmer Studio...')
+        setPendingTrimmingVideo(videoFile)
+        e.target.value = ''
+        return
+      }
+    }
+
     setIsUploadingGallery(true)
     showToast('Optimizing & uploading media...')
     try {
@@ -751,6 +780,33 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
         </div>
       )}
       {showRichTextModal && <CreateRichPostModal onClose={() => setShowRichTextModal(false)} />}
+      {pendingTrimmingVideo && (
+        <VideoTrimmerModal
+          videoFile={pendingTrimmingVideo}
+          onCancel={() => setPendingTrimmingVideo(null)}
+          onTrimComplete={async (trimmedFile, selectedMusic) => {
+            setPendingTrimmingVideo(null)
+            setIsUploadingGallery(true)
+            showToast('Uploading 60s trimmed video...')
+            try {
+              const res = await startUpload([trimmedFile])
+              if (res && res[0]) {
+                setMediaUrls(prev => [...prev, `${res[0].url}#video`])
+                setPublishFormat('reel')
+                if (selectedMusic) {
+                  setMusicTrack(selectedMusic)
+                }
+                setIsOpen(true)
+                showToast('60s video attached successfully!')
+              }
+            } catch (err: any) {
+              showToast(`Upload failed: ${err.message}`)
+            } finally {
+              setIsUploadingGallery(false)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

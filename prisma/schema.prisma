@@ -19,6 +19,8 @@ model User {
   avatarUrl String?
   color     String?  
   location  String?
+  title     String?
+  bio       String?
   onboarded Boolean  @default(false)
   createdAt DateTime @default(now())
 

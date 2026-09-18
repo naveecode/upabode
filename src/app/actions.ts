@@ -15,13 +15,22 @@ export async function updateProfile(formData: FormData) {
   const username = (formData.get('username') as string || '').trim();
   let handle = (formData.get('handle') as string || '').trim().toLowerCase();
   if (handle.startsWith('@')) handle = handle.substring(1);
+  const title = (formData.get('title') as string || '').trim().slice(0, 30);
+  const bio = (formData.get('bio') as string || '').trim().slice(0, 160);
+  const location = (formData.get('location') as string || '').trim().slice(0, 50);
   
   if (handle.length < 3) return { error: 'Handle must be at least 3 characters' };
 
   try {
     await prisma.user.update({
       where: { id: user.id },
-      data: { username, handle }
+      data: {
+        username,
+        handle,
+        title: title || null,
+        bio: bio || null,
+        location: location || null,
+      }
     });
     return { success: true };
   } catch(e) {
@@ -442,6 +451,30 @@ export async function sendMessage(
       data: { updatedAt: new Date() },
     }).catch(() => {});
 
+    // Notify recipients in chat
+    try {
+      const chatWithUsers = await prisma.chat.findUnique({
+        where: { id: chatId },
+        include: { users: { select: { id: true } } },
+      });
+      if (chatWithUsers) {
+        for (const recipient of chatWithUsers.users) {
+          if (recipient.id !== currentUser.id) {
+            await prisma.notification.create({
+              data: {
+                userId: recipient.id,
+                fromId: currentUser.id,
+                type: 'message',
+                message: `@${currentUser.handle} transmitted a signal: "${content ? content.slice(0, 35) : 'Media Transmission'}"`,
+              },
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Message notification failed:', notifErr);
+    }
+
     // Safe Pusher Broadcast with payload size check (Pusher hard limit is 10240 bytes)
     try {
       const payloadStr = JSON.stringify(message);
@@ -516,6 +549,106 @@ export async function searchUsers(query: string) {
   }
 }
 
+export async function extractAndNotifyMentions(text: string, fromUser: any, postId?: string) {
+  if (!text || !fromUser) return;
+  try {
+    const mentionMatches = text.match(/@([a-zA-Z0-9_]{3,30})/g);
+    if (!mentionMatches || mentionMatches.length === 0) return;
+
+    const rawHandles = Array.from(new Set(mentionMatches.map(m => m.slice(1).toLowerCase())));
+    const mentionedUsers = await prisma.user.findMany({
+      where: {
+        handle: { in: rawHandles, mode: 'insensitive' },
+        id: { not: fromUser.id },
+      },
+      select: { id: true, handle: true },
+    });
+
+    for (const u of mentionedUsers) {
+      await prisma.notification.create({
+        data: {
+          userId: u.id,
+          fromId: fromUser.id,
+          type: 'mention',
+          postId: postId || null,
+          message: `@${fromUser.handle} mentioned you: "${text.slice(0, 50)}${text.length > 50 ? '...' : ''}"`,
+        },
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error('Mention processing error:', err);
+  }
+}
+
+export async function getRecentChatContacts() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated.', users: [] };
+  try {
+    const chats = await prisma.chat.findMany({
+      where: {
+        users: { some: { id: currentUser.id } },
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            handle: true,
+            avatarUrl: true,
+            color: true,
+            location: true,
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 15,
+    });
+
+    const contactMap = new Map<string, any>();
+    chats.forEach(c => {
+      c.users.forEach(u => {
+        if (u.id !== currentUser.id && !contactMap.has(u.id)) {
+          contactMap.set(u.id, u);
+        }
+      });
+    });
+
+    // If no recent chats, fall back to contacts the user follows
+    if (contactMap.size === 0) {
+      const followings = await prisma.follow.findMany({
+        where: { followerId: currentUser.id },
+        include: {
+          following: {
+            select: {
+              id: true,
+              username: true,
+              handle: true,
+              avatarUrl: true,
+              color: true,
+              location: true,
+            },
+          },
+        },
+        take: 12,
+      });
+      followings.forEach(f => {
+        if (!contactMap.has(f.following.id)) {
+          contactMap.set(f.following.id, f.following);
+        }
+      });
+    }
+
+    return { success: true, users: Array.from(contactMap.values()) };
+  } catch (error) {
+    console.error('Failed to get recent chat contacts:', error);
+    return { error: 'Failed to fetch contacts.', users: [] };
+  }
+}
+
 export async function startChat(otherUserId: string) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return { error: 'Not authenticated.' };
@@ -579,6 +712,12 @@ export async function createPost(formData: FormData) {
     revalidatePath('/');
     revalidatePath('/reels');
     revalidatePath('/explore');
+
+    // Notify mentioned handles
+    if (content) {
+      extractAndNotifyMentions(content, currentUser, post.id).catch(() => {});
+    }
+
     return { success: true, post };
   } catch (error) {
     console.error('Create post error:', error);
@@ -686,6 +825,9 @@ export async function addReelComment(
       }).catch(() => {});
     }
 
+    // Process mentions in localized note
+    extractAndNotifyMentions(trimmed, currentUser, postId).catch(() => {});
+
     return { success: true, comment };
   } catch (error: any) {
     console.error('Add reel comment error:', error);
@@ -764,6 +906,28 @@ export async function addThreadComment(
       }).catch(() => {});
     }
 
+    // If this is a reply to another comment, notify the parent comment author
+    if (parentId) {
+      const parentComment = await prisma.reelComment.findUnique({
+        where: { id: parentId },
+        select: { userId: true },
+      });
+      if (parentComment && parentComment.userId !== currentUser.id && parentComment.userId !== post?.authorId) {
+        await prisma.notification.create({
+          data: {
+            userId: parentComment.userId,
+            fromId: currentUser.id,
+            type: 'reply',
+            postId,
+            message: `@${currentUser.handle} replied to your comment: "${trimmed.slice(0, 35)}"`,
+          },
+        }).catch(() => {});
+      }
+    }
+
+    // Process mentions in comment / reply
+    extractAndNotifyMentions(trimmed, currentUser, postId).catch(() => {});
+
     return { success: true, comment };
   } catch (error: any) {
     console.error('Add thread comment error:', error);
@@ -821,7 +985,7 @@ export async function searchContent(query: string) {
           posts: { select: { id: true } },
           followers: { select: { id: true } },
         },
-        take: 16,
+        take: 24,
       }),
       prisma.post.findMany({
         where: {
@@ -845,7 +1009,7 @@ export async function searchContent(query: string) {
           reelComments: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: 36,
+        take: 60,
       }),
     ]);
 

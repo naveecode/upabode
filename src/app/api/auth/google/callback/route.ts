@@ -63,6 +63,11 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${baseUrl}/auth/login?error=GoogleUserFailed`);
     }
 
+    // Sanitize returnUrl so users are never redirected back to login/register pages
+    if (!returnUrl || returnUrl === '/auth/login' || returnUrl === '/auth/register' || returnUrl.includes('/auth/')) {
+      returnUrl = '/';
+    }
+
     // Upsert user in DB
     let user = await prisma.user.findFirst({
       where: { email: googleUser.email },
@@ -76,16 +81,24 @@ export async function GET(request: Request) {
       
       user = await prisma.user.create({
         data: {
-          username: googleUser.name || 'Cosmic Traveler',
+          username: googleUser.name || 'Multigram Explorer',
           handle: uniqueHandle,
           email: googleUser.email,
           avatarUrl: googleUser.picture || null,
           password: 'google-oauth-placeholder',
           color: 'green',
-          onboarded: false, // Prompt User ID and profile picture on first login!
+          onboarded: true, // Brand new Google users are ready to experience the app immediately
         },
       });
     } else {
+      // Existing user: ensure they are never nagged for username/avatar setup again
+      if (!user.onboarded) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { onboarded: true },
+        });
+        user.onboarded = true;
+      }
       // Update avatar if missing
       if (!user.avatarUrl && googleUser.picture) {
         await prisma.user.update({
@@ -100,11 +113,14 @@ export async function GET(request: Request) {
     const { encrypt } = await import('../../../../../lib/session');
     const token = await encrypt({ userId: user.id });
 
-    // Check if user agent or request originates from Android CustomTabs / app
+    const destination = returnUrl.startsWith('http') ? returnUrl : `${baseUrl}${returnUrl.startsWith('/') ? returnUrl : `/${returnUrl}`}`;
+
+    // Check if user agent or request originates from Android CustomTabs / native app
     const userAgent = request.headers.get('user-agent') || '';
+    const isNativeApp = /MultigramApp|OrbitApp/i.test(userAgent);
     const isAndroid = /android/i.test(userAgent);
 
-    if (isAndroid) {
+    if (isNativeApp || isAndroid) {
       const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -122,11 +138,16 @@ export async function GET(request: Request) {
   <p>Connecting to Multigram...</p>
   <script>
     try {
+      window.location.replace("multigram://auth-callback?session_token=" + encodeURIComponent("${token}") + "&returnUrl=" + encodeURIComponent("${returnUrl}"));
+    } catch(e) {}
+    try {
       window.location.replace("orbit://auth-callback?session_token=" + encodeURIComponent("${token}") + "&returnUrl=" + encodeURIComponent("${returnUrl}"));
     } catch(e) {}
     setTimeout(function() {
       try { window.close(); } catch(e) {}
-    }, 400);
+      // Fallback for mobile browsers or if deep link was already consumed
+      window.location.replace("${destination}");
+    }, 600);
   </script>
 </body>
 </html>`;
@@ -138,7 +159,6 @@ export async function GET(request: Request) {
       });
     }
 
-    const destination = returnUrl.startsWith('http') ? returnUrl : `${baseUrl}${returnUrl.startsWith('/') ? returnUrl : `/${returnUrl}`}`;
     return NextResponse.redirect(destination);
   } catch (err) {
     console.error('Google OAuth Error:', err);
