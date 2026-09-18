@@ -273,6 +273,86 @@ export default function CameraCapture({ onCapture, onClose }: { onCapture: (file
             background: 'radial-gradient(circle at 50% 40%, rgba(255,230,200,0.12) 0%, transparent 65%)'
           }} />
         )}
+
+        {/* High-Tech Optical Viewfinder Graphic while opening camera sensor */}
+        {!stream && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle at 50% 45%, #0e1e33 0%, #07111f 70%, #030810 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 15,
+            padding: '20px'
+          }}>
+            <div style={{
+              position: 'relative',
+              width: '120px',
+              height: '120px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                border: '2px dashed var(--earth)',
+                animation: 'cameraSpin 8s linear infinite',
+                opacity: 0.7
+              }} />
+              <div style={{
+                position: 'absolute',
+                inset: '12px',
+                borderRadius: '50%',
+                border: '1.5px solid rgba(64, 201, 162, 0.4)',
+                boxShadow: '0 0 25px rgba(64, 201, 162, 0.25)'
+              }} />
+              <div style={{
+                width: '68px',
+                height: '68px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle at 35% 30%, #1e3a5f 0%, #0d1e34 70%, #061120 100%)',
+                border: '2px solid var(--earth)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
+              }}>
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--earth)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+            </div>
+
+            <span style={{
+              color: 'var(--earth)',
+              fontSize: '0.92rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '6px'
+            }}>
+              Calibrating Optical Sensor...
+            </span>
+            <span style={{
+              color: 'rgba(255, 255, 255, 0.55)',
+              fontSize: '0.78rem'
+            }}>
+              Upabode Orbit Live Viewfinder
+            </span>
+            <style>{`
+              @keyframes cameraSpin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        )}
         
         {/* Top bar controls */}
         <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 20 }}>

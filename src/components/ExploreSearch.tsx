@@ -451,7 +451,8 @@ export default function ExploreSearch({
                     {/* Media Thumbnail Rendering */}
                     {isVideo ? (
                       <video
-                        src={safeMediaUrl}
+                        src={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.001`}
+                        poster={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=0.001`}
                         preload="metadata"
                         muted
                         playsInline

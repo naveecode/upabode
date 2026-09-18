@@ -206,6 +206,7 @@ export async function registerUser(formData: FormData) {
         location: location || null,
         color: color || 'green',
         avatarUrl: username.substring(0, 2).toUpperCase(),
+        onboarded: true,
       },
     });
 

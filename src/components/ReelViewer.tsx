@@ -198,10 +198,10 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
         }}
       />
 
-      {/* Main Video: 100% full media visible without crop */}
+      {/* Main Video: 100% full media visible without crop (original aspect ratio) */}
       <video
         ref={videoRef}
-        src={src}
+        src={src.includes('#') ? src : `${src}#t=0.001`}
         loop
         playsInline
         onPlay={(e) => {
@@ -216,7 +216,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           position: 'relative',
           width: '100%',
           height: '100%',
-          objectFit: 'cover',
+          objectFit: 'contain',
           filter: `brightness(${brightness})`,
           zIndex: 5
         }}
@@ -413,7 +413,7 @@ export default function ReelViewer({
 }) {
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [activeIdx, setActiveIdx] = useState(0)
-  const [showComments, setShowComments] = useState(true)
+  const [showComments, setShowComments] = useState(false)
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null)
 
   // Jump to specific reel if initialTargetId or URL params are present
@@ -898,7 +898,7 @@ export default function ReelViewer({
                           inset: 0,
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover'
+                          objectFit: 'contain'
                         }}
                       />
                     );
@@ -980,74 +980,32 @@ export default function ReelViewer({
               </button>
 
 
-              {/* Top Status Indicators (No buttons) */}
-              <div style={{
-                position: 'absolute',
-                top: '16px',
-                left: '16px',
-                right: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                zIndex: 10,
-                pointerEvents: 'none'
-              }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {/* Top Saved Status Indicator */}
+              {isSaved && (
+                <div style={{
+                  position: 'absolute',
+                  top: '16px',
+                  left: '68px',
+                  zIndex: 10,
+                  pointerEvents: 'none'
+                }}>
                   <span style={{
-                    fontFamily: 'var(--font-space-grotesk)',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    background: 'rgba(7, 17, 31, 0.65)',
-                    backdropFilter: 'blur(12px)',
-                    padding: '4px 12px',
+                    fontSize: '0.72rem',
+                    background: 'rgba(244, 201, 93, 0.2)',
+                    color: 'var(--yellow)',
+                    border: '1px solid var(--yellow)',
+                    padding: '4px 10px',
                     borderRadius: '100px',
-                    border: '1px solid var(--line)',
-                    color: 'var(--earth)'
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px'
                   }}>
-                    
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                    Saved
                   </span>
-
-                  {isSaved && (
-                    <span style={{
-                      fontSize: '0.72rem',
-                      background: 'rgba(244, 201, 93, 0.2)',
-                      color: 'var(--yellow)',
-                      border: '1px solid var(--yellow)',
-                      padding: '4px 10px',
-                      borderRadius: '100px',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-                      Saved
-                    </span>
-                  )}
                 </div>
-
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {comments.length > 0 && (
-                    <span style={{
-                      fontSize: '0.72rem',
-                      color: showComments ? 'var(--earth)' : 'var(--muted)',
-                      background: 'rgba(7, 17, 31, 0.65)',
-                      backdropFilter: 'blur(12px)',
-                      padding: '4px 10px',
-                      borderRadius: '100px',
-                      border: '1px solid var(--line)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                      {comments.length} localized
-                    </span>
-                  )}
-                </div>
-              </div>
+              )}
 
               {/* ───────── Spatial Comments (Max 20 Pins) ───────── */}
               {showComments && (post.reelComments || []).slice(0, 20).map((comment) => {

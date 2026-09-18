@@ -23,6 +23,15 @@ function RegisterForm() {
   const [infoMessage, setInfoMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
+
+  const handleGoogleRegister = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isGoogleConnecting) return;
+    setIsGoogleConnecting(true);
+    const target = `/api/auth/google${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+    window.location.href = target;
+  };
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -152,6 +161,41 @@ function RegisterForm() {
       padding: '40px 20px',
       background: 'var(--background)'
     }}>
+      {/* Full-Screen Instant Google Authorization Feedback */}
+      {isGoogleConnecting && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(7, 17, 31, 0.94)',
+          backdropFilter: 'blur(20px)',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px',
+          padding: '24px',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            border: '3px solid rgba(197, 160, 89, 0.2)',
+            borderTopColor: 'var(--earth)',
+            animation: 'orbitSpin 0.8s linear infinite',
+          }} />
+          <div>
+            <h3 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px 0', fontFamily: 'var(--font-heading)' }}>
+              Connecting to Google Orbit
+            </h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0, maxWidth: '280px' }}>
+              Securing quantum identity credentials...
+            </p>
+          </div>
+        </div>
+      )}
+
       <div style={{
         background: 'rgba(18, 34, 54, 0.85)',
         border: '1px solid rgba(255,255,255,0.12)',
@@ -588,24 +632,30 @@ function RegisterForm() {
           <div style={{ height: '1px', flex: 1, background: 'var(--line)' }} />
         </div>
 
-        <a
-          href={`/api/auth/google${returnUrl && returnUrl !== '/' ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ''}`}
+        <button
+          type="button"
+          onClick={handleGoogleRegister}
+          disabled={isGoogleConnecting}
           style={{
-            display: 'block',
-            textAlign: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
             background: 'white',
             color: '#333',
             padding: '14px',
             borderRadius: '12px',
-            textDecoration: 'none',
             fontWeight: 600,
             fontSize: '1rem',
-            border: '1px solid #ddd'
+            border: '1px solid #ddd',
+            cursor: isGoogleConnecting ? 'not-allowed' : 'pointer',
+            opacity: isGoogleConnecting ? 0.7 : 1,
+            transition: 'opacity 0.2s, transform 0.1s',
           }}
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style={{ width: '18px', height: '18px', display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }} />
-          Register with Google
-        </a>
+          {isGoogleConnecting ? 'Connecting to Google...' : 'Register with Google'}
+        </button>
 
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>

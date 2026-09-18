@@ -27,10 +27,16 @@ export default function MobileNav() {
 
   const [visualIndex, setVisualIndex] = useState(safeIndex)
   const isReelsPage = pathname.startsWith('/reels')
+  const [reelsMenuExpanded, setReelsMenuExpanded] = useState(false)
+  const autoCollapseTimer = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setVisualIndex(safeIndex)
-  }, [safeIndex])
+    if (!isReelsPage) {
+      setReelsMenuExpanded(false)
+      if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+    }
+  }, [safeIndex, isReelsPage])
 
   // Pre-warm / prefetch all 5 tab routes on mount for instant zero-lag tab switching
   useEffect(() => {
@@ -41,10 +47,24 @@ export default function MobileNav() {
     })
   }, [router])
 
+  const triggerReelsMenu = () => {
+    setReelsMenuExpanded(true)
+    haptic(8)
+    playTabTick()
+    if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+    autoCollapseTimer.current = setTimeout(() => {
+      setReelsMenuExpanded(false)
+    }, 3800)
+  }
+
   // Touch scrubbing / directional swipe handling over the bottom navigation bar
   const touchStartRef = useRef<{ x: number; y: number; startIndex: number; hasMoved: boolean } | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isReelsPage) {
+      if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+      autoCollapseTimer.current = setTimeout(() => setReelsMenuExpanded(false), 4500)
+    }
     const touch = e.touches[0]
     touchStartRef.current = {
       x: touch.clientX,
@@ -63,14 +83,12 @@ export default function MobileNav() {
     // Directional swipe: Moving thumb towards the right moves selection right; moving thumb left moves selection left
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
       touchStartRef.current.hasMoved = true
-      // Sensitivity: 32px per tab step in the swiping direction
       const step = Math.round(deltaX / 32)
       const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
       if (targetIndex !== visualIndex) {
         setVisualIndex(targetIndex)
         haptic(8)
         playTabTick()
-        // Instantly transition main screen as finger scrubs through tabs
         router.push(tabs[targetIndex].href)
       }
     }
@@ -85,6 +103,10 @@ export default function MobileNav() {
       setVisualIndex(idx)
       haptic(8)
       playTabTick()
+    }
+    if (isReelsPage) {
+      if (autoCollapseTimer.current) clearTimeout(autoCollapseTimer.current)
+      autoCollapseTimer.current = setTimeout(() => setReelsMenuExpanded(false), 2000)
     }
   }
 
@@ -111,7 +133,7 @@ export default function MobileNav() {
           overflow: hidden;
           box-sizing: border-box;
           touch-action: pan-x;
-          transition: background 0.3s ease, border-color 0.3s ease;
+          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
@@ -187,8 +209,55 @@ export default function MobileNav() {
         }
       `}</style>
 
+      {/* In Reels Mode: Sleek Almost-Transparent Floating Menu Pill */}
+      {isReelsPage && !reelsMenuExpanded && (
+        <button
+          type="button"
+          onClick={triggerReelsMenu}
+          aria-label="Open Navigation Bar"
+          style={{
+            position: 'fixed',
+            bottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(7, 17, 31, 0.35)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            borderRadius: '100px',
+            padding: '7px 18px',
+            color: 'rgba(255, 255, 255, 0.85)',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px',
+            zIndex: 1001,
+            cursor: 'pointer',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.45)',
+            userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            animation: 'fadeIn 0.25s ease'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+          <span>Menu</span>
+        </button>
+      )}
+
+      {/* Navigation Bar (Full bar on all pages, slides down in reels when collapsed) */}
       <nav 
         className="mobile-tabs-wave"
+        style={{
+          transform: isReelsPage
+            ? (reelsMenuExpanded ? 'translateY(0)' : 'translateY(115%)')
+            : 'translateY(0)'
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
