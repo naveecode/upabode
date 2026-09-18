@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPost } from '../app/actions'
 import { useUploadThing } from './UploadButton'
 import { showToast } from './Toast'
@@ -8,6 +8,7 @@ import CameraCapture from './CameraCapture'
 import CreateRichPostModal from './CreateRichPostModal'
 import VideoTrimmerModal from './VideoTrimmerModal'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
+import { useMentionAutocomplete, MentionDropdown } from './MentionSuggestions'
 
 export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [content, setContent] = useState('')
@@ -24,6 +25,33 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
   const [isUploadingGallery, setIsUploadingGallery] = useState(false)
   const [isUploadingCustomMusic, setIsUploadingCustomMusic] = useState(false)
   const { startUpload, isUploading } = useUploadThing("mediaUploader")
+
+  const captionInputRef = useRef<HTMLInputElement>(null)
+  const mention = useMentionAutocomplete({
+    text: content,
+    setText: setContent,
+    inputRef: captionInputRef
+  })
+
+  // Hardware/gesture back-button support for closing camera
+  useEffect(() => {
+    if (showCamera) {
+      window.history.pushState({ modal: 'camera' }, '')
+      const prevHandler = (window as any).__multigramCloseModal
+      ;(window as any).__multigramCloseModal = () => {
+        setShowCamera(false)
+        return true
+      }
+      const handlePopState = () => {
+        setShowCamera(false)
+      }
+      window.addEventListener('popstate', handlePopState)
+      return () => {
+        ;(window as any).__multigramCloseModal = prevHandler
+        window.removeEventListener('popstate', handlePopState)
+      }
+    }
+  }, [showCamera])
 
   const handleGalleryPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : []
@@ -458,11 +486,13 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
             </div>
             <div style={{ flex: 1, position: 'relative' }}>
               <input 
+                ref={captionInputRef}
                 autoFocus
                 type="text"
                 value={content}
                 onChange={(e) => setContent(e.target.value.slice(0, 100))}
-                placeholder="Add a caption to your transmission..."
+                onKeyDown={mention.handleKeyDown}
+                placeholder="Add a caption to your transmission... (type @ to mention)"
                 maxLength={100}
                 style={{
                   width: '100%',
@@ -480,6 +510,15 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
               <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.7rem', color: content.length >= 100 ? 'var(--danger)' : 'var(--muted)' }}>
                 {content.length}/100
               </span>
+
+              {mention.isOpen && (
+                <MentionDropdown
+                  users={mention.users}
+                  selectedIndex={mention.selectedIndex}
+                  onSelect={mention.selectUser}
+                  isLoading={mention.isLoading}
+                />
+              )}
             </div>
           </div>
 

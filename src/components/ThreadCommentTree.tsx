@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { addThreadComment } from '../app/actions'
 import { showToast } from './Toast'
 import { haptic, playToggleTick } from '../lib/soundAndHaptics'
+import { useMentionAutocomplete, MentionDropdown } from './MentionSuggestions'
 
 function renderWithMentions(text: string) {
   if (!text) return null;
@@ -69,6 +70,13 @@ function ThreadCommentItem({
   const [isReplying, setIsReplying] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const replyInputRef = useRef<HTMLInputElement>(null)
+  const replyMention = useMentionAutocomplete({
+    text: replyText,
+    setText: setReplyText,
+    inputRef: replyInputRef
+  })
   
   // Foldable: nested child branches are folded and hidden by default! The comment itself is always shown
   const [isRepliesCollapsed, setIsRepliesCollapsed] = useState(true)
@@ -291,26 +299,36 @@ function ThreadCommentItem({
               minWidth: 0,
               boxSizing: 'border-box'
             }}>
-              <input
-                type="text"
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                placeholder={`Reply to @${comment.user.handle}...`}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  padding: '8px 14px',
-                  borderRadius: '100px',
-                  background: 'var(--panel-solid)',
-                  border: '1px solid var(--earth)',
-                  color: 'var(--text)',
-                  fontSize: '16px', // Prevents iOS zoom
-                  outline: 'none'
-                }}
-                autoFocus
-              />
+              <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                <input
+                  ref={replyInputRef}
+                  type="text"
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  onKeyDown={replyMention.handleKeyDown}
+                  placeholder={`Reply to @${comment.user.handle}...`}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '8px 14px',
+                    borderRadius: '100px',
+                    background: 'var(--panel-solid)',
+                    border: '1px solid var(--earth)',
+                    color: 'var(--text)',
+                    fontSize: '16px', // Prevents iOS zoom
+                    outline: 'none'
+                  }}
+                  autoFocus
+                />
+                {replyMention.isOpen && (
+                  <MentionDropdown
+                    users={replyMention.users}
+                    selectedIndex={replyMention.selectedIndex}
+                    onSelect={replyMention.selectUser}
+                    isLoading={replyMention.isLoading}
+                  />
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={isSubmitting || !replyText.trim()}
@@ -449,6 +467,13 @@ export default function ThreadCommentTree({
   const [rootCommentText, setRootCommentText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const rootInputRef = useRef<HTMLInputElement>(null)
+  const rootMention = useMentionAutocomplete({
+    text: rootCommentText,
+    setText: setRootCommentText,
+    inputRef: rootInputRef
+  })
+
   // Build tree from flat comments
   const childrenMap = new Map<string, CommentNode[]>()
   const rootComments: CommentNode[] = []
@@ -519,28 +544,38 @@ export default function ThreadCommentTree({
           boxSizing: 'border-box'
         }}
       >
-        <input
-          type="text"
-          value={rootCommentText}
-          onChange={e => setRootCommentText(e.target.value)}
-          placeholder="Contribute to this discussion branch..."
-          style={{
-            flex: 1,
-            minWidth: 0,
-            width: '100%',
-            boxSizing: 'border-box',
-            padding: '10px 14px',
-            borderRadius: '100px',
-            background: 'var(--panel-solid)',
-            border: '1px solid var(--line)',
-            color: 'var(--text)',
-            fontSize: '16px', // Prevents mobile zoom
-            outline: 'none',
-            transition: 'border 0.2s'
-          }}
-          onFocus={e => (e.currentTarget.style.borderColor = 'var(--earth)')}
-          onBlur={e => (e.currentTarget.style.borderColor = 'var(--line)')}
-        />
+        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+          <input
+            ref={rootInputRef}
+            type="text"
+            value={rootCommentText}
+            onChange={e => setRootCommentText(e.target.value)}
+            onKeyDown={rootMention.handleKeyDown}
+            placeholder="Contribute to this discussion branch... (type @ to mention)"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '10px 14px',
+              borderRadius: '100px',
+              background: 'var(--panel-solid)',
+              border: '1px solid var(--line)',
+              color: 'var(--text)',
+              fontSize: '16px', // Prevents mobile zoom
+              outline: 'none',
+              transition: 'border 0.2s'
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'var(--earth)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'var(--line)')}
+          />
+          {rootMention.isOpen && (
+            <MentionDropdown
+              users={rootMention.users}
+              selectedIndex={rootMention.selectedIndex}
+              onSelect={rootMention.selectUser}
+              isLoading={rootMention.isLoading}
+            />
+          )}
+        </div>
         <button
           type="submit"
           disabled={isSubmitting || !rootCommentText.trim()}

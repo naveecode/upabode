@@ -22,9 +22,10 @@ export default async function ChatInbox() {
       },
       include: {
         users: {
-          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true, lastSeen: true }
         },
         messages: {
+          where: { isDeleted: false },
           orderBy: { createdAt: 'desc' },
           take: 1
         }
@@ -105,6 +106,8 @@ export default async function ChatInbox() {
                 const otherUser = chat.users.find((u: any) => u.id !== user.id) || chat.users[0] || { username: 'Astronaut', handle: 'cosmic', color: 'green', avatarUrl: null }
                 const lastMessage = chat.messages[0]
                 
+                const isRecentlyActive = otherUser?.lastSeen && (Date.now() - new Date(otherUser.lastSeen).getTime()) < 5 * 60 * 1000
+                
                 return (
                   <a
                     href={`/chat/${chat.id}`}
@@ -123,8 +126,23 @@ export default async function ChatInbox() {
                       transition: '0.2s ease'
                     }}
                   >
-                    <div className={`chat-item-avatar user-avatar ${otherUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '0.95rem', flexShrink: 0 }}>
-                      {otherUser?.avatarUrl?.startsWith?.('http') ? <img src={otherUser?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser?.avatarUrl || otherUser?.username?.charAt(0).toUpperCase() || '✦')}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <div className={`chat-item-avatar user-avatar ${otherUser?.color || 'green'}`} style={{ width: '42px', height: '42px', fontSize: '0.95rem' }}>
+                        {otherUser?.avatarUrl?.startsWith?.('http') ? <img src={otherUser?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (otherUser?.avatarUrl || otherUser?.username?.charAt(0).toUpperCase() || '✦')}
+                      </div>
+                      {isRecentlyActive && (
+                        <span style={{
+                          position: 'absolute',
+                          bottom: '1px',
+                          right: '1px',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: '#40c9a2',
+                          border: '2px solid var(--panel-solid)',
+                          boxShadow: '0 0 6px rgba(64, 201, 162, 0.7)'
+                        }} />
+                      )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>

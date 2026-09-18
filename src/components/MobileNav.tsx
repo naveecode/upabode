@@ -144,12 +144,12 @@ export default function MobileNav() {
           max-width: min(540px, 100vw);
           min-height: 64px;
           height: auto;
-          background: ${isReelsPage ? 'rgba(7, 17, 31, 0.88)' : 'var(--panel-solid)'};
+          background: var(--panel-solid);
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
           display: flex;
           align-items: center;
-          border-top: 1px solid ${isReelsPage ? 'rgba(255, 255, 255, 0.12)' : 'rgba(28, 25, 20, 0.08)'};
+          border-top: 1px solid var(--line);
           box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.18);
           z-index: 1000;
           padding-top: 6px;
@@ -256,7 +256,7 @@ export default function MobileNav() {
           min-height: 48px;
           position: relative;
           z-index: 2;
-          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
+          color: var(--muted);
           text-decoration: none;
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
@@ -269,7 +269,7 @@ export default function MobileNav() {
           justify-content: center;
           transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
           transform: translateY(0);
-          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
+          color: var(--muted);
           opacity: 0.85;
         }
 
@@ -285,7 +285,7 @@ export default function MobileNav() {
           font-weight: 500;
           margin-top: 2px;
           transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
+          color: var(--muted);
           opacity: 0.85;
         }
 

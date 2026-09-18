@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createPost } from '../app/actions'
 import { showToast } from './Toast'
+import { useMentionAutocomplete, MentionDropdown } from './MentionSuggestions'
 
 const FONT_PRESETS = [
   { id: 'sans', name: 'Modern Sans', style: 'var(--font-body), sans-serif' },
@@ -29,6 +30,13 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
   const [folder, setFolder] = useState('General')
   const [customFolder, setCustomFolder] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const mention = useMentionAutocomplete({
+    text: content,
+    setText: setContent,
+    inputRef: textareaRef
+  })
 
   const handlePublish = async () => {
     const trimmed = content.trim()
@@ -128,6 +136,7 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
 
         {/* Live Card Preview */}
         <div style={{
+          position: 'relative',
           background: selectedTheme.bg,
           color: selectedTheme.color,
           border: `1.5px solid ${selectedTheme.border}`,
@@ -139,9 +148,11 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
           transition: 'all 0.3s ease'
         }}>
           <textarea
+            ref={textareaRef}
             value={content}
             onChange={e => setContent(e.target.value)}
-            placeholder="Write your signal here... Express ideas, insights, or questions for the community to branch into discussions."
+            onKeyDown={mention.handleKeyDown}
+            placeholder="Write your signal here... Express ideas, insights, or questions for the community to branch into discussions. (type @ to mention)"
             style={{
               width: '100%',
               minHeight: '130px',
@@ -155,6 +166,15 @@ export default function CreateRichPostModal({ onClose }: { onClose: () => void }
               lineHeight: 1.6
             }}
           />
+
+          {mention.isOpen && (
+            <MentionDropdown
+              users={mention.users}
+              selectedIndex={mention.selectedIndex}
+              onSelect={mention.selectUser}
+              isLoading={mention.isLoading}
+            />
+          )}
         </div>
 
         {/* Styling Controls Toolbar */}

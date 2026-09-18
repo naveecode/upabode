@@ -22,6 +22,7 @@ model User {
   title     String?
   bio       String?
   onboarded Boolean  @default(false)
+  lastSeen  DateTime @default(now())
   createdAt DateTime @default(now())
 
   posts     Post[]
@@ -38,6 +39,8 @@ model User {
   savedPosts        SavedPost[]
   notifications     Notification[] @relation("userNotifications")
   sentNotifications Notification[] @relation("sentNotifications")
+  blockedUsers      Block[]        @relation("userBlocks")
+  blockedBy         Block[]        @relation("userBlockedBy")
 }
 
 model Post {
@@ -112,16 +115,29 @@ model Chat {
 }
 
 model Message {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   content   String
   mediaUrl  String?
   voiceUrl  String?
   chatId    String
   senderId  String
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
   
-  chat      Chat     @relation(fields: [chatId], references: [id])
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender    User     @relation(fields: [senderId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  blocker   User     @relation("userBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("userBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
 }
 
 model ReelComment {

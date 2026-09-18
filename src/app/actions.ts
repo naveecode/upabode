@@ -410,10 +410,26 @@ export async function sendMessage(
     // IDOR protection: Verify user is an enrolled participant in the chat
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
-      include: { users: { select: { id: true } } }
+      include: { users: { select: { id: true, handle: true, username: true } } }
     });
     if (!chat || !chat.users.some((u: any) => u.id === currentUser.id)) {
       return { error: 'Unauthorized: You are not a participant in this transmission channel.' };
+    }
+
+    // Check for mutual user blocks
+    const otherParticipants = chat.users.filter((u: any) => u.id !== currentUser.id);
+    for (const other of otherParticipants) {
+      const isBlocked = await prisma.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: currentUser.id, blockedId: other.id },
+            { blockerId: other.id, blockedId: currentUser.id },
+          ]
+        }
+      });
+      if (isBlocked) {
+        return { error: 'Transmission restricted: You cannot message this contact.' };
+      }
     }
 
     if (content && content.length > 5000) {
@@ -451,25 +467,28 @@ export async function sendMessage(
       data: { updatedAt: new Date() },
     }).catch(() => {});
 
-    // Notify recipients in chat
+    // Notify recipients in chat and trigger personal user channels for outside-chat notifications
     try {
-      const chatWithUsers = await prisma.chat.findUnique({
-        where: { id: chatId },
-        include: { users: { select: { id: true } } },
-      });
-      if (chatWithUsers) {
-        for (const recipient of chatWithUsers.users) {
-          if (recipient.id !== currentUser.id) {
-            await prisma.notification.create({
-              data: {
-                userId: recipient.id,
-                fromId: currentUser.id,
-                type: 'message',
-                message: `@${currentUser.handle} transmitted a signal: "${content ? content.slice(0, 35) : 'Media Transmission'}"`,
-              },
-            }).catch(() => {});
-          }
-        }
+      const { pusherServer } = await import('../lib/pusher');
+      for (const recipient of otherParticipants) {
+        await prisma.notification.create({
+          data: {
+            userId: recipient.id,
+            fromId: currentUser.id,
+            type: 'message',
+            message: `@${currentUser.handle} transmitted a signal: "${content ? content.slice(0, 35) : 'Media Transmission'}"`,
+          },
+        }).catch(() => {});
+
+        // Direct personal channel push for background notifications outside the chat room
+        await pusherServer.trigger(`user-${recipient.id}`, 'new-message', {
+          chatId,
+          senderId: currentUser.id,
+          senderName: currentUser.username || currentUser.handle,
+          senderAvatar: currentUser.avatarUrl,
+          content: content || (effectiveVoiceUrl ? 'Voice Transmission' : 'Media attachment'),
+          timestamp: Date.now()
+        }).catch(() => {});
       }
     } catch (notifErr) {
       console.warn('Message notification failed:', notifErr);
@@ -1259,19 +1278,55 @@ export async function signalCall(chatId: string, payload: any) {
     // IDOR protection: Verify membership before triggering call signals
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
-      include: { users: { select: { id: true } } }
+      include: { users: { select: { id: true, username: true, handle: true, avatarUrl: true } } }
     });
     if (!chat || !chat.users.some((u: any) => u.id === currentUser.id)) {
       return { error: 'Unauthorized: Not a participant in this call channel.' };
     }
 
+    const otherParticipants = chat.users.filter((u: any) => u.id !== currentUser.id);
+
+    // Block protection: ensure calling is permitted
+    for (const other of otherParticipants) {
+      const isBlocked = await prisma.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: currentUser.id, blockedId: other.id },
+            { blockerId: other.id, blockedId: currentUser.id },
+          ]
+        }
+      });
+      if (isBlocked) {
+        return { error: 'Call restricted with this contact.' };
+      }
+    }
+
     const { pusherServer } = await import('../lib/pusher');
+    
+    // 1. In-room WebRTC signal
     await pusherServer.trigger(`chat-${chatId}`, 'call-signal', {
       ...payload,
       senderId: currentUser.id,
-      senderName: currentUser.username || currentUser.handle || 'Astronaut',
+      senderName: currentUser.username || currentUser.handle || 'Multigram',
+      senderAvatar: currentUser.avatarUrl,
       timestamp: Date.now()
     });
+
+    // 2. Personal channel push: if call is being initiated/offered, wake up recipient on all devices
+    if (payload.type === 'call-offer' || payload.type === 'call-init' || !payload.type) {
+      for (const other of otherParticipants) {
+        await pusherServer.trigger(`user-${other.id}`, 'incoming-call', {
+          chatId,
+          senderId: currentUser.id,
+          senderName: currentUser.username || currentUser.handle || 'Multigram',
+          senderAvatar: currentUser.avatarUrl,
+          callType: payload.callType || 'video',
+          peerId: payload.peerId,
+          timestamp: Date.now()
+        }).catch((err) => console.warn('Pusher user call broadcast error:', err));
+      }
+    }
+
     return { success: true };
   } catch (err: any) {
     console.error('Failed to trigger call-signal:', err);
@@ -1494,4 +1549,167 @@ export async function getRichTextPosts(folder?: string) {
     return { error: 'Failed to retrieve rich text transmissions.', posts: [] };
   }
 }
+
+export async function updateLastSeen() {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { success: false };
+  try {
+    await prisma.user.update({
+      where: { id: currentUser.id },
+      data: { lastSeen: new Date() }
+    });
+    return { success: true };
+  } catch (e) {
+    return { success: false };
+  }
+}
+
+export async function deleteMessage(messageId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+
+  try {
+    const msg = await prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, senderId: true, chatId: true }
+    });
+    if (!msg) return { error: 'Message not found' };
+    if (msg.senderId !== currentUser.id) {
+      return { error: 'Unauthorized: Can only delete your own messages' };
+    }
+
+    await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        content: 'Transmission retracted',
+        mediaUrl: null,
+        voiceUrl: null,
+        deletedAt: new Date(),
+      }
+    });
+
+    const { pusherServer } = await import('../lib/pusher');
+    await pusherServer.trigger(`chat-${msg.chatId}`, 'message-deleted', { messageId });
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('Delete message error:', e);
+    return { error: 'Failed to delete message' };
+  }
+}
+
+export async function deleteChat(chatId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+
+  try {
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { users: { select: { id: true } } }
+    });
+    if (!chat || !chat.users.some(u => u.id === currentUser.id)) {
+      return { error: 'Unauthorized: Not a participant in this chat' };
+    }
+
+    // Delete messages and chat
+    await prisma.message.deleteMany({ where: { chatId } });
+    await prisma.chat.delete({ where: { id: chatId } });
+
+    const { pusherServer } = await import('../lib/pusher');
+    await pusherServer.trigger(`chat-${chatId}`, 'chat-deleted', { chatId });
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('Delete chat error:', e);
+    return { error: 'Failed to delete chat' };
+  }
+}
+
+export async function toggleBlockUser(targetUserId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { error: 'Not authenticated' };
+  if (currentUser.id === targetUserId) return { error: 'Cannot block self' };
+
+  try {
+    const existing = await prisma.block.findUnique({
+      where: {
+        blockerId_blockedId: {
+          blockerId: currentUser.id,
+          blockedId: targetUserId
+        }
+      }
+    });
+
+    if (existing) {
+      await prisma.block.delete({
+        where: { id: existing.id }
+      });
+      return { success: true, isBlocked: false };
+    } else {
+      await prisma.block.create({
+        data: {
+          blockerId: currentUser.id,
+          blockedId: targetUserId
+        }
+      });
+      return { success: true, isBlocked: true };
+    }
+  } catch (e: any) {
+    console.error('Toggle block error:', e);
+    return { error: 'Failed to update block status' };
+  }
+}
+
+export async function checkBlockStatus(targetUserId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return { isBlockedByMe: false, isBlockedByThem: false };
+
+  try {
+    const blocks = await prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: currentUser.id, blockedId: targetUserId },
+          { blockerId: targetUserId, blockedId: currentUser.id },
+        ]
+      }
+    });
+
+    const isBlockedByMe = blocks.some(b => b.blockerId === currentUser.id);
+    const isBlockedByThem = blocks.some(b => b.blockerId === targetUserId);
+
+    return { isBlockedByMe, isBlockedByThem };
+  } catch (e) {
+    return { isBlockedByMe: false, isBlockedByThem: false };
+  }
+}
+
+export async function searchUsersForMention(query: string) {
+  const clean = query.replace(/^@/, '').trim().toLowerCase();
+  if (!clean) return { users: [] };
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          { handle: { contains: clean, mode: 'insensitive' } },
+          { username: { contains: clean, mode: 'insensitive' } },
+        ]
+      },
+      select: {
+        id: true,
+        username: true,
+        handle: true,
+        avatarUrl: true,
+        color: true,
+      },
+      take: 6,
+      orderBy: { createdAt: 'desc' }
+    });
+    return { users };
+  } catch (e) {
+    return { users: [] };
+  }
+}
+
 

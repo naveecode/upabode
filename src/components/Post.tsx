@@ -7,6 +7,7 @@ import { releaseVideoMemory } from "../lib/mediaMemoryManager";
 import { haptic, playLikePop, playToggleTick, playTabTick } from "../lib/soundAndHaptics";
 import Link from "next/link";
 import ThreadCommentTree from "./ThreadCommentTree";
+import { useGlobalFeedMute } from "../lib/globalAudio";
 
 export function renderWithMentions(text: string) {
   if (!text) return null;
@@ -40,6 +41,13 @@ function AudioPlayer({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const { isMuted, toggleMute } = useGlobalFeedMute();
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -58,7 +66,7 @@ function AudioPlayer({ src }: { src: string }) {
   }, []);
 
   const toggleAudio = (e: React.MouseEvent) => {
-    if(e && e.stopPropagation) e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
       audioRef.current.play();
@@ -67,12 +75,18 @@ function AudioPlayer({ src }: { src: string }) {
     }
   };
 
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleMute();
+  };
+
   return (
-    <div ref={containerRef} style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20 }}>
+    <div ref={containerRef} style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20, display: 'flex', gap: '8px', alignItems: 'center' }}>
       <audio
         ref={audioRef}
         src={src}
         loop
+        muted={isMuted}
         onPlay={(e) => {
           setIsPlaying(true);
           const target = e.target as HTMLAudioElement;
@@ -82,6 +96,7 @@ function AudioPlayer({ src }: { src: string }) {
         }}
         onPause={() => setIsPlaying(false)}
       />
+      {/* Play/Pause Button */}
       <button
         onClick={toggleAudio}
         style={{
@@ -89,11 +104,29 @@ function AudioPlayer({ src }: { src: string }) {
           border: '1px solid var(--earth)', color: isPlaying ? '#000' : 'var(--earth)', fontSize: '1.2rem',
           display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
         }}
+        title={isPlaying ? "Pause audio" : "Play audio"}
       >
         {isPlaying ? (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         ) : (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        )}
+      </button>
+
+      {/* Global Mute Toggle Button */}
+      <button
+        onClick={handleMuteToggle}
+        style={{
+          width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(0,0,0,0.6)',
+          border: '1px solid var(--line)', color: isMuted ? 'var(--muted)' : 'var(--earth)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+        }}
+        title={isMuted ? "Unmute feed audio" : "Mute feed audio"}
+      >
+        {isMuted ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
         )}
       </button>
     </div>
@@ -103,6 +136,13 @@ function AudioPlayer({ src }: { src: string }) {
 function VideoPlayer({ src }: { src: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const { isMuted, toggleMute } = useGlobalFeedMute();
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -146,6 +186,11 @@ function VideoPlayer({ src }: { src: string }) {
     }
   };
 
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleMute();
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000' }} onClick={togglePlay}>
       <video
@@ -153,6 +198,7 @@ function VideoPlayer({ src }: { src: string }) {
         src={src}
         loop
         playsInline
+        muted={isMuted}
         onPlay={(e) => {
           setIsPlaying(true);
           const target = e.target as HTMLVideoElement;
@@ -163,6 +209,47 @@ function VideoPlayer({ src }: { src: string }) {
         onPause={() => setIsPlaying(false)}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
+
+      {/* Floating Global Audio Mute Toggle Button */}
+      <button
+        onClick={handleMuteToggle}
+        title={isMuted ? "Unmute feed audio" : "Mute feed audio"}
+        style={{
+          position: 'absolute',
+          bottom: '14px',
+          right: '14px',
+          width: '38px',
+          height: '38px',
+          borderRadius: '50%',
+          background: 'rgba(7, 17, 31, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          color: isMuted ? 'var(--muted)' : 'var(--earth)',
+          display: 'grid',
+          placeItems: 'center',
+          cursor: 'pointer',
+          zIndex: 15,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          transition: 'transform 0.15s ease'
+        }}
+      >
+        {isMuted ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+          </svg>
+        )}
+      </button>
+
       {!isPlaying && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
@@ -317,6 +404,7 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   const [shareSearchQuery, setShareSearchQuery] = useState('');
   const [shareUsers, setShareUsers] = useState<any[]>([]);
   const [isSearchingShare, setIsSearchingShare] = useState(false);
+  const [sendingUserIds, setSendingUserIds] = useState<Record<string, 'sending' | 'sent'>>({});
 
   const handleShareSearch = async (query: string) => {
     setShareSearchQuery(query);
@@ -334,13 +422,36 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   };
 
   const handleShareToUser = async (userId: string) => {
-    const { startChat, shareReelToChat } = await import('../app/actions');
-    const chat = await startChat(userId);
-    if (chat && chat.chatId) {
-      await shareReelToChat(post.id, chat.chatId);
-      showToast('Transmission shared to secure channel!');
-      setShowShareModal(false);
-    } else {
+    if (sendingUserIds[userId]) return;
+    setSendingUserIds(prev => ({ ...prev, [userId]: 'sending' }));
+
+    try {
+      const { startChat, shareReelToChat } = await import('../app/actions');
+      const chat = await startChat(userId);
+      if (chat && chat.chatId) {
+        await shareReelToChat(post.id, chat.chatId);
+        setSendingUserIds(prev => ({ ...prev, [userId]: 'sent' }));
+        haptic(15);
+        playToggleTick();
+        showToast('Transmission shared to secure channel!');
+        setTimeout(() => {
+          setShowShareModal(false);
+          setSendingUserIds({});
+        }, 650);
+      } else {
+        setSendingUserIds(prev => {
+          const copy = { ...prev };
+          delete copy[userId];
+          return copy;
+        });
+        showToast('Error sharing transmission.');
+      }
+    } catch {
+      setSendingUserIds(prev => {
+        const copy = { ...prev };
+        delete copy[userId];
+        return copy;
+      });
       showToast('Error sharing transmission.');
     }
   };
@@ -739,28 +850,64 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
               <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>Scanning frequencies...</div>
             ) : shareUsers.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
-                {shareUsers.map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleShareToUser(u.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
-                      background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--line)',
-                      cursor: 'pointer', textAlign: 'left', transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
-                    }}
-                  >
-                    <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
-                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username.charAt(0))}
-                    </div>
-                    <div>
-                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>@{u.handle}</div>
-                    </div>
-                    <div style={{ marginLeft: 'auto', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 700 }}>
-                      Send ↗
-                    </div>
-                  </button>
-                ))}
+                {shareUsers.map(u => {
+                  const sendStatus = sendingUserIds[u.id];
+                  return (
+                    <button
+                      key={u.id}
+                      disabled={!!sendStatus}
+                      onClick={() => handleShareToUser(u.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px',
+                        background: sendStatus === 'sent' ? 'rgba(64, 201, 162, 0.12)' : 'rgba(255,255,255,0.03)',
+                        borderRadius: '12px',
+                        border: sendStatus === 'sent' ? '1px solid var(--earth)' : '1px solid var(--line)',
+                        cursor: sendStatus ? 'default' : 'pointer',
+                        textAlign: 'left',
+                        transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                      }}
+                    >
+                      <div className={`user-avatar ${u.color}`} style={{ width: '36px', height: '36px', fontSize: '0.9rem' }}>
+                        {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username.charAt(0))}
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.9rem' }}>{u.username}</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>@{u.handle}</div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {sendStatus === 'sending' ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '4px 10px', borderRadius: '100px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            color: 'var(--muted)', fontSize: '0.78rem', fontWeight: 600
+                          }}>
+                            <span style={{
+                              width: '10px', height: '10px', borderRadius: '50%',
+                              border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--earth)',
+                              animation: 'spin 0.8s linear infinite', display: 'inline-block'
+                            }} />
+                            Sending...
+                          </span>
+                        ) : sendStatus === 'sent' ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            padding: '4px 10px', borderRadius: '100px',
+                            background: 'rgba(64, 201, 162, 0.2)',
+                            border: '1px solid var(--earth)',
+                            color: 'var(--earth)', fontSize: '0.78rem', fontWeight: 700
+                          }}>
+                            Sent! ✓
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--earth)', fontSize: '0.82rem', fontWeight: 700 }}>
+                            Send ↗
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             ) : shareSearchQuery.length >= 2 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: 'var(--muted)' }}>No signals found.</div>

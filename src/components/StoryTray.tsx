@@ -194,6 +194,9 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
 
   if (isLoading) return null;
 
+  const currentGroup = activeAuthorIndex !== null ? groupedStories[activeAuthorIndex] : null;
+  const currentStory = currentGroup ? currentGroup.stories[activeStoryIndex] : null;
+
   return (
     <>
       {/* Immediate Full-Screen Status Upload Overlay */}
@@ -316,7 +319,7 @@ export default function StoryTray({ currentUser }: { currentUser?: any }) {
         }}>
           {/* Progress Indicators */}
           <div style={{ display: 'flex', gap: '4px', padding: '16px 16px 8px 16px', zIndex: 10 }}>
-            {currentGroup.stories.map((s, idx) => (
+            {currentGroup.stories.map((s: any, idx: number) => (
               <div key={s.id} style={{ flex: 1, height: '3px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', background: 'white',

@@ -10,6 +10,7 @@ import SplashLoader from '../components/SplashLoader'
 import HeaderActions from '../components/HeaderActions'
 import AppHeader from '../components/AppHeader'
 import OnboardingModal from '../components/OnboardingModal'
+import GlobalCallManager from '../components/GlobalCallManager'
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -78,8 +79,9 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${montserrat.variable} ${cormorant.variable} app-shell`}>
+      <body className={`${montserrat.variable} ${cormorant.variable} app-shell`} data-user-id={user?.id || ''}>
         <SplashLoader />
+        {user && <GlobalCallManager currentUser={user} />}
         {user ? (
           <>
             <AppHeader user={user} />

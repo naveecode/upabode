@@ -19,7 +19,7 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
       where: { id },
       include: {
         users: {
-          select: { id: true, username: true, handle: true, avatarUrl: true, color: true }
+          select: { id: true, username: true, handle: true, avatarUrl: true, color: true, lastSeen: true }
         },
         messages: {
           include: { sender: true },

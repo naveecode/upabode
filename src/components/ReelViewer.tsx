@@ -6,6 +6,8 @@ import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app
 import { showToast } from './Toast'
 import { releaseVideoMemory } from '../lib/mediaMemoryManager'
 import { haptic, playLikePop, playSaveClick, playToggleTick } from '../lib/soundAndHaptics'
+import { renderWithMentions } from './Post'
+import { useMentionAutocomplete, MentionDropdown } from './MentionSuggestions'
 
 function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -495,22 +497,135 @@ export default function ReelViewer({
     }
   }
 
+  const [sendingShareUserIds, setSendingShareUserIds] = useState<Record<string, 'sending' | 'sent'>>({})
+  const [activeCommentsDrawerPostId, setActiveCommentsDrawerPostId] = useState<string | null>(null)
+  const [drawerCommentText, setDrawerCommentText] = useState('')
+  const [isSubmittingDrawerComment, setIsSubmittingDrawerComment] = useState(false)
+  const drawerCommentInputRef = useRef<HTMLInputElement>(null)
+  const drawerMention = useMentionAutocomplete({
+    text: drawerCommentText,
+    setText: setDrawerCommentText,
+    inputRef: drawerCommentInputRef
+  })
+
+  // Automatic Audio Silence when Comments/Notes Drawer is open, and resume on close
+  const previousMuteStates = useRef<Map<HTMLMediaElement, boolean>>(new Map())
+
+  useEffect(() => {
+    if (activeCommentsDrawerPostId) {
+      document.querySelectorAll('video, audio').forEach((m) => {
+        const el = m as HTMLMediaElement
+        previousMuteStates.current.set(el, el.muted)
+        el.muted = true
+      })
+    } else if (previousMuteStates.current.size > 0) {
+      previousMuteStates.current.forEach((prevMuted, el) => {
+        el.muted = prevMuted
+      })
+      previousMuteStates.current.clear()
+    }
+  }, [activeCommentsDrawerPostId])
+
   const handleShareToUser = async (userId: string) => {
     if (!sharePostId) return
+    if (sendingShareUserIds[userId]) return
+    setSendingShareUserIds(prev => ({ ...prev, [userId]: 'sending' }))
+
     const { startChat, shareReelToChat } = await import('../app/actions')
-    
-    showToast('Initializing secure channel...')
-    const chatRes = await startChat(userId)
-    if (chatRes.success && chatRes.chatId) {
-      const shareRes = await shareReelToChat(sharePostId, chatRes.chatId)
-      if (shareRes.success) {
-        showToast('Reel transmitted to channel successfully!')
-        setSharePostId(null)
+    try {
+      const chatRes = await startChat(userId)
+      if (chatRes.success && chatRes.chatId) {
+        const shareRes = await shareReelToChat(sharePostId, chatRes.chatId)
+        if (shareRes.success) {
+          setSendingShareUserIds(prev => ({ ...prev, [userId]: 'sent' }))
+          haptic(15)
+          playToggleTick()
+          showToast('Reel transmitted to channel successfully!')
+          setTimeout(() => {
+            setSharePostId(null)
+            setSendingShareUserIds({})
+          }, 650)
+        } else {
+          setSendingShareUserIds(prev => {
+            const copy = { ...prev }
+            delete copy[userId]
+            return copy
+          })
+          showToast('Failed to transmit reel.')
+        }
       } else {
-        showToast('Failed to transmit reel.')
+        setSendingShareUserIds(prev => {
+          const copy = { ...prev }
+          delete copy[userId]
+          return copy
+        })
+        showToast('Failed to open channel.')
       }
-    } else {
+    } catch {
+      setSendingShareUserIds(prev => {
+        const copy = { ...prev }
+        delete copy[userId]
+        return copy
+      })
       showToast('Failed to open channel.')
+    }
+  }
+
+  const handleDrawerAddComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeCommentsDrawerPostId || !drawerCommentText.trim() || isSubmittingDrawerComment) return
+
+    const text = drawerCommentText.trim()
+    setIsSubmittingDrawerComment(true)
+    const postId = activeCommentsDrawerPostId
+
+    const tempId = `drawer-temp-${Date.now()}`
+    const tempComment: ReelComment = {
+      id: tempId,
+      content: text,
+      xPercent: 50,
+      yPercent: 50,
+      userId: currentUser?.id || 'anon',
+      user: {
+        id: currentUser?.id || 'anon',
+        username: currentUser?.username || 'You',
+        handle: currentUser?.handle || 'me',
+        avatarUrl: currentUser?.avatarUrl,
+        color: currentUser?.color || 'green',
+      }
+    }
+
+    setPosts(prev => prev.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          reelComments: [...(post.reelComments || []), tempComment]
+        }
+      }
+      return post
+    }))
+
+    setDrawerCommentText('')
+    setIsSubmittingDrawerComment(false)
+    haptic(10)
+    playToggleTick()
+    showToast('Transmission note published!')
+
+    try {
+      const res = await addReelComment(postId, text, 50, 50)
+      if (res?.comment) {
+        setPosts(prev => prev.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              reelComments: (post.reelComments || []).map(c => c.id === tempId ? res.comment : c)
+            }
+          }
+          return post
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to add drawer comment:', err)
     }
   }
 
@@ -943,6 +1058,59 @@ export default function ReelViewer({
               {/* Options Button */}
               
 
+              {/* Comments / Localized Notes Button (Above Share) */}
+              <button
+                type="button"
+                className="pin-interactive"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveCommentsDrawerPostId(post.id);
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: 'calc(94px + env(safe-area-inset-bottom, 16px))',
+                  right: '18px',
+                  background: 'rgba(7, 17, 31, 0.85)',
+                  color: 'var(--earth)',
+                  border: '1.5px solid var(--earth)',
+                  borderRadius: '50%',
+                  width: '52px',
+                  height: '52px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  cursor: 'pointer',
+                  zIndex: 50,
+                  backdropFilter: 'blur(16px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.6), 0 0 16px rgba(64, 201, 162, 0.25)',
+                  transition: 'transform 0.15s ease, background 0.2s ease'
+                }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                onTouchStart={(e) => (e.currentTarget.style.transform = 'scale(0.92)')}
+                onTouchEnd={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                aria-label="View Transmission Notes"
+                title="View Localized Notes & Discussion"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="14" y2="13"/></svg>
+                {(post.reelComments?.length || 0) > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    background: 'var(--earth)',
+                    color: '#07111f',
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    borderRadius: '100px',
+                    padding: '1px 6px',
+                    border: '1.5px solid #07111f'
+                  }}>
+                    {post.reelComments!.length}
+                  </span>
+                )}
+              </button>
+
               {/* Share Button (Bottom Right) */}
               <button
                 type="button"
@@ -1016,7 +1184,7 @@ export default function ReelViewer({
                     className="pin-interactive"
                     onClick={(e) => {
                       e.stopPropagation()
-                      setActiveTooltipId(isOpen ? null : comment.id)
+                      setActiveCommentsDrawerPostId(post.id)
                     }}
                     style={{
                       position: 'absolute',
@@ -1475,31 +1643,70 @@ export default function ReelViewer({
               <div style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)', fontSize: '0.85rem' }}>Scanning frequencies...</div>
             ) : shareUsers.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
-                {shareUsers.map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => handleShareToUser(u.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
-                      background: 'rgba(28, 25, 20, 0.03)', borderRadius: '14px', border: '1px solid var(--line)',
-                      cursor: 'pointer', textAlign: 'left', transition: '0.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(197, 160, 89, 0.1)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(28, 25, 20, 0.03)'}
-                  >
-                    <div className={`user-avatar ${u.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem', flexShrink: 0 }}>
-                      {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username?.charAt(0))}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</div>
-                      <div style={{ color: 'var(--earth)', fontSize: '0.74rem' }}>@{u.handle}</div>
-                    </div>
-                    <div style={{ marginLeft: 'auto', background: 'var(--earth)', color: '#07111f', padding: '6px 14px', borderRadius: '100px', fontSize: '0.76rem', fontWeight: 700, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                      <span>Send</span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </div>
-                  </button>
-                ))}
+                {shareUsers.map(u => {
+                  const sendStatus = sendingShareUserIds[u.id]
+                  return (
+                    <button
+                      key={u.id}
+                      disabled={!!sendStatus}
+                      onClick={() => handleShareToUser(u.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px',
+                        background: sendStatus === 'sent' ? 'rgba(64, 201, 162, 0.12)' : 'rgba(28, 25, 20, 0.03)',
+                        borderRadius: '14px',
+                        border: sendStatus === 'sent' ? '1px solid var(--earth)' : '1px solid var(--line)',
+                        cursor: sendStatus ? 'default' : 'pointer',
+                        textAlign: 'left',
+                        transition: '0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                      }}
+                    >
+                      <div className={`user-avatar ${u.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem', flexShrink: 0 }}>
+                        {u.avatarUrl?.startsWith?.('http') ? <img src={u.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (u.avatarUrl || u.username?.charAt(0))}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: '0.88rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.username}</div>
+                        <div style={{ color: 'var(--earth)', fontSize: '0.74rem' }}>@{u.handle}</div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        {sendStatus === 'sending' ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '6px 14px', borderRadius: '100px',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            color: 'var(--muted)', fontSize: '0.76rem', fontWeight: 600
+                          }}>
+                            <span style={{
+                              width: '10px', height: '10px', borderRadius: '50%',
+                              border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'var(--earth)',
+                              animation: 'spin 0.8s linear infinite', display: 'inline-block'
+                            }} />
+                            Sending...
+                          </span>
+                        ) : sendStatus === 'sent' ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            padding: '6px 14px', borderRadius: '100px',
+                            background: 'rgba(64, 201, 162, 0.2)',
+                            border: '1px solid var(--earth)',
+                            color: 'var(--earth)', fontSize: '0.76rem', fontWeight: 700
+                          }}>
+                            Sent! ✓
+                          </span>
+                        ) : (
+                          <div style={{
+                            background: 'var(--earth)', color: '#07111f',
+                            padding: '6px 14px', borderRadius: '100px',
+                            fontSize: '0.76rem', fontWeight: 700,
+                            display: 'inline-flex', alignItems: 'center', gap: '5px'
+                          }}>
+                            <span>Send</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             ) : shareSearchQuery.length >= 1 ? (
               <div style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)', fontSize: '0.85rem' }}>No matching astronauts found.</div>
@@ -1550,6 +1757,206 @@ export default function ReelViewer({
           </div>
         </div>
       )}
+
+      {/* ───────── Slide-Up Comments Drawer (Silences Audio On Open, Resumes On Close) ───────── */}
+      {activeCommentsDrawerPostId && (() => {
+        const currentDrawerPost = posts.find(p => p.id === activeCommentsDrawerPostId)
+        return (
+          <div
+            onClick={() => setActiveCommentsDrawerPostId(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              zIndex: 100005,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <style>{`
+              @keyframes slideUpDrawer {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+              }
+            `}</style>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '560px',
+                margin: '0 auto',
+                background: 'linear-gradient(180deg, rgba(14, 25, 43, 0.98), rgba(7, 17, 31, 0.99))',
+                borderTop: '1.5px solid var(--earth)',
+                borderTopLeftRadius: '24px',
+                borderTopRightRadius: '24px',
+                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.7)',
+                maxHeight: '75vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxSizing: 'border-box',
+                animation: 'slideUpDrawer 0.28s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+            >
+              {/* Grab Handle */}
+              <div style={{ padding: '12px 0 6px', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: '40px', height: '4px', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.25)' }} />
+              </div>
+
+              {/* Drawer Header */}
+              <div style={{
+                padding: '6px 20px 14px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text)', fontWeight: 700 }}>
+                    Transmission Notes
+                  </h4>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--earth)' }}>
+                    Audio silenced • {currentDrawerPost?.reelComments?.length || 0} notes
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActiveCommentsDrawerPostId(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--muted)',
+                    fontSize: '1.3rem',
+                    cursor: 'pointer',
+                    padding: '4px 8px'
+                  }}
+                  title="Close and resume audio"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Full Comments List */}
+              <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                minHeight: '180px'
+              }}>
+                {(!currentDrawerPost?.reelComments || currentDrawerPost.reelComments.length === 0) ? (
+                  <div style={{ textAlign: 'center', padding: '36px 12px', color: 'var(--muted)', fontSize: '0.86rem' }}>
+                    No localized notes on this coordinate yet. Long press anywhere on the video or type below to pin one!
+                  </div>
+                ) : (
+                  currentDrawerPost.reelComments.map((c) => (
+                    <div key={c.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      <div className={`user-avatar ${c.user?.color || 'green'}`} style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, fontSize: '0.8rem' }}>
+                        {c.user?.avatarUrl?.startsWith?.('http') ? (
+                          <img src={c.user?.avatarUrl} alt={c.user?.username} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          c.user?.avatarUrl || c.user?.username?.charAt(0).toUpperCase() || '✦'
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text)' }}>
+                            {c.user?.username}
+                          </span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--earth)' }}>
+                            @{c.user?.handle}
+                          </span>
+                          {c.xPercent !== undefined && c.yPercent !== undefined && (
+                            <span style={{
+                              marginLeft: 'auto',
+                              fontSize: '0.65rem',
+                              padding: '1px 6px',
+                              borderRadius: '100px',
+                              background: 'rgba(64, 201, 162, 0.15)',
+                              color: 'var(--earth)',
+                              border: '1px solid rgba(64, 201, 162, 0.3)'
+                            }}>
+                              📍 {Math.round(c.xPercent)}%, {Math.round(c.yPercent)}%
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.86rem', lineHeight: 1.45, color: '#f3f7fb', wordBreak: 'break-word' }}>
+                          {renderWithMentions(c.content)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Bottom Add Note Form with @Mention Autocomplete */}
+              <form
+                onSubmit={handleDrawerAddComment}
+                style={{
+                  padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 12px))',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center',
+                  background: 'rgba(7, 17, 31, 0.85)'
+                }}
+              >
+                <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                  <input
+                    ref={drawerCommentInputRef}
+                    type="text"
+                    value={drawerCommentText}
+                    onChange={(e) => setDrawerCommentText(e.target.value)}
+                    onKeyDown={drawerMention.handleKeyDown}
+                    placeholder="Add a localized transmission note... (type @)"
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px 16px',
+                      borderRadius: '100px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--line)',
+                      color: 'white',
+                      fontSize: '16px',
+                      outline: 'none'
+                    }}
+                  />
+                  {drawerMention.isOpen && (
+                    <MentionDropdown
+                      users={drawerMention.users}
+                      selectedIndex={drawerMention.selectedIndex}
+                      onSelect={drawerMention.selectUser}
+                      isLoading={drawerMention.isLoading}
+                    />
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmittingDrawerComment || !drawerCommentText.trim()}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '100px',
+                    background: 'var(--earth)',
+                    color: '#07111f',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    border: 'none',
+                    cursor: isSubmittingDrawerComment ? 'wait' : 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  {isSubmittingDrawerComment ? '...' : 'Post Note'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

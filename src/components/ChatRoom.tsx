@@ -5,7 +5,17 @@ import Pusher from 'pusher-js'
 import Link from 'next/link'
 import type { MediaConnection } from 'peerjs'
 import { UploadButton, useUploadThing } from './UploadButton'
-import { sendMessage, getMessageById, getPostById, signalCall } from '../app/actions'
+import { 
+  sendMessage, 
+  getMessageById, 
+  getPostById, 
+  signalCall,
+  deleteMessage,
+  deleteChat,
+  toggleBlockUser,
+  checkBlockStatus,
+  updateLastSeen
+} from '../app/actions'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
 import { haptic, playSendSound } from '../lib/soundAndHaptics'
 
@@ -16,6 +26,8 @@ interface Message {
   voiceUrl?: string | null
   senderId: string
   createdAt: Date | string
+  isDeleted?: boolean
+  deletedAt?: Date | string | null
   sender?: {
     id: string
     username: string | null
@@ -73,6 +85,7 @@ interface ChatUser {
   handle: string | null
   avatarUrl?: string | null
   color?: string | null
+  lastSeen?: Date | string | null
 }
 
 const EMOJIS = ['😀', '😂', '🥺', '😎', '😍', '🤔', '👍', '❤️', '🔥', '✨', '🚀', '👽', '🪐', '☄️', '🛰️', '📡', '🌌', '🛸', '⭐', '💫']
@@ -273,7 +286,8 @@ export default function ChatRoom({
     username: otherUser?.username || otherUser?.handle || 'Astronaut',
     handle: otherUser?.handle || otherUser?.username || 'astronaut',
     avatarUrl: otherUser?.avatarUrl || null,
-    color: otherUser?.color || 'green'
+    color: otherUser?.color || 'green',
+    lastSeen: otherUser?.lastSeen || null
   }
 
   const router = useRouter()
@@ -285,6 +299,36 @@ export default function ChatRoom({
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
+
+  // Presence & Active Status
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+  const isOtherOnline = onlineUsers.has(safeOtherUser.id)
+
+  // Block & Moderation Status
+  const [blockStatus, setBlockStatus] = useState({ isBlockedByMe: false, isBlockedByThem: false })
+  const [isTogglingBlock, setIsTogglingBlock] = useState(false)
+  const isChannelBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByThem
+
+  // Chat Deletion Status
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeletingChat, setIsDeletingChat] = useState(false)
+
+  // Fetch block status on mount
+  useEffect(() => {
+    if (!safeOtherUser.id) return
+    checkBlockStatus(safeOtherUser.id).then(res => {
+      if (res) setBlockStatus(res)
+    })
+  }, [safeOtherUser.id])
+
+  // Periodic lastSeen heartbeat
+  useEffect(() => {
+    updateLastSeen().catch(() => {})
+    const interval = setInterval(() => {
+      updateLastSeen().catch(() => {})
+    }, 45000)
+    return () => clearInterval(interval)
+  }, [])
   
   // Call States
   const [isInCall, setIsInCall] = useState(false)
@@ -415,9 +459,52 @@ export default function ChatRoom({
   useEffect(() => {
     const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || 'a1d789b8b44c24f2dac8'
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'ap2'
-    const pusher = new Pusher(pusherKey, { cluster: pusherCluster })
+    const pusher = new Pusher(pusherKey, {
+      cluster: pusherCluster,
+      authEndpoint: '/api/pusher/auth'
+    })
 
     const channel = pusher.subscribe(`chat-${chatId}`)
+    const presenceChannel = pusher.subscribe('presence-multigram')
+
+    // Track active/online presence
+    presenceChannel.bind('pusher:subscription_succeeded', (members: any) => {
+      const active = new Set<string>()
+      members.each((m: any) => active.add(m.id))
+      setOnlineUsers(active)
+    })
+
+    presenceChannel.bind('pusher:member_added', (member: any) => {
+      setOnlineUsers(prev => new Set(prev).add(member.id))
+    })
+
+    presenceChannel.bind('pusher:member_removed', (member: any) => {
+      setOnlineUsers(prev => {
+        const next = new Set(prev)
+        next.delete(member.id)
+        return next
+      })
+    })
+
+    // Handle deleted messages
+    channel.bind('message-deleted', (data: { messageId: string }) => {
+      if (!data?.messageId) return
+      setMessages(prev => prev.map(m => m.id === data.messageId ? {
+        ...m,
+        isDeleted: true,
+        content: 'Transmission retracted',
+        mediaUrl: null,
+        voiceUrl: null,
+      } : m))
+    })
+
+    // Handle chat conversation deletion
+    channel.bind('chat-deleted', (data: { chatId: string }) => {
+      if (data?.chatId === chatId) {
+        alert('This transmission channel was terminated by the other astronaut.')
+        router.push('/chat')
+      }
+    })
 
     channel.bind('new-message', async (data: any) => {
       // If the payload was too large for Pusher, fetch the full message from DB
@@ -476,8 +563,9 @@ export default function ChatRoom({
 
     return () => {
       pusher.unsubscribe(`chat-${chatId}`)
+      pusher.unsubscribe('presence-multigram')
     }
-  }, [chatId, currentUser?.id])
+  }, [chatId, currentUser?.id, router])
 
   // ───────── PeerJS WebRTC Setup ─────────
   useEffect(() => {
@@ -595,6 +683,10 @@ export default function ChatRoom({
   // Start Outgoing Call
   const startCall = async (type: 'audio' | 'video') => {
     if (!safeOtherUser?.id) return
+    if (isChannelBlocked) {
+      alert('Calls are restricted while contact is blocked.')
+      return
+    }
 
     setIsInCall(true)
     setCallType(type)
@@ -851,6 +943,78 @@ export default function ChatRoom({
     }
   }
 
+  // Format Last Seen Time
+  const formatLastSeen = (dateInput?: Date | string | null) => {
+    if (!mounted || !dateInput) return 'Signal Standby · Offline'
+    try {
+      const diffMs = Date.now() - new Date(dateInput).getTime()
+      const diffMins = Math.floor(diffMs / 60000)
+      if (diffMins < 1) return 'Active moments ago'
+      if (diffMins < 60) return `Active ${diffMins}m ago`
+      const diffHours = Math.floor(diffMins / 60)
+      if (diffHours < 24) return `Active ${diffHours}h ago`
+      const diffDays = Math.floor(diffHours / 24)
+      return `Active ${diffDays}d ago`
+    } catch {
+      return 'Signal Standby · Offline'
+    }
+  }
+
+  // Retract/Delete Message
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm('Retract this transmission? This cannot be undone.')) return
+    haptic(12)
+    // Optimistic local update
+    setMessages(prev => prev.map(m => m.id === msgId ? {
+      ...m,
+      isDeleted: true,
+      content: 'Transmission retracted',
+      mediaUrl: null,
+      voiceUrl: null,
+    } : m))
+
+    try {
+      await deleteMessage(msgId)
+    } catch (err) {
+      console.error('Failed to retract message:', err)
+    }
+  }
+
+  // Toggle Block Contact
+  const handleToggleBlock = async () => {
+    setIsTogglingBlock(true)
+    haptic(14)
+    try {
+      const res = await toggleBlockUser(safeOtherUser.id)
+      if (res && res.success) {
+        setBlockStatus(prev => ({ ...prev, isBlockedByMe: !!res.isBlocked }))
+      }
+    } catch (e) {
+      console.error('Failed to toggle block:', e)
+    } finally {
+      setIsTogglingBlock(false)
+      setShowChatOptions(false)
+    }
+  }
+
+  // Delete Conversation
+  const handleDeleteChat = async () => {
+    setIsDeletingChat(true)
+    haptic(16)
+    try {
+      const res = await deleteChat(chatId)
+      if (res && res.success) {
+        router.push('/chat')
+      } else {
+        alert(res?.error || 'Failed to delete conversation.')
+        setIsDeletingChat(false)
+      }
+    } catch (e: any) {
+      alert('Error deleting chat: ' + e.message)
+      setIsDeletingChat(false)
+    }
+  }
+
   return (
     <div 
       className="chat-room-container" 
@@ -943,19 +1107,40 @@ export default function ChatRoom({
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>{safeOtherUser.username}<span style={{ fontSize: '0.65rem', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--earth)', letterSpacing: '0.05em' }}>E2E ENCRYPTED</span></div>
-            <div style={{ color: 'var(--earth)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--earth)', display: 'inline-block' }}></span>
-              @{safeOtherUser.handle} · Signal Active
+            <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {safeOtherUser.username}
+              <span style={{ fontSize: '0.65rem', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--earth)', letterSpacing: '0.05em' }}>E2E ENCRYPTED</span>
             </div>
+            {isOtherOnline ? (
+              <div style={{ color: '#40c9a2', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: '#40c9a2',
+                  boxShadow: '0 0 8px #40c9a2',
+                  display: 'inline-block',
+                  animation: 'pulse 1.8s infinite'
+                }}></span>
+                <span style={{ fontWeight: 600 }}>Orbit Live</span>
+                <span style={{ opacity: 0.65 }}>· @{safeOtherUser.handle}</span>
+              </div>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)', display: 'inline-block' }}></span>
+                <span>{formatLastSeen(safeOtherUser.lastSeen)}</span>
+                <span style={{ opacity: 0.65 }}>· @{safeOtherUser.handle}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Video & Audio Call Buttons */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {/* Video, Audio Call Buttons & Channel Options */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative' }}>
           <button
+            type="button"
             onClick={() => startCall('audio')}
-            disabled={isInCall}
+            disabled={isInCall || isChannelBlocked}
             style={{
               width: '40px',
               height: '40px',
@@ -965,19 +1150,21 @@ export default function ChatRoom({
               color: 'var(--text)',
               display: 'grid',
               placeItems: 'center',
-              cursor: isInCall ? 'not-allowed' : 'pointer',
+              cursor: isInCall || isChannelBlocked ? 'not-allowed' : 'pointer',
               fontSize: '1.1rem',
+              opacity: isChannelBlocked ? 0.45 : 1,
               transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
-            title="Encrypted Voice Call"
+            title={isChannelBlocked ? "Calls restricted (contact blocked)" : "Encrypted Voice Call"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
             </svg>
           </button>
           <button
+            type="button"
             onClick={() => startCall('video')}
-            disabled={isInCall}
+            disabled={isInCall || isChannelBlocked}
             style={{
               width: '40px',
               height: '40px',
@@ -988,19 +1175,233 @@ export default function ChatRoom({
               color: 'var(--earth)',
               display: 'grid',
               placeItems: 'center',
-              cursor: isInCall ? 'not-allowed' : 'pointer',
+              cursor: isInCall || isChannelBlocked ? 'not-allowed' : 'pointer',
               fontSize: '1.15rem',
+              opacity: isChannelBlocked ? 0.45 : 1,
               transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
-            title="Quantum P2P Video Call"
+            title={isChannelBlocked ? "Calls restricted (contact blocked)" : "Quantum P2P Video Call"}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="23 7 16 12 23 17 23 7"/>
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
             </svg>
           </button>
+
+          {/* Options Menu Button (⋮) */}
+          <button
+            type="button"
+            onClick={() => setShowChatOptions(!showChatOptions)}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '1px solid var(--line)',
+              background: showChatOptions ? 'rgba(64, 201, 162, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+              color: showChatOptions ? 'var(--earth)' : 'var(--text)',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+              transition: '0.2s ease'
+            }}
+            title="Channel Options"
+          >
+            ⋮
+          </button>
+
+          {/* Chat Options Dropdown */}
+          {showChatOptions && (
+            <>
+              <div 
+                style={{ position: 'fixed', inset: 0, zIndex: 85 }}
+                onClick={() => setShowChatOptions(false)}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  background: 'rgba(9, 18, 32, 0.98)',
+                  border: '1px solid var(--line)',
+                  borderRadius: '16px',
+                  padding: '8px',
+                  minWidth: '220px',
+                  boxShadow: '0 12px 35px rgba(0,0,0,0.6)',
+                  zIndex: 90,
+                  backdropFilter: 'blur(20px)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  animation: 'fadeIn 0.15s ease'
+                }}
+              >
+                <Link
+                  href={`/profile/${safeOtherUser.handle || safeOtherUser.username}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    color: 'var(--text)',
+                    textDecoration: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => setShowChatOptions(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+                  View Dossier
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleToggleBlock}
+                  disabled={isTogglingBlock}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: blockStatus.isBlockedByMe ? 'var(--earth)' : '#ffb703',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                  {isTogglingBlock ? 'Updating...' : blockStatus.isBlockedByMe ? 'Unblock Astronaut' : 'Block Astronaut'}
+                </button>
+
+                <div style={{ height: '1px', background: 'var(--line)', margin: '4px 0' }} />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowChatOptions(false)
+                    setShowDeleteConfirm(true)
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--danger)',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 77, 97, 0.12)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  Delete Conversation
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Delete Conversation Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.78)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{
+            background: 'var(--panel-solid)',
+            border: '1px solid var(--line)',
+            borderRadius: '20px',
+            padding: '24px',
+            maxWidth: '380px',
+            width: '100%',
+            boxShadow: 'var(--shadow)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: 'rgba(255, 77, 97, 0.15)',
+              color: 'var(--danger)',
+              display: 'grid',
+              placeItems: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: 'var(--text)' }}>
+              Delete Conversation?
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: '0 0 20px', lineHeight: 1.5 }}>
+              All transmissions and media in this channel with <strong>{safeOtherUser.username}</strong> will be permanently wiped.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeletingChat}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--line)',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteChat}
+                disabled={isDeletingChat}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '12px',
+                  background: 'var(--danger)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: isDeletingChat ? 'wait' : 'pointer'
+                }}
+              >
+                {isDeletingChat ? 'Wiping...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───────── WhatsApp-Style Fullscreen Incoming Call Alert ───────── */}
       {(incomingCall || incomingCallSignal) && (
@@ -1486,7 +1887,7 @@ export default function ChatRoom({
 
             {/* Hang Up Button */}
             <button
-              onClick={endCall}
+              onClick={() => endCall(true)}
               style={{
                 width: '64px',
                 height: '64px',
@@ -1561,50 +1962,105 @@ export default function ChatRoom({
                   {isMine ? 'You' : (msg.sender?.username || safeOtherUser.username)}
                 </span>
 
-                <div style={{
-                  padding: '12px 16px',
-                  borderRadius: '18px',
-                  borderBottomRightRadius: isMine ? '4px' : '18px',
-                  borderBottomLeftRadius: isMine ? '18px' : '4px',
-                  background: isMine
-                    ? 'linear-gradient(135deg, var(--earth), var(--earth-dark))'
-                    : 'rgba(0,0,0,0.06)',
-                  color: isMine ? 'var(--background)' : 'var(--text)',
-                  fontSize: '0.9rem',
-                  lineHeight: 1.5,
-                  wordBreak: 'break-word',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-                }}>
-                  {/* Media / Image */}
-                  {msg.mediaUrl && (
-                    <div style={{ marginBottom: msg.content ? '8px' : 0 }}>
-                      <SmoothChatMedia
-                        src={msg.mediaUrl}
-                        onFullscreen={() => setFullscreenMedia(msg.mediaUrl || null)}
-                      />
-                    </div>
-                  )}
+                {msg.isDeleted ? (
+                  <div style={{
+                    padding: '10px 16px',
+                    borderRadius: '16px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px dashed var(--line)',
+                    color: 'var(--muted)',
+                    fontSize: '0.84rem',
+                    fontStyle: 'italic',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px'
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                    <span>Transmission retracted</span>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    flexDirection: isMine ? 'row' : 'row-reverse'
+                  }}>
+                    {isMine && !msg.id.startsWith('temp-') && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        style={{
+                          opacity: 0.4,
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          color: 'var(--muted)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          borderRadius: '4px',
+                          transition: 'opacity 0.2s, color 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '1'
+                          e.currentTarget.style.color = 'var(--danger)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '0.4'
+                          e.currentTarget.style.color = 'var(--muted)'
+                        }}
+                        title="Retract transmission"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    )}
 
-                  {/* Voice Note Player */}
-                  {msg.voiceUrl && (
-                    <div style={{ marginBottom: msg.content ? '6px' : 0, minWidth: '220px' }}>
-                      <audio
-                        controls
-                        src={msg.voiceUrl}
-                        style={{ width: '100%', height: '36px', outline: 'none' }}
-                      />
-                    </div>
-                  )}
+                    <div style={{
+                      padding: '12px 16px',
+                      borderRadius: '18px',
+                      borderBottomRightRadius: isMine ? '4px' : '18px',
+                      borderBottomLeftRadius: isMine ? '18px' : '4px',
+                      background: isMine
+                        ? 'linear-gradient(135deg, var(--earth), var(--earth-dark))'
+                        : 'rgba(0,0,0,0.06)',
+                      color: isMine ? 'var(--background)' : 'var(--text)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      wordBreak: 'break-word',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+                    }}>
+                      {/* Media / Image */}
+                      {msg.mediaUrl && (
+                        <div style={{ marginBottom: msg.content ? '8px' : 0 }}>
+                          <SmoothChatMedia
+                            src={msg.mediaUrl}
+                            onFullscreen={() => setFullscreenMedia(msg.mediaUrl || null)}
+                          />
+                        </div>
+                      )}
 
-                  {/* Text Content & Reel Cards */}
-                  {msg.content && (
-                    msg.content.startsWith('[REEL:') && msg.content.endsWith(']') ? (
-                      <ChatReelCard postId={msg.content.replace('[REEL:', '').replace(']', '')} />
-                    ) : (
-                      <p style={{ margin: 0, fontWeight: isMine ? 500 : 400 }}>{msg.content}</p>
-                    )
-                  )}
-                </div>
+                      {/* Voice Note Player */}
+                      {msg.voiceUrl && (
+                        <div style={{ marginBottom: msg.content ? '6px' : 0, minWidth: '220px' }}>
+                          <audio
+                            controls
+                            src={msg.voiceUrl}
+                            style={{ width: '100%', height: '36px', outline: 'none' }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Text Content & Reel Cards */}
+                      {msg.content && (
+                        msg.content.startsWith('[REEL:') && msg.content.endsWith(']') ? (
+                          <ChatReelCard postId={msg.content.replace('[REEL:', '').replace(']', '')} />
+                        ) : (
+                          <p style={{ margin: 0, fontWeight: isMine ? 500 : 400 }}>{msg.content}</p>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <span style={{
                   fontSize: '0.66rem',
@@ -1621,6 +2077,30 @@ export default function ChatRoom({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Blocked Communication Warning Banner */}
+      {isChannelBlocked && (
+        <div style={{
+          padding: '10px 16px',
+          background: 'rgba(255, 77, 97, 0.12)',
+          borderTop: '1px solid rgba(255, 77, 97, 0.25)',
+          color: '#ff9090',
+          fontSize: '0.82rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          fontWeight: 600,
+          zIndex: 11
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <span>
+            {blockStatus.isBlockedByMe 
+              ? 'You have blocked this astronaut. Unblock from the menu (⋮) to transmit signals.'
+              : 'This communication channel is restricted.'}
+          </span>
+        </div>
+      )}
+
       {/* ───────── Input Dock ───────── */}
       <div style={{
         position: 'relative',
@@ -1635,7 +2115,7 @@ export default function ChatRoom({
         flexShrink: 0
       }}>
         {/* Emoji Picker Popup */}
-        {showEmojiPicker && (
+        {showEmojiPicker && !isChannelBlocked && (
           <div style={{
             position: 'absolute',
             bottom: '100%',
@@ -1680,6 +2160,7 @@ export default function ChatRoom({
         {/* Emoji Button */}
         <button
           type="button"
+          disabled={isChannelBlocked}
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
           style={{
             width: '40px',
@@ -1688,13 +2169,14 @@ export default function ChatRoom({
             border: '1px solid var(--line)',
             background: showEmojiPicker ? 'rgba(64, 201, 162, 0.2)' : 'rgba(0,0,0,0.04)',
             color: showEmojiPicker ? 'var(--earth)' : 'var(--muted)',
-            cursor: 'pointer',
+            cursor: isChannelBlocked ? 'not-allowed' : 'pointer',
+            opacity: isChannelBlocked ? 0.4 : 1,
             display: 'grid',
             placeItems: 'center',
             flexShrink: 0,
             transition: '0.2s ease'
           }}
-          title="Pick Emoji"
+          title={isChannelBlocked ? 'Channel restricted' : 'Pick Emoji'}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -1716,10 +2198,11 @@ export default function ChatRoom({
             background: isUploadingMedia ? 'rgba(197, 160, 89, 0.2)' : 'rgba(0,0,0,0.04)',
             border: '1px solid var(--line)',
             color: isUploadingMedia ? 'var(--earth)' : 'var(--muted)',
-            cursor: isUploadingMedia ? 'wait' : 'pointer',
+            cursor: isChannelBlocked ? 'not-allowed' : isUploadingMedia ? 'wait' : 'pointer',
+            opacity: isChannelBlocked ? 0.4 : 1,
             transition: '0.2s ease'
           }}
-          title={isUploadingMedia ? 'Optimizing & uploading media...' : 'Attach Image or Video Transmission'}
+          title={isChannelBlocked ? 'Channel restricted' : isUploadingMedia ? 'Optimizing & uploading media...' : 'Attach Image or Video Transmission'}
         >
           {isUploadingMedia ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="chat-spin" strokeLinecap="round" strokeLinejoin="round">
@@ -1733,7 +2216,7 @@ export default function ChatRoom({
           <input
             type="file"
             accept="image/*,video/*"
-            disabled={isUploadingMedia}
+            disabled={isUploadingMedia || isChannelBlocked}
             style={{ display: 'none' }}
             onChange={handleMediaFilePick}
           />
@@ -1767,9 +2250,10 @@ export default function ChatRoom({
           <input
             type="text"
             value={inputText}
+            disabled={isChannelBlocked}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
-            placeholder="Transmit an encrypted signal..."
+            onKeyDown={(e) => e.key === 'Enter' && !isChannelBlocked && handleSendText()}
+            placeholder={isChannelBlocked ? "Channel restricted (contact blocked)..." : "Transmit an encrypted signal..."}
             style={{
               flex: 1,
               padding: '12px 18px',
@@ -1779,9 +2263,13 @@ export default function ChatRoom({
               color: 'var(--text)',
               fontSize: '0.92rem',
               outline: 'none',
+              opacity: isChannelBlocked ? 0.6 : 1,
+              cursor: isChannelBlocked ? 'not-allowed' : 'text',
               transition: 'border-color 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
-            onFocus={(e) => (e.target.style.borderColor = 'var(--earth)')}
+            onFocus={(e) => {
+              if (!isChannelBlocked) e.target.style.borderColor = 'var(--earth)'
+            }}
             onBlur={(e) => (e.target.style.borderColor = 'var(--line)')}
           />
         )}
@@ -1790,19 +2278,20 @@ export default function ChatRoom({
         {inputText.trim() ? (
           <button
             onClick={handleSendText}
+            disabled={isChannelBlocked}
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
-              color: 'var(--background)',
+              background: isChannelBlocked ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, var(--earth), var(--earth-dark))',
+              color: isChannelBlocked ? 'var(--muted)' : 'var(--background)',
               border: 'none',
-              cursor: 'pointer',
+              cursor: isChannelBlocked ? 'not-allowed' : 'pointer',
               display: 'grid',
               placeItems: 'center',
               fontWeight: 700,
               flexShrink: 0,
-              boxShadow: '0 4px 15px rgba(64, 201, 162, 0.4)',
+              boxShadow: isChannelBlocked ? 'none' : '0 4px 15px rgba(64, 201, 162, 0.4)',
               transition: 'transform 0.15s ease'
             }}
             title="Send Signal"
@@ -1815,6 +2304,7 @@ export default function ChatRoom({
         ) : (
           <button
             onClick={toggleRecording}
+            disabled={isChannelBlocked}
             style={{
               width: '42px',
               height: '42px',
@@ -1822,13 +2312,14 @@ export default function ChatRoom({
               background: isRecording ? 'var(--danger)' : 'rgba(0,0,0,0.04)',
               border: '1px solid var(--line)',
               color: isRecording ? 'white' : 'var(--muted)',
-              cursor: 'pointer',
+              cursor: isChannelBlocked ? 'not-allowed' : 'pointer',
+              opacity: isChannelBlocked ? 0.4 : 1,
               display: 'grid',
               placeItems: 'center',
               flexShrink: 0,
               transition: '0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease'
             }}
-            title={isRecording ? 'Click to beam voice log' : 'Click to record voice transmission'}
+            title={isChannelBlocked ? 'Channel restricted' : isRecording ? 'Click to beam voice log' : 'Click to record voice transmission'}
           >
             {isRecording ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

@@ -65,7 +65,7 @@ export default async function ExplorePage() {
   }
 
   return (
-    <div style={{ maxWidth: '1180px', margin: '0 auto', padding: '24px 20px 90px' }}>
+    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', padding: '20px 14px 90px', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

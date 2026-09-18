@@ -90,7 +90,20 @@ export default async function Home() {
             </span>
           </button>
 
-          <button className="planet-button" data-planet="mars">
+          <button
+            className="planet-button planet-standby"
+            data-planet="mars"
+            style={{
+              position: 'relative',
+              opacity: 0.65,
+              cursor: 'not-allowed',
+              boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              overflow: 'hidden'
+            }}
+            disabled
+          >
             <span className="planet-icon mars">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="11" ry="4" strokeDasharray="3 2"/><circle cx="12" cy="12" r="4"/></svg>
             </span>
@@ -98,15 +111,56 @@ export default async function Home() {
               <span className="planet-name">Mars</span>
               <span className="planet-status">Relay sync standby</span>
             </span>
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: '0.62rem',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '6px',
+              background: 'rgba(237, 118, 86, 0.15)',
+              border: '1px solid rgba(237, 118, 86, 0.3)',
+              color: 'var(--mars)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em'
+            }}>
+              Soon
+            </span>
           </button>
 
-          <button className="planet-button" data-planet="moon">
+          <button
+            className="planet-button planet-standby"
+            data-planet="moon"
+            style={{
+              position: 'relative',
+              opacity: 0.65,
+              cursor: 'not-allowed',
+              boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              overflow: 'hidden'
+            }}
+            disabled
+          >
             <span className="planet-icon moon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             </span>
             <span className="planet-copy">
               <span className="planet-name">Moon</span>
-              <span className="planet-status">Lunar beacon ready</span>
+              <span className="planet-status">Moon beacon ready</span>
+            </span>
+            <span style={{
+              marginLeft: 'auto',
+              fontSize: '0.62rem',
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: '6px',
+              background: 'rgba(197, 160, 89, 0.15)',
+              border: '1px solid rgba(197, 160, 89, 0.3)',
+              color: 'var(--earth)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em'
+            }}>
+              Soon
             </span>
           </button>
         </div>
