@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { toggleFollow, savePost, addReelComment, getShareContacts } from '../app/actions'
 import { showToast } from './Toast'
 import { releaseVideoMemory } from '../lib/mediaMemoryManager'
+import { haptic, playLikePop, playSaveClick, playToggleTick } from '../lib/soundAndHaptics'
 
 function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -405,19 +405,20 @@ interface Post {
 export default function ReelViewer({
   posts: initialPosts,
   currentUser,
+  initialTargetId,
 }: {
   posts: Post[]
   currentUser?: any
+  initialTargetId?: string
 }) {
   const [posts, setPosts] = useState<Post[]>(initialPosts)
   const [activeIdx, setActiveIdx] = useState(0)
   const [showComments, setShowComments] = useState(true)
   const [activeTooltipId, setActiveTooltipId] = useState<string | null>(null)
-  const searchParams = useSearchParams()
 
-  // Jump to specific reel if id is in URL params
+  // Jump to specific reel if initialTargetId or URL params are present
   useEffect(() => {
-    const targetId = searchParams?.get('id') || searchParams?.get('post')
+    const targetId = initialTargetId || (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('id') || new URLSearchParams(window.location.search).get('post')) : null)
     if (targetId && posts.length > 0) {
       const idx = posts.findIndex(p => p.id === targetId)
       if (idx !== -1) {
@@ -430,7 +431,7 @@ export default function ReelViewer({
         }, 150)
       }
     }
-  }, [searchParams, posts])
+  }, [initialTargetId, posts])
   
   // New pin placement state
   const [pendingPin, setPendingPin] = useState<{
@@ -559,6 +560,8 @@ export default function ReelViewer({
     const isCurrentlySaved = !!savedMap[postId];
     if (isCurrentlySaved) {
       setSavedMap(prev => ({ ...prev, [postId]: false }));
+      haptic(8);
+      playToggleTick();
       triggerFeedback('save', 'Removed from Saved', '❌');
       showToast('Removed from Saved Archive');
       await savePost(postId, false);
@@ -570,6 +573,8 @@ export default function ReelViewer({
   const confirmSave = async (postId: string, isPublic: boolean) => {
     setSaveModalPostId(null);
     setSavedMap(prev => ({ ...prev, [postId]: true }));
+    haptic(10);
+    playSaveClick();
     triggerFeedback('save', isPublic ? 'Saved (Public)' : 'Saved (Private)', '🔗');
     showToast(isPublic ? 'Saved publicly' : 'Saved privately');
     await savePost(postId, isPublic);
@@ -587,6 +592,8 @@ export default function ReelViewer({
     const isCurrentlyFollowing = !!followingMap[authorId]
     const nextState = !isCurrentlyFollowing
     setFollowingMap(prev => ({ ...prev, [authorId]: nextState }))
+    haptic(10);
+    playLikePop();
     triggerFeedback(
       'follow',
       nextState ? `Tracking @${authorHandle}` : `Unfollowed @${authorHandle}`,
@@ -598,6 +605,8 @@ export default function ReelViewer({
 
   // Handle Double Tap -> Toggle Comments Overlay
   const handleDoubleTap = () => {
+    haptic(8);
+    playToggleTick();
     if (pendingPin) {
       setIsAddingComment(true)
     } else {
@@ -785,16 +794,20 @@ export default function ReelViewer({
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      width: '100vw',
-      height: '100dvh',
-      background: '#000',
-      zIndex: 100,
-      userSelect: 'none',
-      overflow: 'hidden'
-    }}>
+    <div
+      data-hide-topbar="true"
+      data-reel-viewer="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100vw',
+        height: '100dvh',
+        background: '#000',
+        zIndex: 50,
+        userSelect: 'none',
+        overflow: 'hidden'
+      }}
+    >
       {/* Sleek Floating Home / Back Button */}
       <Link
         href="/"

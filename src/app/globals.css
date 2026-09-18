@@ -26,6 +26,8 @@ body.compact-mode {
 
 body:has([data-hide-chrome="true"]) .topbar,
 body:has([data-hide-chrome="true"]) .mobile-tabs-wave,
+body:has([data-hide-topbar="true"]) .topbar,
+body:has([data-reel-viewer="true"]) .topbar,
 body.chat-room-active .topbar,
 body.chat-room-active .mobile-tabs-wave {
   display: none !important;

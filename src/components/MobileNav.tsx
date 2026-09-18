@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
+import { haptic, playTabTick } from '../lib/soundAndHaptics'
 
 export default function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
 
-  if ((pathname.startsWith('/chat/') && pathname !== '/chat') || pathname.startsWith('/reels')) {
+  // Hide mobile nav inside active 1:1 chatroom
+  if (pathname.startsWith('/chat/') && pathname !== '/chat') {
     return null
   }
 
@@ -24,39 +26,13 @@ export default function MobileNav() {
   const safeIndex = activeIndex === -1 ? 0 : activeIndex
 
   const [visualIndex, setVisualIndex] = useState(safeIndex)
-  
-  // Reels specific hide / trigger states
   const isReelsPage = pathname.startsWith('/reels')
-  const [reelsNavRevealed, setReelsNavRevealed] = useState(false)
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     setVisualIndex(safeIndex)
-    if (isReelsPage) {
-      // Keep menu visible for 2.8 seconds when entering reels so users can continue navigating
-      setReelsNavRevealed(true)
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-      hideTimeoutRef.current = setTimeout(() => {
-        setReelsNavRevealed(false)
-      }, 2800)
-    } else {
-      setReelsNavRevealed(false)
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-    }
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-    }
-  }, [safeIndex, isReelsPage])
+  }, [safeIndex])
 
-  const triggerReelsNav = () => {
-    setReelsNavRevealed(true)
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-    hideTimeoutRef.current = setTimeout(() => {
-      setReelsNavRevealed(false)
-    }, 3500)
-  }
-
-  // Prefetch all tab routes on mount for instant, zero-lag section switching
+  // Pre-warm / prefetch all 5 tab routes on mount for instant zero-lag tab switching
   useEffect(() => {
     tabs.forEach(tab => {
       try {
@@ -65,13 +41,10 @@ export default function MobileNav() {
     })
   }, [router])
 
-  // Directional Swipe handling over bottom navigation bar
+  // Touch scrubbing / directional swipe handling over the bottom navigation bar
   const touchStartRef = useRef<{ x: number; y: number; startIndex: number; hasMoved: boolean } | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (isReelsPage && reelsNavRevealed) {
-      triggerReelsNav()
-    }
     const touch = e.touches[0]
     touchStartRef.current = {
       x: touch.clientX,
@@ -90,21 +63,28 @@ export default function MobileNav() {
     // Directional swipe: Moving thumb towards the right moves selection right; moving thumb left moves selection left
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 12) {
       touchStartRef.current.hasMoved = true
-      // Sensitivity: 36px per tab step in the swiping direction
-      const step = Math.round(deltaX / 36)
+      // Sensitivity: 32px per tab step in the swiping direction
+      const step = Math.round(deltaX / 32)
       const targetIndex = Math.max(0, Math.min(tabs.length - 1, touchStartRef.current.startIndex + step))
       if (targetIndex !== visualIndex) {
         setVisualIndex(targetIndex)
+        haptic(8)
+        playTabTick()
+        // Instantly transition main screen as finger scrubs through tabs
+        router.push(tabs[targetIndex].href)
       }
     }
   }
 
   const handleTouchEnd = () => {
-    if (!touchStartRef.current) return
-    const hadMoved = touchStartRef.current.hasMoved
     touchStartRef.current = null
-    if (hadMoved && visualIndex !== safeIndex) {
-      router.push(tabs[visualIndex].href)
+  }
+
+  const handleTabClick = (idx: number) => {
+    if (idx !== visualIndex) {
+      setVisualIndex(idx)
+      haptic(8)
+      playTabTick()
     }
   }
 
@@ -119,17 +99,19 @@ export default function MobileNav() {
           width: 100vw;
           max-width: 100vw;
           height: 68px;
-          background: var(--panel-solid);
+          background: ${isReelsPage ? 'rgba(7, 17, 31, 0.88)' : 'var(--panel-solid)'};
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
           display: flex;
           align-items: center;
-          border-top: 1px solid rgba(28, 25, 20, 0.08);
-          box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.07);
+          border-top: 1px solid ${isReelsPage ? 'rgba(255, 255, 255, 0.12)' : 'rgba(28, 25, 20, 0.08)'};
+          box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.12);
           z-index: 1000;
           padding-bottom: env(safe-area-inset-bottom, 8px);
           overflow: hidden;
           box-sizing: border-box;
           touch-action: pan-x;
-          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: background 0.3s ease, border-color 0.3s ease;
         }
         @media (min-width: 769px) { .mobile-tabs-wave { display: none; } }
         
@@ -141,7 +123,7 @@ export default function MobileNav() {
           width: ${100 / tabs.length}%;
           height: 24px;
           pointer-events: none;
-          transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 1;
         }
 
@@ -164,7 +146,7 @@ export default function MobileNav() {
           height: 100%;
           position: relative;
           z-index: 2;
-          color: var(--muted);
+          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
           text-decoration: none;
           cursor: pointer;
           -webkit-tap-highlight-color: transparent;
@@ -175,26 +157,26 @@ export default function MobileNav() {
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
+          transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
           transform: translateY(0);
-          color: var(--muted);
-          opacity: 0.75;
+          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
+          opacity: 0.8;
         }
 
         .tab-item.active .tab-icon {
           transform: translateY(4px) scale(1.15);
           color: var(--earth);
           opacity: 1;
-          filter: drop-shadow(0 2px 8px rgba(197, 160, 89, 0.4));
+          filter: drop-shadow(0 2px 8px rgba(197, 160, 89, 0.45));
         }
         
         .tab-label {
           font-size: 0.68rem;
           font-weight: 500;
           margin-top: 3px;
-          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-          color: var(--muted);
-          opacity: 0.75;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          color: ${isReelsPage ? 'rgba(255, 255, 255, 0.55)' : 'var(--muted)'};
+          opacity: 0.8;
         }
 
         .tab-item.active .tab-label {
@@ -205,44 +187,8 @@ export default function MobileNav() {
         }
       `}</style>
 
-      {/* Floating Trigger Tab for Reels Mode */}
-      {isReelsPage && !reelsNavRevealed && (
-        <button
-          onClick={triggerReelsNav}
-          aria-label="Open Navigation Bar"
-          style={{
-            position: 'fixed',
-            bottom: '14px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(11, 23, 39, 0.85)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid var(--earth)',
-            borderRadius: '100px',
-            padding: '6px 16px',
-            color: 'var(--earth)',
-            fontSize: '0.74rem',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            zIndex: 1001,
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            animation: 'fadeIn 0.25s ease'
-          }}
-        >
-          <span>▲</span> Menu
-        </button>
-      )}
-      
       <nav 
         className="mobile-tabs-wave"
-        style={{
-          transform: isReelsPage
-            ? (reelsNavRevealed ? 'translateY(0)' : 'translateY(100%)')
-            : 'translateY(0)'
-        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -255,8 +201,8 @@ export default function MobileNav() {
           <svg className="tab-cavity-svg" viewBox="0 0 76 22">
             <path 
               d="M 0 0 C 18 0, 20 20, 38 20 C 56 20, 58 0, 76 0 Z" 
-              fill="var(--background)" 
-              stroke="rgba(28, 25, 20, 0.1)" 
+              fill={isReelsPage ? '#07111f' : 'var(--background)'} 
+              stroke={isReelsPage ? 'rgba(255, 255, 255, 0.12)' : 'rgba(28, 25, 20, 0.1)'} 
               strokeWidth="1.5"
             />
           </svg>
@@ -267,10 +213,7 @@ export default function MobileNav() {
             key={tab.href}
             href={tab.href}
             className={`tab-item ${idx === visualIndex ? 'active' : ''}`}
-            onClick={() => {
-              setVisualIndex(idx)
-              if (isReelsPage) triggerReelsNav()
-            }}
+            onClick={() => handleTabClick(idx)}
             draggable={false}
           >
             <div className="tab-icon">{tab.icon}</div>

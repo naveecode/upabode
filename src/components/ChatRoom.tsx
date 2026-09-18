@@ -7,6 +7,7 @@ import type { MediaConnection } from 'peerjs'
 import { UploadButton, useUploadThing } from './UploadButton'
 import { sendMessage, getMessageById, getPostById, signalCall } from '../app/actions'
 import { compressImage, validateMediaType } from '../lib/mediaCompressor'
+import { haptic, playSendSound } from '../lib/soundAndHaptics'
 
 interface Message {
   id: string
@@ -694,6 +695,8 @@ export default function ChatRoom({
     const content = inputText.trim()
     setInputText('')
     setShowEmojiPicker(false)
+    haptic(14)
+    playSendSound()
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
     const tempMessage: Message = {
@@ -725,6 +728,8 @@ export default function ChatRoom({
 
   // Send Media Image
   const handleSendMedia = async (mediaUrl: string) => {
+    haptic(14)
+    playSendSound()
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
     const tempMessage: Message = {
       id: tempId,

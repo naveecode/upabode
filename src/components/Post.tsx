@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { toggleLike, toggleFollow } from "../app/actions";
 import { showToast } from "./Toast";
 import { releaseVideoMemory } from "../lib/mediaMemoryManager";
+import { haptic, playLikePop, playToggleTick, playTabTick } from "../lib/soundAndHaptics";
 import Link from "next/link";
 import ThreadCommentTree from "./ThreadCommentTree";
 
@@ -203,16 +204,32 @@ export default function Post({ post, currentUserId }: { post: any; currentUserId
   const handleTouchEnd = () => { if(touchStartX.current - touchEndX.current > 50) { nextSlide(new Event('swipe') as any); } if(touchEndX.current - touchStartX.current > 50) { prevSlide(new Event('swipe') as any); } touchStartX.current = 0; touchEndX.current = 0; };
 
   const handleLike = async (fromSwipe = false) => {
-    setIsLiked(!isLiked);
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
     setLikesCount((prev: number) => (isLiked ? prev - 1 : prev + 1));
-    if (fromSwipe) showToast(!isLiked ? "Signal liked" : "Like removed");
+    if (nextLiked) {
+      haptic(12);
+      playLikePop();
+    } else {
+      haptic(8);
+      playToggleTick();
+    }
+    if (fromSwipe) showToast(nextLiked ? "Signal liked" : "Like removed");
     await toggleLike(post.id);
   };
 
   const handleFollow = async (fromSwipe = false) => {
-    setIsFollowing(!isFollowing);
+    const nextFollowing = !isFollowing;
+    setIsFollowing(nextFollowing);
+    if (nextFollowing) {
+      haptic(10);
+      playLikePop();
+    } else {
+      haptic(8);
+      playToggleTick();
+    }
     if (fromSwipe)
-      showToast(!isFollowing ? "Now tracking this signal (followed)" : "Unfollowed signal");
+      showToast(nextFollowing ? "Now tracking this signal (followed)" : "Unfollowed signal");
     await toggleFollow(post.authorId);
   };
 

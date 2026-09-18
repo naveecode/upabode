@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { addThreadComment } from '../app/actions'
 import { showToast } from './Toast'
+import { haptic, playToggleTick } from '../lib/soundAndHaptics'
 
 interface CommentNode {
   id: string
@@ -41,8 +42,8 @@ function ThreadCommentItem({
   const [replyText, setReplyText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  // Foldable: nested child branches can be collapsed/expanded. The comment itself is always shown!
-  const [isRepliesCollapsed, setIsRepliesCollapsed] = useState(false)
+  // Foldable: nested child branches are folded and hidden by default! The comment itself is always shown
+  const [isRepliesCollapsed, setIsRepliesCollapsed] = useState(true)
   const [showAllReplies, setShowAllReplies] = useState(depth > 0)
 
   // Get replies and sort by most active (most replies in sub-branch)
@@ -186,7 +187,11 @@ function ThreadCommentItem({
 
           {sortedReplies.length > 0 && (
             <button
-              onClick={() => setIsRepliesCollapsed(!isRepliesCollapsed)}
+              onClick={() => {
+                setIsRepliesCollapsed(!isRepliesCollapsed)
+                haptic(8)
+                playToggleTick()
+              }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -303,7 +308,11 @@ function ThreadCommentItem({
         {sortedReplies.length > 0 && isRepliesCollapsed && (
           <div style={{ paddingLeft: '34px', marginTop: '6px' }}>
             <button
-              onClick={() => setIsRepliesCollapsed(false)}
+              onClick={() => {
+                setIsRepliesCollapsed(false)
+                haptic(8)
+                playToggleTick()
+              }}
               style={{
                 background: 'rgba(197, 160, 89, 0.1)',
                 border: '1px solid rgba(197, 160, 89, 0.3)',
@@ -365,6 +374,32 @@ function ThreadCommentItem({
                 </button>
               </div>
             )}
+
+            {/* Hide replies folding button at bottom of branch */}
+            <div style={{ marginTop: '8px', marginBottom: '4px' }}>
+              <button
+                onClick={() => {
+                  setIsRepliesCollapsed(true)
+                  haptic(8)
+                  playToggleTick()
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  opacity: 0.8
+                }}
+              >
+                <span>▲</span> Hide replies
+              </button>
+            </div>
           </div>
         )}
       </div>
