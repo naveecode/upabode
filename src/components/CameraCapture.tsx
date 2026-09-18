@@ -343,7 +343,7 @@ export default function CameraCapture({ onCapture, onClose }: { onCapture: (file
               color: 'rgba(255, 255, 255, 0.55)',
               fontSize: '0.78rem'
             }}>
-              Upabode Orbit Live Viewfinder
+              Multigram Live Viewfinder
             </span>
             <style>{`
               @keyframes cameraSpin {

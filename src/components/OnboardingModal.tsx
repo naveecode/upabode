@@ -81,7 +81,7 @@ export default function OnboardingModal({ currentUser }: OnboardingModalProps) {
     setIsSubmitting(true);
     try {
       await skipOnboarding();
-      showToast('Welcome to Upabode Orbit! You can update your profile anytime.');
+      showToast('Welcome to Multigram! You can update your profile anytime.');
       setIsOpen(false);
       window.location.reload();
     } catch {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { registerUser, sendRegistrationOtp } from '../../actions';
 import { validateEmail } from '../../../lib/emailValidator';
+import MultigramLogo from '../../../components/MultigramLogo';
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -187,7 +188,7 @@ function RegisterForm() {
           }} />
           <div>
             <h3 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px 0', fontFamily: 'var(--font-heading)' }}>
-              Connecting to Google Orbit
+              Connecting to Google Multigram
             </h3>
             <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0, maxWidth: '280px' }}>
               Securing quantum identity credentials...
@@ -217,8 +218,8 @@ function RegisterForm() {
             gap: '10px',
             marginBottom: '8px'
           }}>
-            <span className="brand-mark" style={{ width: '36px', height: '36px' }}>
-              <img src="/icon.png" alt="Upabode" width={36} height={36} />
+            <span className="brand-mark" style={{ width: '40px', height: '40px', background: 'rgba(7, 17, 31, 0.9)', padding: '3px' }}>
+              <MultigramLogo size={34} color="var(--earth)" />
             </span>
             <span style={{
               fontFamily: 'var(--font-space-grotesk)',
@@ -226,7 +227,7 @@ function RegisterForm() {
               fontWeight: 700,
               color: 'var(--text)',
               letterSpacing: '-0.03em'
-            }}>Upabode</span>
+            }}>Multigram</span>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0 }}>
             Establish your identity in the quantum network

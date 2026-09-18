@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { loginUser } from '../../actions';
 
+import MultigramLogo from '../../../components/MultigramLogo';
+
 function LoginForm() {
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl') || '/';
@@ -83,7 +85,7 @@ function LoginForm() {
           }} />
           <div>
             <h3 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px 0', fontFamily: 'var(--font-heading)' }}>
-              Connecting to Google Orbit
+              Connecting to Google Multigram
             </h3>
             <p style={{ color: 'var(--muted)', fontSize: '0.88rem', margin: 0, maxWidth: '280px' }}>
               Securing quantum identity credentials...
@@ -113,8 +115,8 @@ function LoginForm() {
             gap: '10px',
             marginBottom: '8px'
           }}>
-            <span className="brand-mark" style={{ width: '38px', height: '38px' }}>
-              <img src="/icon.png" alt="Upabode" width={38} height={38} />
+            <span className="brand-mark" style={{ width: '42px', height: '42px', background: 'rgba(7, 17, 31, 0.9)', padding: '3px' }}>
+              <MultigramLogo size={36} color="var(--earth)" />
             </span>
             <span style={{
               fontFamily: 'var(--font-space-grotesk)',
@@ -122,7 +124,7 @@ function LoginForm() {
               fontWeight: 700,
               color: 'var(--text)',
               letterSpacing: '-0.03em'
-            }}>Upabode</span>
+            }}>Multigram</span>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
             Welcome back, cosmic explorer

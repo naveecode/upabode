@@ -1,7 +1,7 @@
 {
-  "name": "Upabode",
-  "short_name": "Upabode",
-  "description": "Luxurious interplanetary communication",
+  "name": "Multigram",
+  "short_name": "Multigram",
+  "description": "Universal Visual Network",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#07111f",

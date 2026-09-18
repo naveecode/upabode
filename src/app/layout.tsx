@@ -32,8 +32,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Upabode - Premium Communication',
-  description: 'Luxurious social connections with Upabode',
+  title: 'Multigram - Premium Communication',
+  description: 'Luxurious social connections with Multigram',
   icons: {
     icon: [
       { url: '/icon.png', sizes: '512x512', type: 'image/png' },

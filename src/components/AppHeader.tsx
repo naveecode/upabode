@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import HeaderActions from './HeaderActions';
 
+import MultigramLogo from './MultigramLogo';
+
 export default function AppHeader({ user }: { user: any }) {
   const pathname = usePathname();
 
@@ -15,10 +17,10 @@ export default function AppHeader({ user }: { user: any }) {
   return (
     <header className="topbar">
       <Link href="/" className="brand">
-        <span className="brand-mark">
-          <img src="/icon.png" alt="Upabode" width={38} height={38} />
+        <span className="brand-mark" style={{ background: 'rgba(7, 17, 31, 0.9)', padding: '2px' }}>
+          <MultigramLogo size={32} color="var(--earth)" />
         </span>
-        <span className="brand-name">Upabode</span>
+        <span className="brand-name">Multigram</span>
       </Link>
       <div className="topbar-right flex items-center gap-3">
         <HeaderActions user={user} />

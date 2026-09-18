@@ -1,3 +1,5 @@
+import MultigramLogo from '../../components/MultigramLogo';
+
 export default function ReelsLoading() {
   return (
     <div
@@ -34,8 +36,8 @@ export default function ReelsLoading() {
       >
         <div
           style={{
-            width: '64px',
-            height: '64px',
+            width: '68px',
+            height: '68px',
             borderRadius: '50%',
             background: 'rgba(197, 160, 89, 0.15)',
             border: '1.5px solid rgba(197, 160, 89, 0.4)',
@@ -45,7 +47,7 @@ export default function ReelsLoading() {
             animation: 'pulse 1.4s ease-in-out infinite',
           }}
         >
-          <img src="/icon.png" alt="Upabode" width={40} height={40} style={{ borderRadius: '50%' }} />
+          <MultigramLogo size={46} color="var(--earth)" />
         </div>
         <span
           style={{

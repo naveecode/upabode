@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react'
 
+import MultigramLogo from './MultigramLogo'
+
 export default function SplashLoader() {
   const [visible, setVisible] = useState(true)
   const [fading, setFading] = useState(false)
 
   useEffect(() => {
     // Check if splash was already shown in this session
-    const hasSeenSplash = localStorage.getItem('upabode_initialized')
+    const hasSeenSplash = localStorage.getItem('multigram_initialized') || localStorage.getItem('upabode_initialized')
     if (hasSeenSplash) {
       setVisible(false)
       return
@@ -18,7 +20,7 @@ export default function SplashLoader() {
       setFading(true)
       setTimeout(() => {
         setVisible(false)
-        localStorage.setItem('upabode_initialized', 'true')
+        localStorage.setItem('multigram_initialized', 'true')
       }, 400)
     }, 700)
 
@@ -50,49 +52,42 @@ export default function SplashLoader() {
         width: '320px',
         height: '320px',
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(64, 201, 162, 0.25) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(197, 160, 89, 0.22) 0%, transparent 70%)',
         filter: 'blur(30px)',
         animation: 'pulse 2s infinite'
       }} />
 
-      {/* Upabode Brand Logo */}
+      {/* Multigram Ultra-Minimalist Mascot */}
       <div style={{
         position: 'relative',
         display: 'grid',
         placeItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '20px'
       }}>
         <div style={{
-          width: '76px',
-          height: '76px',
+          width: '92px',
+          height: '92px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--earth), #137b7d)',
+          background: 'radial-gradient(circle, rgba(197, 160, 89, 0.18) 0%, rgba(7, 17, 31, 0) 70%)',
           display: 'grid',
           placeItems: 'center',
-          boxShadow: '0 0 50px rgba(64, 201, 162, 0.5)',
-          animation: 'pulse 1.8s infinite'
+          animation: 'pulse 2.2s infinite'
         }}>
-          <div style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            border: '3.5px solid white',
-            background: 'transparent'
-          }} />
+          <MultigramLogo size={78} color="var(--earth)" animated={true} />
         </div>
       </div>
 
-      {/* Upabode Brand Typography */}
+      {/* Multigram Brand Typography */}
       <h1 style={{
         fontFamily: 'var(--font-heading)',
-        fontSize: '2.4rem',
+        fontSize: '2.5rem',
         fontWeight: 800,
         letterSpacing: '0.08em',
         color: 'var(--text)',
         marginBottom: '8px',
         textTransform: 'uppercase'
       }}>
-        Upabode
+        Multigram
       </h1>
 
       <p style={{
@@ -103,7 +98,7 @@ export default function SplashLoader() {
         fontWeight: 600,
         marginBottom: '28px'
       }}>
-        Quantum Planetary Network
+        Universal Visual Network
       </p>
 
       {/* Sleek loading bar */}

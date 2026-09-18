@@ -742,7 +742,7 @@ export default function ProfileView({ user, savedPosts, currentUserId, onLogout 
                 Edit Astronaut Profile
               </h2>
               <p style={{ color: 'var(--muted)', fontSize: '0.82rem', margin: 0 }}>
-                Update your display name, handle, and avatar across Upabode.
+                Update your display name, handle, and avatar across Multigram.
               </p>
             </div>
             <button 

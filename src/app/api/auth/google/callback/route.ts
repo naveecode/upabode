@@ -110,7 +110,7 @@ export async function GET(request: Request) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Logging into Upabode Orbit...</title>
+  <title>Logging into Multigram...</title>
   <style>
     body { background: #07111F; color: #40C9A2; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     .spinner { width: 44px; height: 44px; border: 3px solid rgba(64,201,162,0.2); border-top-color: #40C9A2; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 </head>
 <body>
   <div class="spinner"></div>
-  <p>Connecting to Upabode Orbit...</p>
+  <p>Connecting to Multigram...</p>
   <script>
     try {
       window.location.replace("orbit://auth-callback?session_token=" + encodeURIComponent("${token}") + "&returnUrl=" + encodeURIComponent("${returnUrl}"));
