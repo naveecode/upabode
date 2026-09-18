@@ -29,7 +29,19 @@ export default function MobileNav() {
   const isReelsPage = pathname.startsWith('/reels')
   // isShrunkToMenu determines if the bottom panel has morphed into the floating menu pill
   const [isShrunkToMenu, setIsShrunkToMenu] = useState(false)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const autoCollapseTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // Listen for data-drawer-open on body to immediately hide floating menu
+  useEffect(() => {
+    const checkDrawer = () => {
+      setIsDrawerOpen(document.body.getAttribute('data-drawer-open') === 'true')
+    }
+    checkDrawer()
+    const observer = new MutationObserver(checkDrawer)
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-drawer-open'] })
+    return () => observer.disconnect()
+  }, [])
 
   // Sync active index & manage 3-second delay on reels before whirlpool menu morph
   useEffect(() => {
@@ -295,14 +307,21 @@ export default function MobileNav() {
           transform: translateY(1px);
           opacity: 1;
         }
+
+        body[data-drawer-open="true"] .reels-menu-pill,
+        body[data-drawer-open="true"] .mobile-tabs-wave {
+          display: none !important;
+          pointer-events: none !important;
+        }
       `}</style>
 
       {/* In Reels Mode: Sleek Floating Transparent Menu Pill with Whirlpool Appearance */}
-      {isReelsPage && isShrunkToMenu && (
+      {isReelsPage && isShrunkToMenu && !isDrawerOpen && (
         <button
           type="button"
           onClick={triggerReelsMenu}
           aria-label="Open Navigation Bar"
+          className="reels-menu-pill"
           style={{
             position: 'fixed',
             bottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',

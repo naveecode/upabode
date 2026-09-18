@@ -151,6 +151,106 @@ export default function ExploreSearch({
     }
   }
 
+  const visualPosts = displayPosts.filter((p: any) => !isTextPost(p))
+  const richTextPosts = displayPosts.filter((p: any) => isTextPost(p))
+
+  const renderRichTextCard = (post: any) => (
+    <article
+      key={post.id}
+      onClick={() => router.push(`/?postId=${post.id}#post-${post.id}`)}
+      style={{
+        background: 'linear-gradient(180deg, rgba(14, 25, 43, 0.75), rgba(7, 13, 23, 0.9))',
+        border: '1px solid var(--line)',
+        borderRadius: '20px',
+        padding: '22px',
+        cursor: 'pointer',
+        backdropFilter: 'blur(16px)',
+        transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
+        boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
+        boxSizing: 'border-box',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--earth)'
+        e.currentTarget.style.transform = 'translateY(-2px)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--line)'
+        e.currentTarget.style.transform = 'translateY(0)'
+      }}
+    >
+      {/* Header: Author & Sector */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem' }}>
+            {post.author?.avatarUrl?.startsWith?.('http') ? (
+              <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="avatar" />
+            ) : (
+              post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.94rem', color: '#fff' }}>{post.author?.username}</span>
+              <span style={{ color: 'var(--earth)', fontSize: '0.78rem' }}>@{post.author?.handle}</span>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+              {new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        </div>
+        <span style={{
+          padding: '3px 12px',
+          borderRadius: '100px',
+          background: 'rgba(64, 201, 162, 0.12)',
+          border: '1px solid rgba(64, 201, 162, 0.25)',
+          color: 'var(--earth)',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          textTransform: 'uppercase'
+        }}>
+          {post.channel || 'dossier'}
+        </span>
+      </div>
+
+      {/* Body Text */}
+      <div style={{
+        fontSize: '1rem',
+        lineHeight: 1.6,
+        color: '#f3f7fb',
+        fontFamily: 'var(--font-space-grotesk)',
+        marginBottom: '16px',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word'
+      }}>
+        {renderWithMentions(post.content)}
+      </div>
+
+      {/* Reddit/Twitter Style Metrics Footer */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '20px',
+        paddingTop: '12px',
+        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+        color: 'var(--muted)',
+        fontSize: '0.8rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill={post.likes?.some((l: any) => l.userId === currentUserId) ? "var(--danger)" : "none"} stroke={post.likes?.some((l: any) => l.userId === currentUserId) ? "var(--danger)" : "currentColor"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>{post.likes?.length || 0} Likes</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>{post.reelComments?.length || 0} Comments</span>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span>Join discussion &rarr;</span>
+        </div>
+      </div>
+    </article>
+  )
+
   return (
     <div>
       {/* ───────── Robust Search Engine Bar ───────── */}
@@ -417,429 +517,276 @@ export default function ExploreSearch({
                 ? (hasSearched ? `Reels Matching "${query}"` : 'Spatial Reels Gallery')
                 : activeFilter === 'carousel'
                 ? (hasSearched ? `Carousels Matching "${query}"` : 'Carousels & Imagery')
-                : (hasSearched ? `Transmissions Matching "${query}"` : 'Transmissions Mosaic')}
+                : (hasSearched ? `Transmissions Matching "${query}"` : 'Visual Transmissions')}
             </h2>
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
-              {displayPosts.length} units
+              {activeFilter === 'texts' ? richTextPosts.length : visualPosts.length} units
             </span>
           </div>
 
-          {displayPosts.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '50px 20px',
-              background: 'var(--panel)',
-              borderRadius: '20px',
-              border: '1px dashed var(--line)',
-              color: 'var(--muted)'
-            }}>
-              <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', marginBottom: '12px' }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+          {activeFilter === 'texts' ? (
+            /* ───────── Dedicated Rich Texts Discussion Stream ───────── */
+            richTextPosts.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '50px 20px',
+                background: 'var(--panel)',
+                borderRadius: '20px',
+                border: '1px dashed var(--line)',
+                color: 'var(--muted)'
+              }}>
+                No rich text dossiers found{query ? ` for "${query}"` : ''}.
               </div>
-              <div>No transmissions found{query ? ` for "${query}"` : ''}. Try exploring other filters.</div>
-            </div>
-          ) : activeFilter === 'texts' ? (
-            /* ───────── Reddit / Twitter Style Rich Text Discussion Feed ───────── */
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              maxWidth: '720px',
-              margin: '0 auto',
-              width: '100%',
-              boxSizing: 'border-box'
-            }}>
-              {displayPosts.map((post) => (
-                <article
-                  key={post.id}
-                  onClick={() => router.push(`/?postId=${post.id}#post-${post.id}`)}
-                  style={{
-                    background: 'linear-gradient(180deg, rgba(14, 25, 43, 0.75), rgba(7, 13, 23, 0.9))',
-                    border: '1px solid var(--line)',
-                    borderRadius: '20px',
-                    padding: '22px',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(16px)',
-                    transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
-                    boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
-                    boxSizing: 'border-box'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--earth)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--line)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  {/* Header: Author & Sector */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '38px', height: '38px', fontSize: '0.9rem' }}>
-                        {post.author?.avatarUrl?.startsWith?.('http') ? (
-                          <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="avatar" />
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                maxWidth: '720px',
+                margin: '0 auto',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                {richTextPosts.map(post => renderRichTextCard(post))}
+              </div>
+            )
+          ) : (
+            /* ───────── Pure Visual Media Grid (Photos, Reels, Carousels ONLY) ───────── */
+            <>
+              {visualPosts.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '50px 20px',
+                  background: 'var(--panel)',
+                  borderRadius: '20px',
+                  border: '1px dashed var(--line)',
+                  color: 'var(--muted)'
+                }}>
+                  <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(64, 201, 162, 0.1)', color: 'var(--earth)', marginBottom: '12px' }}>
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+                  </div>
+                  <div>No visual transmissions found{query ? ` for "${query}"` : ''}. Try exploring other filters.</div>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: activeFilter === 'reels'
+                    ? 'repeat(auto-fill, minmax(min(100%, 155px), 1fr))'
+                    : 'repeat(auto-fill, minmax(min(100%, 175px), 1fr))',
+                  gap: '14px',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
+                }}>
+                  {visualPosts.map((post) => {
+                    const isVideo = isVideoPost(post)
+                    const isCarousel = isCarouselPost(post)
+                    const safeMediaUrl = post.mediaUrl ? post.mediaUrl.split(',')[0] : ''
+
+                    const handleCardClick = () => {
+                      if (isVideo) {
+                        router.push(`/reels?id=${post.id}`)
+                      } else {
+                        openPostModal(post)
+                      }
+                    }
+
+                    return (
+                      <div
+                        key={post.id}
+                        onClick={handleCardClick}
+                        style={{
+                          position: 'relative',
+                          borderRadius: '20px',
+                          overflow: 'hidden',
+                          aspectRatio: isVideo ? '9 / 16' : '1',
+                          border: '1px solid var(--line)',
+                          background: 'radial-gradient(circle at center, #101c2e 0%, #050b14 100%)',
+                          boxShadow: 'var(--shadow)',
+                          cursor: 'pointer',
+                          transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
+                          boxSizing: 'border-box'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.02)'
+                          e.currentTarget.style.zIndex = '5'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)'
+                          e.currentTarget.style.zIndex = '1'
+                        }}
+                      >
+                        {/* Video Thumbnail with Seeking Frame at 2s & No Black Poster */}
+                        {isVideo ? (
+                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                            <video
+                              src={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=2.0`}
+                              preload="auto"
+                              muted
+                              playsInline
+                              onLoadedMetadata={(e) => {
+                                const v = e.currentTarget
+                                try {
+                                  v.currentTime = Math.min(2.0, Math.max(0.5, (v.duration || 2) / 2))
+                                } catch (err) {}
+                              }}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                              onMouseLeave={(e) => {
+                                const v = e.target as HTMLVideoElement
+                                v.pause()
+                                try {
+                                  v.currentTime = Math.min(2.0, (v.duration || 2) / 2)
+                                } catch (err) {}
+                              }}
+                            />
+                            {/* Reel Badge */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '10px',
+                              right: '10px',
+                              padding: '3px 8px',
+                              borderRadius: '100px',
+                              background: 'rgba(7, 17, 31, 0.75)',
+                              backdropFilter: 'blur(8px)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              color: 'white',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              zIndex: 2
+                            }}>
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                              <span>Reel</span>
+                            </div>
+                          </div>
+                        ) : safeMediaUrl ? (
+                          <img
+                            src={safeMediaUrl}
+                            alt="Transmission Media"
+                            loading="lazy"
+                            decoding="async"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
                         ) : (
-                          post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()
+                          <div
+                            className={`post-media ${getMediaClass(post.mediaType)}`}
+                            style={{ width: '100%', height: '100%' }}
+                          />
                         )}
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.94rem', color: '#fff' }}>{post.author?.username}</span>
-                          <span style={{ color: 'var(--earth)', fontSize: '0.78rem' }}>@{post.author?.handle}</span>
+
+                        {/* Sector Badge Top Left */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '10px',
+                          left: '10px',
+                          padding: '3px 9px',
+                          borderRadius: '100px',
+                          background: 'rgba(7, 17, 31, 0.8)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid var(--line)',
+                          fontSize: '0.66rem',
+                          fontWeight: 700,
+                          color: 'var(--earth)',
+                          textTransform: 'uppercase',
+                          zIndex: 2
+                        }}>
+                          {post.channel || 'earth'}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
-                          {new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+
+                        {/* Carousel Badge */}
+                        {isCarousel && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '10px',
+                            right: '10px',
+                            padding: '3px 8px',
+                            borderRadius: '100px',
+                            background: 'rgba(7, 17, 31, 0.75)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: 'white',
+                            fontSize: '0.66rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            zIndex: 2
+                          }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          </div>
+                        )}
+
+                        {/* Bottom Overlay Gradient with Author & Metrics */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          padding: '24px 10px 10px',
+                          background: 'linear-gradient(to top, rgba(4, 10, 20, 0.95) 0%, rgba(4, 10, 20, 0.6) 60%, transparent 100%)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-end',
+                          zIndex: 2
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '22px', height: '22px', fontSize: '0.65rem', flexShrink: 0 }}>
+                              {post.author?.avatarUrl?.startsWith?.('http') ? (
+                                <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt="avatar" />
+                              ) : (
+                                post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <span style={{ fontSize: '0.74rem', color: 'white', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              @{post.author?.handle}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.85)', flexShrink: 0 }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="var(--danger)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                              {post.likes?.length || 0}
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                              {post.reelComments?.length || 0}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <span style={{
-                      padding: '3px 12px',
-                      borderRadius: '100px',
-                      background: 'rgba(64, 201, 162, 0.12)',
-                      border: '1px solid rgba(64, 201, 162, 0.25)',
-                      color: 'var(--earth)',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase'
-                    }}>
-                      {post.channel || 'dossier'}
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* ───────── Dedicated Rich Text Section Below Visual Grid in 'All' Tab ───────── */}
+              {activeFilter === 'all' && richTextPosts.length > 0 && (
+                <div style={{ marginTop: '48px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h2 style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--text)' }}>
+                      {hasSearched ? `Rich Text Signals Matching "${query}"` : 'Cosmic Dossiers & Rich Text Signals'}
+                    </h2>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--earth)' }}>
+                      {richTextPosts.length} transmissions
                     </span>
                   </div>
-
-                  {/* Body Text */}
-                  <div style={{
-                    fontSize: '1rem',
-                    lineHeight: 1.6,
-                    color: '#f3f7fb',
-                    fontFamily: 'var(--font-space-grotesk)',
-                    marginBottom: '16px',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word'
-                  }}>
-                    {renderWithMentions(post.content)}
-                  </div>
-
-                  {/* Reddit/Twitter Style Metrics Footer */}
                   <div style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px',
-                    paddingTop: '12px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                    color: 'var(--muted)',
-                    fontSize: '0.8rem'
+                    flexDirection: 'column',
+                    gap: '16px',
+                    maxWidth: '720px',
+                    margin: '0 auto',
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill={post.likes?.some((l: any) => l.userId === currentUserId) ? "var(--danger)" : "none"} stroke={post.likes?.some((l: any) => l.userId === currentUserId) ? "var(--danger)" : "currentColor"} strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                      <span>{post.likes?.length || 0} Likes</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                      <span>{post.reelComments?.length || 0} Comments</span>
-                    </div>
-                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--earth)', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <span>Join discussion &rarr;</span>
-                    </div>
+                    {richTextPosts.map(post => renderRichTextCard(post))}
                   </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: activeFilter === 'reels'
-                ? 'repeat(auto-fill, minmax(min(100%, 155px), 1fr))'
-                : 'repeat(auto-fill, minmax(min(100%, 190px), 1fr))',
-              gap: '14px',
-              gridAutoFlow: 'dense',
-              width: '100%',
-              maxWidth: '100%',
-              boxSizing: 'border-box'
-            }}>
-              {displayPosts.map((post, idx) => {
-                const isVideo = isVideoPost(post)
-                const isCarousel = isCarouselPost(post)
-                const isText = isTextPost(post)
-                const safeMediaUrl = post.mediaUrl ? post.mediaUrl.split(',')[0] : ''
-
-                // If this is a rich text transmission in mosaic view, render it cleanly and route to post
-                if (isText && (!safeMediaUrl && !isVideo)) {
-                  return (
-                    <div
-                      key={post.id}
-                      onClick={() => router.push(`/?postId=${post.id}#post-${post.id}`)}
-                      style={{
-                        position: 'relative',
-                        borderRadius: '20px',
-                        background: 'linear-gradient(145deg, rgba(14, 25, 43, 0.85), rgba(6, 12, 23, 0.95))',
-                        border: '1px solid var(--line)',
-                        padding: '18px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        minHeight: '210px',
-                        cursor: 'pointer',
-                        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
-                        transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, border-color 0.25s ease',
-                        boxSizing: 'border-box'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = 'var(--earth)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)'
-                        e.currentTarget.style.borderColor = 'var(--line)'
-                      }}
-                    >
-                      <div>
-                        {/* Sector badge & rich text icon */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{
-                            padding: '3px 10px',
-                            borderRadius: '100px',
-                            background: 'rgba(64, 201, 162, 0.15)',
-                            border: '1px solid var(--line)',
-                            fontSize: '0.68rem',
-                            fontWeight: 700,
-                            color: 'var(--earth)',
-                            textTransform: 'uppercase'
-                          }}>
-                            {post.channel || 'dossier'}
-                          </span>
-                          <span style={{ color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            <span>Rich Text</span>
-                          </span>
-                        </div>
-
-                        {/* Text Content */}
-                        <p style={{
-                          fontSize: '0.92rem',
-                          lineHeight: 1.5,
-                          color: '#e6edf3',
-                          fontFamily: 'var(--font-space-grotesk)',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 5,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          margin: 0
-                        }}>
-                          {post.content}
-                        </p>
-                      </div>
-
-                      {/* Footer: Author & Metrics */}
-                      <div style={{ marginTop: '16px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '22px', height: '22px', fontSize: '0.65rem' }}>
-                            {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
-                          </div>
-                          <span style={{ fontSize: '0.76rem', color: 'var(--text)', fontWeight: 600 }}>
-                            @{post.author?.handle}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '10px', fontSize: '0.72rem', color: 'var(--muted)' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--danger)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                            {post.likes?.length || 0}
-                          </span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                            {post.reelComments?.length || 0}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                }
-
-                // Reels or Visual Media Cards
-                const isFeatured = false
-
-                const handleCardClick = () => {
-                  if (isVideo) {
-                    router.push(`/reels?id=${post.id}`)
-                  } else {
-                    openPostModal(post)
-                  }
-                }
-
-                return (
-                  <div
-                    key={post.id}
-                    onClick={handleCardClick}
-                    style={{
-                      position: 'relative',
-                      borderRadius: '20px',
-                      overflow: 'hidden',
-                      // Fashionable portrait rectangle (9:16) for reels, square for photos
-                      aspectRatio: isVideo ? '9 / 16' : '1',
-                      border: '1px solid var(--line)',
-                      background: '#040a14',
-                      boxShadow: 'var(--shadow)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease, box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) ease',
-                      boxSizing: 'border-box'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'scale(1.02)'
-                      e.currentTarget.style.zIndex = '5'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'scale(1)'
-                      e.currentTarget.style.zIndex = '1'
-                    }}
-                  >
-                    {/* Media Thumbnail Rendering with Frame Grab at 2.0s */}
-                    {isVideo ? (
-                      <video
-                        src={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=2.0`}
-                        poster={safeMediaUrl.includes('#') ? safeMediaUrl : `${safeMediaUrl}#t=2.0`}
-                        preload="metadata"
-                        muted
-                        playsInline
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
-                        onMouseLeave={(e) => {
-                          const v = e.target as HTMLVideoElement
-                          v.pause()
-                          v.currentTime = 2.0
-                        }}
-                      />
-                    ) : safeMediaUrl ? (
-                      <img
-                        src={safeMediaUrl}
-                        alt="Transmission Media"
-                        loading="lazy"
-                        decoding="async"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div
-                        className={`post-media ${getMediaClass(post.mediaType)}`}
-                        style={{ width: '100%', height: '100%' }}
-                      />
-                    )}
-
-                    {/* Sector Badge Top Left */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '12px',
-                      left: '12px',
-                      padding: '3px 10px',
-                      borderRadius: '100px',
-                      background: 'rgba(7, 17, 31, 0.8)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid var(--line)',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      color: 'var(--earth)',
-                      textTransform: 'uppercase',
-                      zIndex: 10
-                    }}>
-                      {post.channel || 'earth'}
-                    </div>
-
-                    {/* Type Badge Top Right */}
-                    {isVideo && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '4px 8px',
-                        borderRadius: '100px',
-                        background: 'rgba(7, 17, 31, 0.85)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,0.25)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        zIndex: 10
-                      }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        <span>Reel</span>
-                      </div>
-                    )}
-
-                    {isCarousel && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '4px 8px',
-                        borderRadius: '100px',
-                        background: 'rgba(7, 17, 31, 0.85)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,0.25)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        zIndex: 10
-                      }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        <span>Carousel</span>
-                      </div>
-                    )}
-
-                    {/* Editorial Overlay */}
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'linear-gradient(180deg, transparent 45%, rgba(4, 10, 20, 0.95) 90%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-end',
-                      padding: '16px',
-                      pointerEvents: 'none'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <div className={`user-avatar ${post.author?.color || 'green'}`} style={{ width: '26px', height: '26px', fontSize: '0.72rem' }}>
-                          {post.author?.avatarUrl?.startsWith?.('http') ? <img src={post.author?.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} alt='avatar' /> : (post.author?.avatarUrl || post.author?.username?.charAt(0).toUpperCase())}
-                        </div>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'white' }}>
-                          @{post.author?.handle}
-                        </span>
-                      </div>
-
-                      {post.content && (
-                        <p style={{
-                          fontSize: '0.8rem',
-                          color: 'rgba(255, 255, 255, 0.9)',
-                          lineHeight: 1.35,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          margin: '0 0 6px 0'
-                        }}>
-                          {post.content}
-                        </p>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--muted)' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--danger)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                          {post.likes?.length || 0}
-                        </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                          {post.reelComments?.length || 0} notes
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

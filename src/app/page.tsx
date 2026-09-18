@@ -86,7 +86,7 @@ export default async function Home() {
             </span>
             <span className="planet-copy">
               <span className="planet-name">Earth</span>
-              <span className="planet-status">Live now · 104.2 FM</span>
+              <span className="planet-status">Live · 104.2</span>
             </span>
           </button>
 
@@ -95,7 +95,7 @@ export default async function Home() {
             data-planet="mars"
             style={{
               position: 'relative',
-              opacity: 0.65,
+              opacity: 0.7,
               cursor: 'not-allowed',
               boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',
               background: 'rgba(255, 255, 255, 0.02)',
@@ -109,14 +109,13 @@ export default async function Home() {
             </span>
             <span className="planet-copy">
               <span className="planet-name">Mars</span>
-              <span className="planet-status">Relay sync standby</span>
+              <span className="planet-status">Standby</span>
             </span>
             <span style={{
-              marginLeft: 'auto',
-              fontSize: '0.62rem',
+              fontSize: '0.6rem',
               fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '6px',
+              padding: '1px 5px',
+              borderRadius: '4px',
               background: 'rgba(237, 118, 86, 0.15)',
               border: '1px solid rgba(237, 118, 86, 0.3)',
               color: 'var(--mars)',
@@ -132,7 +131,7 @@ export default async function Home() {
             data-planet="moon"
             style={{
               position: 'relative',
-              opacity: 0.65,
+              opacity: 0.7,
               cursor: 'not-allowed',
               boxShadow: '0 4px 18px rgba(0, 0, 0, 0.45)',
               background: 'rgba(255, 255, 255, 0.02)',
@@ -146,14 +145,13 @@ export default async function Home() {
             </span>
             <span className="planet-copy">
               <span className="planet-name">Moon</span>
-              <span className="planet-status">Moon beacon ready</span>
+              <span className="planet-status">Standby</span>
             </span>
             <span style={{
-              marginLeft: 'auto',
-              fontSize: '0.62rem',
+              fontSize: '0.6rem',
               fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '6px',
+              padding: '1px 5px',
+              borderRadius: '4px',
               background: 'rgba(197, 160, 89, 0.15)',
               border: '1px solid rgba(197, 160, 89, 0.3)',
               color: 'var(--earth)',

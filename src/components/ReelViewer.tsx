@@ -8,8 +8,9 @@ import { releaseVideoMemory } from '../lib/mediaMemoryManager'
 import { haptic, playLikePop, playSaveClick, playToggleTick } from '../lib/soundAndHaptics'
 import { renderWithMentions } from './Post'
 import { useMentionAutocomplete, MentionDropdown } from './MentionSuggestions'
+import { getCachedMediaUrl, getCachedThumbnail, preloadReelsAndThumbnails } from '../lib/mediaCache'
 
-function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) {
+function VideoPlayer({ src, musicTrack, posterUrl }: { src: string; musicTrack?: string; posterUrl?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -18,6 +19,21 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
   const [volume, setVolume] = useState(1);
   const volumeRef = useRef(1);
   const [showIndicator, setShowIndicator] = useState<'volume' | 'brightness' | null>(null);
+  const [resolvedSrc, setResolvedSrc] = useState(src);
+  const [cachedPoster, setCachedPoster] = useState<string | null>(posterUrl || null);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
+
+  // Resolve cached blob URL and thumbnail from device storage
+  useEffect(() => {
+    let isMounted = true;
+    getCachedMediaUrl(src).then(cached => {
+      if (isMounted && cached) setResolvedSrc(cached);
+    });
+    getCachedThumbnail(src).then(thumb => {
+      if (isMounted && thumb) setCachedPoster(thumb);
+    });
+    return () => { isMounted = false; };
+  }, [src]);
   
   // Touch drag state
   const touchState = useRef({ startY: 0, startVal: 0, type: '' });
@@ -29,6 +45,7 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
       videoRef.current.volume = volumeRef.current;
       await videoRef.current.play();
       setIsPlaying(true);
+      setHasStartedPlaying(true);
       setIsMuted(false);
       if (audioRef.current && musicTrack) {
         audioRef.current.volume = volumeRef.current;
@@ -203,9 +220,19 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
       {/* Main Video: 100% full media visible without crop (original aspect ratio) */}
       <video
         ref={videoRef}
-        src={src.includes('#') ? src : `${src}#t=0.001`}
+        src={resolvedSrc.includes('#') ? resolvedSrc : `${resolvedSrc}#t=0.001`}
         loop
         playsInline
+        preload="auto"
+        onPlaying={() => {
+          setHasStartedPlaying(true);
+          setIsPlaying(true);
+        }}
+        onTimeUpdate={(e) => {
+          if ((e.target as HTMLVideoElement).currentTime > 0.05 && !hasStartedPlaying) {
+            setHasStartedPlaying(true);
+          }
+        }}
         onPlay={(e) => {
           setIsPlaying(true);
           const target = e.target as HTMLVideoElement;
@@ -223,6 +250,48 @@ function VideoPlayer({ src, musicTrack }: { src: string; musicTrack?: string }) 
           zIndex: 5
         }}
       />
+
+      {/* Zero-Flicker Poster Overlay: Shields screen and prevents default browser play watermark */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#07111f',
+          opacity: hasStartedPlaying ? 0 : 1,
+          pointerEvents: 'none',
+          transition: 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+          overflow: 'hidden'
+        }}
+      >
+        {cachedPoster ? (
+          <img
+            src={cachedPoster}
+            alt="Reel Preview"
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        ) : (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px'
+          }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              border: '2px solid rgba(64, 201, 162, 0.2)',
+              borderTopColor: 'var(--earth)',
+              animation: 'spin 0.75s linear infinite'
+            }} />
+          </div>
+        )}
+      </div>
 
       {musicTrack && (
         <audio ref={audioRef} src={musicTrack} loop />
@@ -434,6 +503,11 @@ export default function ReelViewer({
       }
     }
   }, [initialTargetId, posts])
+
+  // Preload and cache first few reels & thumbnails in local device storage
+  useEffect(() => {
+    preloadReelsAndThumbnails(posts)
+  }, [posts])
   
   // New pin placement state
   const [pendingPin, setPendingPin] = useState<{
@@ -508,21 +582,31 @@ export default function ReelViewer({
     inputRef: drawerCommentInputRef
   })
 
-  // Automatic Audio Silence when Comments/Notes Drawer is open, and resume on close
+  const [replyingToComment, setReplyingToComment] = useState<{ id: string; username: string; handle: string } | null>(null)
+
+  // Automatic Audio Silence when Comments/Notes Drawer is open, hide bottom floating menu, and resume on close
   const previousMuteStates = useRef<Map<HTMLMediaElement, boolean>>(new Map())
 
   useEffect(() => {
     if (activeCommentsDrawerPostId) {
+      document.body.setAttribute('data-drawer-open', 'true')
       document.querySelectorAll('video, audio').forEach((m) => {
         const el = m as HTMLMediaElement
         previousMuteStates.current.set(el, el.muted)
         el.muted = true
       })
-    } else if (previousMuteStates.current.size > 0) {
-      previousMuteStates.current.forEach((prevMuted, el) => {
-        el.muted = prevMuted
-      })
-      previousMuteStates.current.clear()
+    } else {
+      document.body.removeAttribute('data-drawer-open')
+      setReplyingToComment(null)
+      if (previousMuteStates.current.size > 0) {
+        previousMuteStates.current.forEach((prevMuted, el) => {
+          el.muted = prevMuted
+        })
+        previousMuteStates.current.clear()
+      }
+    }
+    return () => {
+      document.body.removeAttribute('data-drawer-open')
     }
   }, [activeCommentsDrawerPostId])
 
@@ -606,6 +690,7 @@ export default function ReelViewer({
     }))
 
     setDrawerCommentText('')
+    setReplyingToComment(null)
     setIsSubmittingDrawerComment(false)
     haptic(10)
     playToggleTick()
@@ -1001,7 +1086,7 @@ export default function ReelViewer({
                     const safeUrl = mediaList[0];
                     
                     return safeUrl.match(/\.(mp4|webm|ogg|mov)$/i) || safeUrl.includes('#video') || post.mediaType === 'reel' || post.mediaType === 'video' ? (
-                      <VideoPlayer src={safeUrl} musicTrack={(post as any).musicTrack} />
+                      <VideoPlayer src={safeUrl} musicTrack={(post as any).musicTrack} posterUrl={(post as any).thumbnailUrl || (post as any).posterUrl} />
                     ) : (
                       <img
                         src={safeUrl}
@@ -1888,70 +1973,136 @@ export default function ReelViewer({
                         <p style={{ margin: 0, fontSize: '0.86rem', lineHeight: 1.45, color: '#f3f7fb', wordBreak: 'break-word' }}>
                           {renderWithMentions(c.content)}
                         </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyingToComment({
+                                id: c.id,
+                                username: c.user?.username || 'User',
+                                handle: c.user?.handle || 'user'
+                              });
+                              const mentionTag = `@${c.user?.handle || ''} `;
+                              if (!drawerCommentText.startsWith(mentionTag)) {
+                                setDrawerCommentText(mentionTag + drawerCommentText);
+                              }
+                              setTimeout(() => drawerCommentInputRef.current?.focus(), 50);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              color: 'var(--earth)',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 17 4 12 9 7" />
+                              <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                            </svg>
+                            <span>Reply</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              {/* Bottom Add Note Form with @Mention Autocomplete */}
+              {/* Bottom Add Note Form with @Mention Autocomplete & Reply chip */}
               <form
                 onSubmit={handleDrawerAddComment}
                 style={{
-                  padding: '12px 16px calc(14px + env(safe-area-inset-bottom, 12px))',
+                  padding: '10px 16px calc(14px + env(safe-area-inset-bottom, 12px))',
                   borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                   display: 'flex',
+                  flexDirection: 'column',
                   gap: '8px',
-                  alignItems: 'center',
-                  background: 'rgba(7, 17, 31, 0.85)'
+                  background: 'rgba(7, 17, 31, 0.95)'
                 }}
               >
-                <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-                  <input
-                    ref={drawerCommentInputRef}
-                    type="text"
-                    value={drawerCommentText}
-                    onChange={(e) => setDrawerCommentText(e.target.value)}
-                    onKeyDown={drawerMention.handleKeyDown}
-                    placeholder="Add a localized transmission note... (type @)"
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '10px 16px',
-                      borderRadius: '100px',
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--line)',
-                      color: 'white',
-                      fontSize: '16px',
-                      outline: 'none'
-                    }}
-                  />
-                  {drawerMention.isOpen && (
-                    <MentionDropdown
-                      users={drawerMention.users}
-                      selectedIndex={drawerMention.selectedIndex}
-                      onSelect={drawerMention.selectUser}
-                      isLoading={drawerMention.isLoading}
+                {replyingToComment && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    background: 'rgba(64, 201, 162, 0.12)',
+                    border: '1px solid rgba(64, 201, 162, 0.3)',
+                    fontSize: '0.75rem',
+                    color: 'var(--earth)'
+                  }}>
+                    <span>Replying to <strong>@{replyingToComment.handle}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => setReplyingToComment(null)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--muted)',
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+                  <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                    <input
+                      ref={drawerCommentInputRef}
+                      type="text"
+                      value={drawerCommentText}
+                      onChange={(e) => setDrawerCommentText(e.target.value)}
+                      onKeyDown={drawerMention.handleKeyDown}
+                      placeholder={replyingToComment ? `Reply to @${replyingToComment.handle}...` : "Add a localized transmission note... (type @)"}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '10px 16px',
+                        borderRadius: '100px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--line)',
+                        color: 'white',
+                        fontSize: '16px',
+                        outline: 'none'
+                      }}
                     />
-                  )}
+                    {drawerMention.isOpen && (
+                      <MentionDropdown
+                        users={drawerMention.users}
+                        selectedIndex={drawerMention.selectedIndex}
+                        onSelect={drawerMention.selectUser}
+                        isLoading={drawerMention.isLoading}
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDrawerComment || !drawerCommentText.trim()}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '100px',
+                      background: 'var(--earth)',
+                      color: '#07111f',
+                      fontWeight: 700,
+                      fontSize: '0.84rem',
+                      border: 'none',
+                      cursor: isSubmittingDrawerComment ? 'wait' : 'pointer',
+                      flexShrink: 0
+                    }}
+                  >
+                    {isSubmittingDrawerComment ? '...' : 'Post Note'}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSubmittingDrawerComment || !drawerCommentText.trim()}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '100px',
-                    background: 'var(--earth)',
-                    color: '#07111f',
-                    fontWeight: 700,
-                    fontSize: '0.84rem',
-                    border: 'none',
-                    cursor: isSubmittingDrawerComment ? 'wait' : 'pointer',
-                    flexShrink: 0
-                  }}
-                >
-                  {isSubmittingDrawerComment ? '...' : 'Post Note'}
-                </button>
               </form>
             </div>
           </div>

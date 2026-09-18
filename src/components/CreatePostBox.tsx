@@ -246,8 +246,8 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       background: isOpen ? 'var(--panel)' : 'transparent',
       border: isOpen ? '1px solid var(--line)' : 'none',
       borderRadius: '24px',
-      padding: isOpen ? '24px' : '10px',
-      marginBottom: '30px',
+      padding: isOpen ? '24px' : '0px',
+      marginBottom: isOpen ? '30px' : '16px',
       backdropFilter: isOpen ? 'blur(16px)' : 'none',
       boxShadow: isOpen ? 'var(--shadow)' : 'none',
       transition: 'all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -304,179 +304,187 @@ export default function CreatePostBox({ currentUser }: { currentUser?: any }) {
       {showCamera ? (
         <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />
       ) : !isOpen && mediaUrls.length === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 0 10px' }}>
-          {/* Modern Aperture Camera Button */}
-          <div 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          width: '100%',
+          padding: '8px 12px',
+          background: 'linear-gradient(135deg, rgba(14, 25, 44, 0.85) 0%, rgba(7, 17, 31, 0.95) 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '24px',
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxSizing: 'border-box'
+        }}>
+          {/* Glowing Aperture Camera Action Button */}
+          <button
+            type="button"
             title="Open Camera"
-            style={{ 
-              width: '92px', 
-              height: '92px', 
-              borderRadius: '50%', 
-              background: 'radial-gradient(circle at 35% 30%, #1e3a5f 0%, #0d1e34 70%, #061120 100%)', 
-              border: '2px solid rgba(64, 201, 162, 0.75)',
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              boxShadow: '0 12px 36px rgba(64, 201, 162, 0.35), inset 0 0 20px rgba(64, 201, 162, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.4)', 
-              position: 'relative', 
+            onClick={() => setShowCamera(true)}
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle at 35% 30%, #1e3a5f 0%, #0d1e34 70%, #061120 100%)',
+              border: '2px solid rgba(64, 201, 162, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(64, 201, 162, 0.4), inset 0 0 10px rgba(64, 201, 162, 0.25)',
               cursor: 'pointer',
-              transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+              flexShrink: 0,
+              padding: 0,
+              transition: 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease'
             }}
             onMouseOver={e => {
-              e.currentTarget.style.transform = 'scale(1.08) translateY(-3px)';
-              e.currentTarget.style.boxShadow = '0 16px 44px rgba(64, 201, 162, 0.5), inset 0 0 25px rgba(64, 201, 162, 0.3)';
+              e.currentTarget.style.transform = 'scale(1.08)'
+              e.currentTarget.style.boxShadow = '0 6px 22px rgba(64, 201, 162, 0.6), inset 0 0 14px rgba(64, 201, 162, 0.4)'
             }}
             onMouseOut={e => {
-              e.currentTarget.style.transform = 'scale(1) translateY(0)';
-              e.currentTarget.style.boxShadow = '0 12px 36px rgba(64, 201, 162, 0.35), inset 0 0 20px rgba(64, 201, 162, 0.2)';
+              e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(64, 201, 162, 0.4), inset 0 0 10px rgba(64, 201, 162, 0.25)'
             }}
-            onClick={() => setShowCamera(true)}
           >
-            {/* Outer subtle dashed orbit ring */}
-            <div style={{
-              position: 'absolute',
-              inset: '-6px',
-              borderRadius: '50%',
-              border: '1.5px dashed rgba(64, 201, 162, 0.4)',
-              pointerEvents: 'none'
-            }} />
-            
-            {/* Modern High-Tech Camera Graphic */}
-            <svg width="44" height="44" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="6" y="13" width="36" height="27" rx="9" fill="rgba(255, 255, 255, 0.08)" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="2.2" />
-              <path d="M16 13V10.5C16 9.12 17.12 8 18.5 8H29.5C30.88 8 32 9.12 32 10.5V13" stroke="rgba(255, 255, 255, 0.9)" strokeWidth="2.2" strokeLinecap="round" />
-              <circle cx="35" cy="18" r="2.2" fill="#40c9a2" />
-              <circle cx="24" cy="26.5" r="9" stroke="var(--earth)" strokeWidth="2.2" />
-              <circle cx="24" cy="26.5" r="5.5" fill="rgba(64, 201, 162, 0.25)" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" />
-              <circle cx="25.5" cy="25" r="2" fill="#ffffff" />
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#40c9a2' }}>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
             </svg>
-          </div>
-          
-          <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
-            <select 
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid var(--line)',
-                color: 'var(--text)',
-                padding: '6px 12px',
-                borderRadius: '100px',
-                fontSize: '0.8rem',
-                outline: 'none',
-                cursor: 'pointer',
-                appearance: 'none',
-                backdropFilter: 'blur(10px)'
-              }}
-            >
-              <option value="earth">Earth (Active)</option>
-              <option value="mars" disabled>Mars (Coming Soon)</option>
-              <option value="moon" disabled>Moon (Coming Soon)</option>
-            </select>
-          </div>
+          </button>
 
-          {/* Gallery Button positioned directly below the camera */}
-          <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '9px 24px',
-                borderRadius: '100px',
-                background: isUploadingGallery 
-                  ? 'rgba(64, 201, 162, 0.25)' 
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
-                border: '1.5px solid rgba(255, 255, 255, 0.16)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
-                color: isUploadingGallery ? 'var(--earth)' : 'var(--text)',
-                fontSize: '0.88rem',
-                fontWeight: 600,
-                cursor: isUploadingGallery ? 'wait' : 'pointer',
-                transition: 'all 0.25s ease',
-                backdropFilter: 'blur(10px)',
-                userSelect: 'none'
-              }}
-              onMouseOver={e => {
-                if (!isUploadingGallery) {
-                  e.currentTarget.style.borderColor = 'var(--earth)';
-                  e.currentTarget.style.background = 'rgba(64, 201, 162, 0.12)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }
-              }}
-              onMouseOut={e => {
-                if (!isUploadingGallery) {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
-              }}
-            >
-              <input
-                type="file"
-                accept="image/*,video/*"
-                multiple
-                disabled={isUploadingGallery}
-                style={{ display: 'none' }}
-                onChange={handleGalleryPick}
-              />
-              {isUploadingGallery ? (
-                <>
-                  <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
-                  </svg>
-                  <span>Attaching media...</span>
-                </>
-              ) : (
-                <>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  <span>Open Gallery</span>
-                </>
-              )}
-            </label>
-          </div>
-          <h2 style={{ marginTop: '20px', color: 'var(--text)', fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.02em', fontFamily: 'var(--font-heading)' }}>Capture & Broadcast</h2>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: '6px' }}>Share photos or videos across planetary horizons</p>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button 
-              type="button"
-              onClick={() => setShowRichTextModal(true)}
-              style={{
-                background: 'rgba(64, 201, 162, 0.12)',
-                border: '1.5px solid var(--earth)',
-                padding: '8px 20px',
-                borderRadius: '100px',
-                fontSize: '0.85rem',
-                color: 'var(--earth)',
-                cursor: 'pointer',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              Compose Rich Text Signal
-            </button>
-            <button 
-              type="button"
-              onClick={() => setIsOpen(true)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--line)',
-                padding: '8px 18px',
-                borderRadius: '100px',
-                fontSize: '0.85rem',
-                color: 'var(--muted)',
-                cursor: 'pointer'
-              }}
-            >
-              Quick Caption
-            </button>
-          </div>
+          {/* Quick Caption / Signal Trigger Capsule */}
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            style={{
+              flex: 1,
+              height: '42px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '100px',
+              padding: '0 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: 'var(--muted)',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background 0.2s ease, border-color 0.2s ease',
+              minWidth: 0
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.09)'
+              e.currentTarget.style.borderColor = 'rgba(64, 201, 162, 0.35)'
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--earth)', flexShrink: 0 }}>
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'rgba(255, 255, 255, 0.7)' }}>
+              Broadcast signal across orbit...
+            </span>
+          </button>
+
+          {/* Gallery Upload Trigger */}
+          <label
+            title="Attach Gallery Media"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '100px',
+              background: isUploadingGallery
+                ? 'rgba(64, 201, 162, 0.25)'
+                : 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: isUploadingGallery ? 'var(--earth)' : 'var(--text)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: isUploadingGallery ? 'wait' : 'pointer',
+              transition: 'all 0.2s ease',
+              userSelect: 'none',
+              flexShrink: 0
+            }}
+            onMouseOver={e => {
+              if (!isUploadingGallery) {
+                e.currentTarget.style.borderColor = 'var(--earth)'
+                e.currentTarget.style.background = 'rgba(64, 201, 162, 0.12)'
+              }
+            }}
+            onMouseOut={e => {
+              if (!isUploadingGallery) {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'
+              }
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              disabled={isUploadingGallery}
+              style={{ display: 'none' }}
+              onChange={handleGalleryPick}
+            />
+            {isUploadingGallery ? (
+              <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            )}
+            <span>Gallery</span>
+          </label>
+
+          {/* Rich Text Signal Modal Trigger */}
+          <button
+            type="button"
+            title="Compose Rich Text Signal"
+            onClick={() => setShowRichTextModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '100px',
+              background: 'rgba(64, 201, 162, 0.12)',
+              border: '1px solid rgba(64, 201, 162, 0.4)',
+              color: 'var(--earth)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0
+            }}
+            onMouseOver={e => {
+              e.currentTarget.style.background = 'rgba(64, 201, 162, 0.22)'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+            }}
+            onMouseOut={e => {
+              e.currentTarget.style.background = 'rgba(64, 201, 162, 0.12)'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+            <span>Write</span>
+          </button>
         </div>
       ) : (
         <div style={{ textAlign: 'left' }}>

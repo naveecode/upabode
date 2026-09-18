@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Pusher from 'pusher-js'
 import Link from 'next/link'
 import type { MediaConnection } from 'peerjs'
@@ -348,6 +348,9 @@ export default function ChatRoom({
   } | null>(null)
   
   // Streams
+  const searchParams = useSearchParams()
+  const autoAnswerProcessedRef = useRef(false)
+  const localStreamRef = useRef<MediaStream | null>(null)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
 
@@ -600,6 +603,17 @@ export default function ChatRoom({
 
         peer.on('call', (incomingMediaCall: any) => {
           const isVideo = incomingMediaCall.metadata?.callType !== 'audio'
+          if (localStreamRef.current) {
+            incomingMediaCall.answer(localStreamRef.current)
+            incomingMediaCall.on('stream', (rStream: any) => {
+              setRemoteStream(rStream)
+              setCallStatus('connected')
+            })
+            incomingMediaCall.on('close', () => endCall(true))
+            incomingMediaCall.on('error', () => endCall(true))
+            activeCallRef.current = incomingMediaCall
+            return
+          }
           setIncomingCall({ call: incomingMediaCall, isVideo })
         })
       } catch (e) {
@@ -632,6 +646,7 @@ export default function ChatRoom({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       setLocalStream(stream)
+      localStreamRef.current = stream
 
       // Signal caller via Pusher that call has been accepted
       await signalCall(chatId, {
@@ -698,6 +713,7 @@ export default function ChatRoom({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       setLocalStream(stream)
+      localStreamRef.current = stream
 
       const myPeerId = `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
       const targetPeerId = `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
@@ -734,6 +750,10 @@ export default function ChatRoom({
   // Terminate Call & Clean Up Hardware Tracks
   const endCall = async (notifyPeer = true) => {
     callRingtone.stop()
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop())
+      localStreamRef.current = null
+    }
     if (localStream) {
       localStream.getTracks().forEach(t => t.stop())
     }
@@ -760,6 +780,84 @@ export default function ChatRoom({
       await signalCall(chatId, { type: 'call-ended' })
     }
   }
+
+  // ───────── Auto-Answer Call from Push / Android Notification ─────────
+  useEffect(() => {
+    if (autoAnswerProcessedRef.current) return
+    const autoAnswer = searchParams?.get('autoAnswer')
+    if (autoAnswer === 'true') {
+      autoAnswerProcessedRef.current = true
+      const targetType = searchParams?.get('type') === 'audio' ? 'audio' : 'video'
+      const targetPeer = searchParams?.get('peerId') || `orbit-${safeOtherUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+
+      // Clean URL params immediately to avoid re-triggering on page refresh
+      try {
+        window.history.replaceState({}, '', `/chat/${chatId}`)
+      } catch (e) {}
+
+      const executeAutoAnswer = async () => {
+        setIsInCall(true)
+        setCallType(targetType)
+        setCallStatus('connecting')
+        setIncomingCallSignal(null)
+
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: targetType === 'video',
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          })
+          setLocalStream(stream)
+          localStreamRef.current = stream
+
+          // Send answer signal to caller
+          await signalCall(chatId, {
+            type: 'call-answer',
+            peerId: `orbit-${currentUser.id.replace(/[^a-zA-Z0-9]/g, '')}`
+          })
+
+          // Connect via PeerJS as soon as peer is ready
+          let attempts = 0
+          const connectPeer = () => {
+            attempts++
+            if (peerRef.current) {
+              const call = peerRef.current.call(targetPeer, stream, {
+                metadata: { callType: targetType }
+              })
+              activeCallRef.current = call
+              if (call) {
+                call.on('stream', (rStream: any) => {
+                  setRemoteStream(rStream)
+                  setCallStatus('connected')
+                })
+                call.on('close', () => endCall(true))
+                call.on('error', () => endCall(true))
+              }
+            } else if (attempts < 20) {
+              setTimeout(connectPeer, 250)
+            }
+          }
+          connectPeer()
+        } catch (err) {
+          console.error('Failed auto-answering call:', err)
+          endCall(true)
+        }
+      }
+
+      executeAutoAnswer()
+    }
+  }, [searchParams, chatId, currentUser?.id, safeOtherUser?.id])
+
+  // Native Decline Bridge
+  useEffect(() => {
+    (window as any).__multigramDeclineCall = async (targetChatId: string) => {
+      try {
+        await signalCall(targetChatId || chatId, { type: 'call-rejected' })
+      } catch (e) {}
+    }
+    return () => {
+      delete (window as any).__multigramDeclineCall
+    }
+  }, [chatId])
 
   // Toggle Mute Mic
   const toggleMute = () => {
