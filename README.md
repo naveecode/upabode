@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Upabode
 
-## Getting Started
+Upabode is a small rental listing finder. It ships with 12 sample homes across Bengaluru, Pune, Hyderabad, and Kochi. Search and filters run in the browser, so the site needs no account, database, or API key.
 
-First, run the development server:
+**Live site:** [https://naveecode.github.io/upabode/](https://naveecode.github.io/upabode/)
+
+GitHub Pages has to be set to **GitHub Actions** before that URL serves this build. The deploy workflow in this repo publishes the static `out/` folder on every push to `main`.
+
+## Features
+
+- Text search across title, neighborhood, city, description, and amenities
+- Filters for city, home type, maximum rent, bedrooms, pets, and furnished
+- Sort by rent or by recently posted
+- A listing detail dialog with availability and amenities
+- Sample data is bundled with the page
+
+## Stack
+
+- Next.js 16 (App Router) and React 19
+- TypeScript
+- Static export (`output: 'export'`) with `basePath` `/upabode` for GitHub project pages
+- Vitest for the search and filter functions
+- GitHub Actions for lint, typecheck, unit tests, build, and Pages deploy
+
+## Screenshots
+
+![Browse page with search, filters, and listing cards](docs/screenshots/browse.png)
+
+![Bengaluru filter narrowed to three homes](docs/screenshots/filters.png)
+
+![Listing detail dialog](docs/screenshots/detail.png)
+
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/upabode](http://localhost:3000/upabode). The `/upabode` prefix matches the GitHub Pages base path.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`npm run build` writes the static site to `out/`.
 
-## Learn More
+## What I learned
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- A static export can only include what is known at build time. Keeping the listings in the client, and the matching rules in plain functions, meant the page could be hosted as files.
+- Those functions are easier to trust once the awkward cases are tests: blank queries, combined filters, every search word required, and sorts that do not reorder the original array.
+- Project pages need `basePath: '/upabode'` so CSS, JavaScript, and fonts load from `/upabode/_next/...` instead of the domain root.
+- This repository already contained a larger social app (Multigram) that depends on a database, cookies, and route handlers. That cannot be a static export, so the source is preserved under [`legacy/multigram`](legacy/multigram) rather than deleted. Credentials that had been committed in its Render config were replaced with placeholders; the old values are still in git history and should be rotated.

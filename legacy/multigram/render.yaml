@@ -13,12 +13,12 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: PUSHER_APP_ID
-        value: "2194387"
+        sync: false
       - key: NEXT_PUBLIC_PUSHER_KEY
-        value: "a1d789b8b44c24f2dac8"
+        sync: false
       - key: PUSHER_SECRET
-        value: "4127fdaf450956e0782f"
+        sync: false
       - key: NEXT_PUBLIC_PUSHER_CLUSTER
-        value: "ap2"
+        sync: false
       - key: UPLOADTHING_TOKEN
-        value: "eyJhcGlLZXkiOiJza19saXZlXzAwN2NiNTc0NDg4YTRjOWM1NzE1YjIxNzgwNGQ5NGEwZGY0YzVjZDBkN2NkYWE3MTg5NGJiZGVmZjllMjAwZDEiLCJhcHBJZCI6InV1N3ZoYjczcjYiLCJyZWdpb25zIjpbInNlYTEiXX0="
+        sync: false
