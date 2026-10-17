@@ -4,7 +4,7 @@ Upabode is a small rental listing finder. It ships with 12 sample homes across B
 
 **Live site:** [https://naveecode.github.io/upabode/](https://naveecode.github.io/upabode/)
 
-GitHub Pages has to be set to **GitHub Actions** before that URL serves this build. The deploy workflow in this repo publishes the static `out/` folder on every push to `main`.
+The deploy workflow publishes the static `out/` folder to GitHub Pages on every push to `main`.
 
 ## Features
 
