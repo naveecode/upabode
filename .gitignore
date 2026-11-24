@@ -50,3 +50,18 @@ unlock.ts
 
 
 *.db
+
+# Added by backup script for secret protection
+*.env
+node_modules/
+build/
+dist/
+.next/
+__pycache__/
+*.pyc
+venv/
+.venv/
+Thumbs.db
+service-account.json
+google-services.json
+*.key
